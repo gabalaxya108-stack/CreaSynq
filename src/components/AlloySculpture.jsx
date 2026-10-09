@@ -123,10 +123,10 @@ export default function AlloySculpture({ onOpenVideo, onExploreWork, onFindCreat
     const curveA = new THREE.CatmullRomCurve3(pointsA, true, 'centripetal');
     const geomA = new THREE.TubeGeometry(curveA, 280, 0.088, 42, true);
     const goldStreamMat = new THREE.MeshPhysicalMaterial({
-      color: 0xF4DEBF,        // Radiant Champagne Gold
-      metalness: 0.99,        // Pure liquid alloy
-      roughness: 0.055,       // Mirror-slick surface
-      clearcoat: 1.0,         // Diamond-lacquer reflection
+      color: 0xE8C592,        // Rich Luminous Champagne Gold
+      metalness: 0.985,       // High-purity liquid gold alloy
+      roughness: 0.058,       // Mirror-slick silky finish
+      clearcoat: 1.0,         // Crisp lacquer clearcoat
       clearcoatRoughness: 0.02,
       reflectivity: 1.0,
       envMapIntensity: 2.6,
@@ -136,8 +136,8 @@ export default function AlloySculpture({ onOpenVideo, onExploreWork, onFindCreat
     meshStreamA.receiveShadow = true;
     sculptureGroup.add(meshStreamA);
 
-    // 2. STREAM B: Liquid Rose-Platinum Counter-Orbital Ribbon
-    // Weaves through and complements Stream A on counter-harmonic inclination
+    // 2. STREAM B: Golden Inner Spiral Counter-Orbital Ribbon
+    // Harmonized in matching rich champagne gold as referred in reference image
     const pointsB = [];
     const countB = 24;
     for (let i = 0; i < countB; i++) {
@@ -150,16 +150,16 @@ export default function AlloySculpture({ onOpenVideo, onExploreWork, onFindCreat
     }
     const curveB = new THREE.CatmullRomCurve3(pointsB, true, 'centripetal');
     const geomB = new THREE.TubeGeometry(curveB, 280, 0.082, 42, true);
-    const platinumStreamMat = new THREE.MeshPhysicalMaterial({
-      color: 0xEADAE0,        // Lustrous Rose-Platinum Chrome
-      metalness: 0.98,
-      roughness: 0.065,
+    const goldInnerMat = new THREE.MeshPhysicalMaterial({
+      color: 0xE2BE8A,        // Deep Warm Champagne Gold for inner spiral curves
+      metalness: 0.985,
+      roughness: 0.062,
       clearcoat: 1.0,
       clearcoatRoughness: 0.025,
       reflectivity: 1.0,
-      envMapIntensity: 2.4,
+      envMapIntensity: 2.5,
     });
-    const meshStreamB = new THREE.Mesh(geomB, platinumStreamMat);
+    const meshStreamB = new THREE.Mesh(geomB, goldInnerMat);
     meshStreamB.castShadow = true;
     meshStreamB.receiveShadow = true;
     sculptureGroup.add(meshStreamB);
@@ -167,48 +167,48 @@ export default function AlloySculpture({ onOpenVideo, onExploreWork, onFindCreat
     // 3. STREAM C: Delicate Whispering Equatorial Aero-Ring
     const ringGeomC = new THREE.TorusGeometry(1.92, 0.014, 24, 180);
     const ringMatC = new THREE.MeshPhysicalMaterial({
-      color: 0xE2C5A0,
+      color: 0xE8C89A,
       metalness: 0.96,
       roughness: 0.08,
       clearcoat: 0.9,
-      envMapIntensity: 2.2
+      envMapIntensity: 2.3
     });
     const meshRingC = new THREE.Mesh(ringGeomC, ringMatC);
     meshRingC.rotation.x = Math.PI * 0.44;
     meshRingC.rotation.y = Math.PI * 0.16;
     sculptureGroup.add(meshRingC);
 
-    // 4. THE LUMINOUS IRIDESCENT CORE (Creative Catalyst Orb)
-    // Floating refractive opaline crystal with an internal warm glow
+    // 4. THE LUMINOUS GOLDEN CORE (Inside Spiral)
+    // Floating refractive golden crystal sphere with internal warm gold light
     const coreGeom = new THREE.SphereGeometry(0.38, 48, 48);
     const coreMat = new THREE.MeshPhysicalMaterial({
-      color: 0xFFFCF5,
-      transmission: 0.85,     // Crystal glass refraction
+      color: 0xF7D8A4,        // Radiant Warm Gold Core
+      transmission: 0.72,     // Golden crystal refraction
       transparent: true,
       opacity: 0.98,
-      roughness: 0.04,
+      roughness: 0.045,
       ior: 1.54,
       thickness: 0.9,
       clearcoat: 1.0,
       clearcoatRoughness: 0.02,
-      attenuationColor: 0xFAD8AA,
-      attenuationDistance: 0.55,
+      attenuationColor: 0xEBBF78,
+      attenuationDistance: 0.5,
       envMapIntensity: 2.8,
     });
     const coreMesh = new THREE.Mesh(coreGeom, coreMat);
     sculptureGroup.add(coreMesh);
 
-    // Inner Radiant Glow Source within the Core
-    const coreGlowLight = new THREE.PointLight(0xFFE4B5, 3.2, 5, 2);
+    // Inner Radiant Golden Glow Source within the Core
+    const coreGlowLight = new THREE.PointLight(0xFFC768, 3.4, 5, 2);
     coreMesh.add(coreGlowLight);
 
-    // 5. ZERO-GRAVITY MOLTEN SATELLITES (Floating Liquid Metal Droplets)
+    // 5. ZERO-GRAVITY MOLTEN SATELLITES (Floating Liquid Gold Droplets)
     const dropletsGroup = new THREE.Group();
     const dropletConfigs = [
       { r: 0.085, mat: goldStreamMat, dist: 1.75, speed: 0.55, offset: 0, tilt: 0.3 },
-      { r: 0.068, mat: platinumStreamMat, dist: 2.05, speed: 0.42, offset: 2.1, tilt: -0.4 },
+      { r: 0.068, mat: goldInnerMat, dist: 2.05, speed: 0.42, offset: 2.1, tilt: -0.4 },
       { r: 0.076, mat: goldStreamMat, dist: 1.62, speed: 0.62, offset: 4.2, tilt: 0.6 },
-      { r: 0.055, mat: platinumStreamMat, dist: 2.25, speed: 0.35, offset: 1.3, tilt: -0.2 },
+      { r: 0.055, mat: goldInnerMat, dist: 2.25, speed: 0.35, offset: 1.3, tilt: -0.2 },
       { r: 0.062, mat: goldStreamMat, dist: 1.90, speed: 0.48, offset: 3.5, tilt: 0.15 },
     ];
     const droplets = dropletConfigs.map((cfg) => {

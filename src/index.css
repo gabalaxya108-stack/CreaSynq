@@ -13650,6 +13650,148 @@ img, video {
   user-select: none;
 }
 
+/* R3F AlloyScene Canvas Wrapper */
+.alloy-scene-canvas-wrapper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.alloy-scene-canvas-wrapper canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  outline: none;
+}
+
+.alloy-webgl-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.fallback-static-img {
+  max-width: 78%;
+  max-height: 78%;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 40px rgba(40, 30, 20, 0.14));
+}
+
+/* Orbital Cards Container & Elements */
+.orbital-cards-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.orbital-lines-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.orbital-metallic-sphere {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #FFF3DF 0%, #E5BE8A 55%, #8C6A42 100%);
+  box-shadow: 0 4px 12px rgba(160, 120, 70, 0.35);
+  pointer-events: none;
+  transition: transform 0.05s linear;
+}
+
+.orbital-portfolio-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 130px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(228, 221, 212, 0.95);
+  box-shadow: 0 12px 32px rgba(35, 28, 20, 0.09);
+  padding: 6px;
+  cursor: pointer;
+  pointer-events: auto;
+  transform-origin: center center;
+  transition: box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease;
+}
+
+.orbital-portfolio-card:hover {
+  border-color: #C7A47B !important;
+  box-shadow: 0 20px 48px rgba(163, 127, 85, 0.3) !important;
+  z-index: 50 !important;
+}
+
+.card-thumb-wrapper {
+  position: relative;
+  width: 100%;
+  height: 86px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #EAE3D8;
+}
+
+.card-thumb-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.orbital-portfolio-card:hover .card-thumb-image {
+  transform: scale(1.06);
+}
+
+.card-play-badge {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(20, 18, 16, 0.72);
+  backdrop-filter: blur(8px);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.orbital-portfolio-card:hover .card-play-badge {
+  transform: scale(1.15);
+  background: #C7A47B;
+  color: #191816;
+}
+
+.card-info-badge {
+  padding: 5px 4px 2px;
+  text-align: center;
+}
+
+.card-cat-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #36322C;
+  letter-spacing: 0.02em;
+}
+
 .three-sculpture-viewport {
   position: absolute;
   inset: 0;

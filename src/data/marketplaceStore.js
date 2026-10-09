@@ -392,6 +392,7 @@ export function getInitialMarketplaceState() {
     isDemoMode: true,
     creators: CREATORS,
     activeCreatorId: CREATORS[0].id,
+    myCreatorId: null,
     campaigns: INITIAL_CAMPAIGNS,
     activeCampaignId: INITIAL_CAMPAIGNS[0].id,
     projects: INITIAL_COLLAB_PROJECTS,
@@ -496,6 +497,69 @@ export function resetMarketplaceState() {
   const defaultState = getInitialMarketplaceState();
   saveMarketplaceState(defaultState);
   return defaultState;
+}
+
+// ----------------------------------------------------
+// 7b. CREATOR ONBOARDING DRAFT (local-only, unpublished scratch data)
+// ----------------------------------------------------
+
+const ONBOARDING_DRAFT_KEY = 'creasync_creator_onboarding_draft_v1';
+
+/**
+ * Loads an unfinished creator onboarding draft.
+ * Returns null when the draft is absent, unparseable, or structurally invalid.
+ * Drafts are local scratch data and stay separate from published creator records.
+ */
+export function loadCreatorOnboardingDraft() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(ONBOARDING_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const { profileData, dnaResult } = parsed;
+    if (profileData !== undefined && profileData !== null && (typeof profileData !== 'object' || Array.isArray(profileData))) {
+      return null;
+    }
+    const step = Number(parsed.currentStep);
+    return {
+      currentStep: Number.isFinite(step) ? Math.min(8, Math.max(1, Math.round(step))) : 1,
+      profileData: (profileData && typeof profileData === 'object') ? profileData : null,
+      dnaResult: (dnaResult && typeof dnaResult === 'object' && !Array.isArray(dnaResult)) ? dnaResult : null
+    };
+  } catch (e) {
+    console.warn('Could not read creator onboarding draft, ignoring it:', e);
+    return null;
+  }
+}
+
+/**
+ * Persists unfinished onboarding progress in local browser storage only.
+ * Never stores credentials, tokens, or authentication data.
+ */
+export function saveCreatorOnboardingDraft({ currentStep, profileData, dnaResult }) {
+  if (typeof window === 'undefined') return;
+  try {
+    const payload = {
+      currentStep: currentStep || 1,
+      profileData: profileData || null,
+      dnaResult: dnaResult || null,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn('Could not persist creator onboarding draft:', e);
+  }
+}
+
+/**
+ * Removes the onboarding draft (called after successful publication).
+ */
+export function clearCreatorOnboardingDraft() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(ONBOARDING_DRAFT_KEY);
+  } catch (e) {}
 }
 
 // ----------------------------------------------------

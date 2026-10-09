@@ -49,8 +49,12 @@ import {
   saveCreator as saveBackendCreator,
   saveCampaign as saveBackendCampaign,
   savePortfolioProject as saveBackendProject,
-  getBackendStatus
+  getBackendStatus,
+  getCurrentUser,
+  signOut as backendSignOut,
+  syncUserProfileSafely
 } from './services/marketplaceBackend';
+import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('home'); // 'home' | 'discover' | 'creator-profile' | 'brand-workspace' | 'creator-join' | 'creator-workspace'
@@ -147,15 +151,248 @@ export default function App() {
   const [activeConversationConnection, setActiveConversationConnection] = useState(null);
   const [conversationUserRole, setConversationUserRole] = useState('brand');
 
+  // Active Authenticated User & Protected Action Queue
+  const [currentUser, setCurrentUser] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [loginInitialRole, setLoginInitialRole] = useState('brand');
+  const [loginNotice, setLoginNotice] = useState(null);
+
+  // Authentication & OAuth session synchronization
+  useEffect(() => {
+    let isMounted = true;
+    let authListener = null;
+
+    if (isSupabaseConfigured() && supabase) {
+      // 1. Validate session against Supabase Auth server on mount
+      getCurrentUser().then(user => {
+        if (!isMounted) return;
+        if (user) {
+          setCurrentUser(user);
+          syncUserProfileSafely(user, null);
+        } else {
+          setCurrentUser(null);
+        }
+      }).catch(err => {
+        console.warn('[CreaSync Auth] Session validation note:', err);
+      });
+
+      // 2. Reactively handle OAuth callbacks & auth transitions without races
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!isMounted) return;
+
+        if (event === 'SIGNED_IN') {
+          if (session?.user) {
+            // Retrieve intended role preserved across OAuth redirect
+            let intendedRole = null;
+            if (typeof window !== 'undefined') {
+              try {
+                intendedRole = sessionStorage.getItem('creasync_intended_role') 
+                  || localStorage.getItem('creasync_intended_role');
+              } catch (e) {}
+            }
+
+            // Sync user profile with explicit intended role if present
+            const syncedProfile = await syncUserProfileSafely(session.user, intendedRole);
+
+            // Validate user and load verified database profile
+            const verifiedUser = await getCurrentUser();
+            const active = verifiedUser || { ...session.user, profile: syncedProfile };
+            if (syncedProfile && active) {
+              active.profile = syncedProfile;
+            }
+
+            setCurrentUser(active);
+
+            // Detect if this event is an active OAuth return, pending action, or fresh login
+            const hasPendingAction = typeof window !== 'undefined' && !!sessionStorage.getItem('creasync_pending_action');
+            const isOAuthReturn = !!intendedRole || (typeof window !== 'undefined' && (
+              window.location.hash.includes('access_token=') ||
+              window.location.search.includes('code=')
+            ));
+
+            if (isOAuthReturn || hasPendingAction) {
+              executePendingActionOrRoute(active, intendedRole);
+            }
+          }
+        } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          if (session?.user) {
+            const verifiedUser = await getCurrentUser();
+            setCurrentUser(verifiedUser || session.user);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+        }
+      });
+
+      authListener = subscription;
+    } else {
+      // Fallback for offline/local simulation
+      getCurrentUser().then(user => {
+        if (isMounted && user) {
+          setCurrentUser(user);
+        }
+      });
+    }
+
+    return () => {
+      isMounted = false;
+      if (authListener) {
+        authListener.unsubscribe();
+      }
+    };
+  }, []);
+
+  // Executes pending action queued before login/OAuth redirect, or routes to appropriate workspace
+  const executePendingActionOrRoute = (user, explicitRole = null) => {
+    let action = pendingAction;
+    if (!action) {
+      try {
+        const stored = sessionStorage.getItem('creasync_pending_action');
+        if (stored) {
+          action = JSON.parse(stored);
+        }
+      } catch (e) {}
+    }
+
+    try {
+      sessionStorage.removeItem('creasync_pending_action');
+    } catch (e) {}
+    setPendingAction(null);
+    setLoginNotice(null);
+
+    if (action) {
+      switch (action.type) {
+        case 'CREATE_CAMPAIGN':
+          setIsCampaignModalOpen(true);
+          return;
+        case 'INVITE_CREATOR':
+          if (action.creator) {
+            setInviteTargetCreator(action.creator);
+            setIsInviteModalOpen(true);
+          }
+          return;
+        case 'TOGGLE_SAVE':
+          if (action.creatorId) {
+            setSavedCreatorIds(prev => 
+              prev.includes(action.creatorId) 
+                ? prev.filter(id => id !== action.creatorId) 
+                : [...prev, action.creatorId]
+            );
+          }
+          return;
+        case 'OPEN_CONVERSATION':
+          if (action.connection) {
+            setActiveConversationConnection(action.connection);
+            setConversationUserRole(action.userRole || 'brand');
+            setIsConversationOpen(true);
+          }
+          return;
+        case 'PUBLISH_CREATOR':
+          if (action.creator) {
+            setCreatedCreatorProfile(action.creator);
+            handleUpdateCreator(action.creator);
+            setActiveCreatorId(action.creator.id);
+            navigateTo('creator-workspace');
+          }
+          return;
+        case 'NAVIGATE':
+          if (action.view) {
+            navigateTo(action.view);
+          }
+          return;
+        default:
+          break;
+      }
+    }
+
+    // Role-based routing hierarchy:
+    // 1. Explicit role passed to this execution
+    // 2. Verified profile role from database
+    // 3. Stored intent from current login session
+    // 4. User metadata (intended_role or role)
+    // 5. Active role stored in localStorage
+    const storedIntent = typeof window !== 'undefined'
+      ? (sessionStorage.getItem('creasync_intended_role') || localStorage.getItem('creasync_intended_role'))
+      : null;
+    const storedActive = typeof window !== 'undefined'
+      ? localStorage.getItem('creasync_active_role')
+      : null;
+
+    const resolvedRole = (explicitRole === 'creator' || explicitRole === 'brand' ? explicitRole : null)
+      || (user?.profile?.role === 'creator' || user?.profile?.role === 'brand' ? user.profile.role : null)
+      || (storedIntent === 'creator' || storedIntent === 'brand' ? storedIntent : null)
+      || (user?.user_metadata?.intended_role === 'creator' || user?.user_metadata?.intended_role === 'brand' ? user.user_metadata.intended_role : null)
+      || (user?.user_metadata?.role === 'creator' || user?.user_metadata?.role === 'brand' ? user.user_metadata.role : null)
+      || (storedActive === 'creator' || storedActive === 'brand' ? storedActive : null);
+
+    // Consume one-time OAuth intent after routing
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('creasync_intended_role');
+        localStorage.removeItem('creasync_intended_role');
+      } catch (e) {}
+    }
+
+    if (resolvedRole === 'creator') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('creasync_active_role', 'creator');
+      }
+      navigateTo('creator-workspace');
+    } else if (resolvedRole === 'brand') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('creasync_active_role', 'brand');
+      }
+      navigateTo('brand-workspace');
+    } else {
+      // Missing role: do NOT silently assign 'brand'! Prompt user to select role explicitly.
+      console.warn('[CreaSync Auth] Missing role for authenticated user; opening role selection');
+      setIsRoleSelectOpen(true);
+    }
+  };
+
+  // Guard wrapper for actions that require authentication
+  const requireAuth = (actionConfig, onAuthorized) => {
+    if (currentUser) {
+      if (typeof onAuthorized === 'function') {
+        onAuthorized();
+      }
+      return true;
+    }
+
+    setPendingAction(actionConfig);
+    const targetRole = actionConfig.role || 'brand';
+    try {
+      sessionStorage.setItem('creasync_pending_action', JSON.stringify(actionConfig));
+      sessionStorage.setItem('creasync_intended_role', targetRole);
+      localStorage.setItem('creasync_intended_role', targetRole);
+    } catch (e) {}
+
+    setLoginInitialRole(targetRole);
+    setLoginNotice(actionConfig.notice || 'Authentication required to proceed');
+    setIsLoginOpen(true);
+    return false;
+  };
+
+  const handleLogout = async () => {
+    await backendSignOut();
+    setCurrentUser(null);
+    navigateTo('home');
+  };
+
   const handleOpenWhyModal = (creator) => {
     setWhyModalCreator(creator);
     setIsWhyModalOpen(true);
   };
 
   const handleOpenConversation = (conn, userRole = 'brand') => {
-    setActiveConversationConnection(conn);
-    setConversationUserRole(userRole);
-    setIsConversationOpen(true);
+    requireAuth(
+      { type: 'OPEN_CONVERSATION', connection: conn, userRole, role: userRole, notice: 'Please sign in to access collaboration discussions' },
+      () => {
+        setActiveConversationConnection(conn);
+        setConversationUserRole(userRole);
+        setIsConversationOpen(true);
+      }
+    );
   };
 
   // --- Messaging Action ---
@@ -235,12 +472,17 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Toggle Save Creator (Favorites)
+  // Toggle Save Creator (Favorites) - Protected Action
   const handleToggleSaveCreator = (creatorId) => {
-    setSavedCreatorIds((prev) => 
-      prev.includes(creatorId) 
-        ? prev.filter(id => id !== creatorId) 
-        : [...prev, creatorId]
+    requireAuth(
+      { type: 'TOGGLE_SAVE', creatorId, role: 'brand', notice: 'Please sign in to save creators to your shortlist' },
+      () => {
+        setSavedCreatorIds((prev) => 
+          prev.includes(creatorId) 
+            ? prev.filter(id => id !== creatorId) 
+            : [...prev, creatorId]
+        );
+      }
     );
   };
 
@@ -574,12 +816,17 @@ export default function App() {
     });
   };
 
-  // Creator Onboarding Completed
+  // Creator Onboarding Completed - Protected Action
   const handlePublishCreator = (newCreator) => {
-    setCreatedCreatorProfile(newCreator);
-    handleUpdateCreator(newCreator);
-    setActiveCreatorId(newCreator.id);
-    navigateTo('creator-workspace');
+    requireAuth(
+      { type: 'PUBLISH_CREATOR', creator: newCreator, role: 'creator', notice: 'Please sign in to publish your creator profile to the marketplace' },
+      () => {
+        setCreatedCreatorProfile(newCreator);
+        handleUpdateCreator(newCreator);
+        setActiveCreatorId(newCreator.id);
+        navigateTo('creator-workspace');
+      }
+    );
   };
 
   const handleOpenCreatorProfile = (creatorId) => {
@@ -593,8 +840,13 @@ export default function App() {
   };
 
   const handleOpenInviteModal = (creator) => {
-    setInviteTargetCreator(creator);
-    setIsInviteModalOpen(true);
+    requireAuth(
+      { type: 'INVITE_CREATOR', creator, role: 'brand', notice: `Please sign in to invite ${creator?.name || 'this creator'}` },
+      () => {
+        setInviteTargetCreator(creator);
+        setIsInviteModalOpen(true);
+      }
+    );
   };
 
   const handleOpportunityResponse = (opportunity, message) => {
@@ -639,14 +891,19 @@ export default function App() {
       <Header
         currentView={currentView}
         onNavigate={(v) => navigateTo(v)}
-        onOpenCampaignModal={() => setIsCampaignModalOpen(true)}
+        onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
         onOpenCreatorModal={() => navigateTo('creator-join')}
         onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
-        onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenLogin={() => {
+          setLoginNotice(null);
+          setIsLoginOpen(true);
+        }}
         onOpenForBrandsModal={() => setIsForBrandsOpen(true)}
         onOpenForCreatorsModal={() => setIsForCreatorsOpen(true)}
         activeCampaign={activeCampaign}
         createdCreatorProfile={createdCreatorProfile}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Main Views */}
@@ -852,14 +1109,36 @@ export default function App() {
       {/* Login Authentication Modal */}
       <LoginModal
         isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        onLoginBrand={() => {
+        onClose={() => {
           setIsLoginOpen(false);
-          navigateTo('brand-workspace');
+          setLoginNotice(null);
         }}
-        onLoginCreator={() => {
+        initialRole={loginInitialRole}
+        pendingActionNotice={loginNotice}
+        onLoginSuccess={(user, role) => {
+          setCurrentUser(user);
           setIsLoginOpen(false);
-          navigateTo('creator-workspace');
+          executePendingActionOrRoute(user, role);
+        }}
+        onLoginBrand={(user) => {
+          setIsLoginOpen(false);
+          if (user) {
+            setCurrentUser(user);
+            executePendingActionOrRoute(user, 'brand');
+          } else {
+            handleSwitchBrand('brand-demo-lumina');
+            handleToggleDemoMode(true);
+            navigateTo('brand-workspace');
+          }
+        }}
+        onLoginCreator={(user) => {
+          setIsLoginOpen(false);
+          if (user) {
+            setCurrentUser(user);
+            executePendingActionOrRoute(user, 'creator');
+          } else {
+            navigateTo('creator-workspace');
+          }
         }}
       />
 

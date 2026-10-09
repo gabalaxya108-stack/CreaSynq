@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, UserCheck, Sparkles, LogIn, ChevronRight } from 'lucide-react';
+import { Menu, X, ArrowRight, UserCheck, Sparkles, LogIn, LogOut, User, Briefcase, Palette, ChevronRight } from 'lucide-react';
 
 export default function Header({ 
   currentView, 
@@ -11,7 +11,9 @@ export default function Header({
   onOpenForBrandsModal,
   onOpenForCreatorsModal,
   activeCampaign,
-  createdCreatorProfile 
+  createdCreatorProfile,
+  currentUser = null,
+  onLogout = null
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -42,6 +44,38 @@ export default function Header({
     } else {
       const el = document.getElementById(sectionId);
       if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Extract user details defensively
+  const displayName = currentUser?.user_metadata?.full_name 
+    || currentUser?.user_metadata?.name 
+    || currentUser?.profile?.display_name 
+    || currentUser?.display_name 
+    || currentUser?.email?.split('@')[0] 
+    || 'User';
+
+  const avatarUrl = currentUser?.user_metadata?.avatar_url 
+    || currentUser?.profile?.avatar_url 
+    || currentUser?.avatar_url 
+    || '';
+
+  const rawRole = currentUser?.profile?.role 
+    || currentUser?.user_metadata?.intended_role 
+    || (currentUser?.role && currentUser.role !== 'authenticated' ? currentUser.role : null)
+    || (typeof window !== 'undefined' ? localStorage.getItem('creasync_active_role') : null);
+
+  const activeRole = (rawRole === 'creator' || rawRole === 'brand') ? rawRole : null;
+
+  const handleGoToWorkspace = () => {
+    if (activeRole === 'creator') {
+      onNavigate('creator-workspace');
+    } else if (activeRole === 'brand') {
+      onNavigate('brand-workspace');
+    } else if (typeof onOpenRoleSelect === 'function') {
+      onOpenRoleSelect();
+    } else {
+      onNavigate('home');
     }
   };
 
@@ -114,23 +148,92 @@ export default function Header({
 
         {/* Right CTA Actions */}
         <div className="nav-actions">
-          <button 
-            type="button" 
-            className="btn-link-login"
-            onClick={onOpenLogin}
-            aria-label="Log in"
-          >
-            <span>Log in</span>
-          </button>
-          <button 
-            type="button" 
-            className="btn btn-primary btn-sm alloy-nav-btn"
-            onClick={onOpenRoleSelect}
-            aria-label="Get started"
-          >
-            <span>Get started</span>
-            <ArrowRight size={13} />
-          </button>
+          {currentUser ? (
+            <div className="header-auth-group">
+              {/* User Identity Pill / Workspace Link */}
+              <button
+                type="button"
+                onClick={handleGoToWorkspace}
+                className="header-user-pill"
+                title={`Enter ${activeRole === 'creator' ? 'Creator' : 'Brand'} Workspace`}
+                id="header-user-profile-pill"
+              >
+                {avatarUrl ? (
+                  <img 
+                    src={avatarUrl} 
+                    alt={displayName} 
+                    style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} 
+                  />
+                ) : (
+                  <div style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '50%',
+                    background: activeRole === 'creator' ? 'var(--accent-lavender, #EAE6F8)' : 'var(--accent-peach, #FDE8DC)',
+                    color: activeRole === 'creator' ? 'var(--accent-lavender-deep, #6D28D9)' : 'var(--accent-peach-deep, #C2410C)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    flexShrink: 0
+                  }}>
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="header-user-name">
+                  {displayName}
+                </span>
+              </button>
+
+              {/* Workspace Action Button */}
+              <button 
+                type="button" 
+                className="header-workspace-btn"
+                onClick={handleGoToWorkspace}
+                aria-label="Open Workspace"
+                id="header-workspace-btn"
+              >
+                <span>{activeRole === 'creator' ? 'Creator Studio' : activeRole === 'brand' ? 'Brand Studio' : 'Workspace'}</span>
+                <ArrowRight size={13} />
+              </button>
+
+              {/* Clearly Visible Log Out Button */}
+              <button
+                type="button"
+                id="header-logout-btn"
+                className="header-logout-btn"
+                onClick={onLogout}
+                aria-label="Log Out"
+                title="Log Out of CreaSync"
+              >
+                <LogOut size={14} />
+                <span>Log Out</span>
+              </button>
+            </div>
+          ) : (
+            <div className="header-anon-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button 
+                type="button" 
+                className="btn-link-login"
+                onClick={onOpenLogin}
+                aria-label="Log in"
+                id="header-login-btn"
+              >
+                <span>Log in</span>
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary btn-sm alloy-nav-btn"
+                onClick={onOpenRoleSelect}
+                aria-label="Get started"
+                id="header-get-started-btn"
+              >
+                <span>Get started</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          )}
 
           {/* Mobile Hamburger Button */}
           <button
@@ -212,35 +315,89 @@ export default function Header({
                   <ChevronRight size={16} />
                 </button>
               </li>
-              <li>
-                <button 
-                  type="button" 
-                  className="mobile-nav-link"
-                  onClick={() => handleLinkClick(() => scrollToSection('creative-connection'))}
-                >
-                  <span>Platform Differentiators</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
             </ul>
 
             <div className="mobile-drawer-actions">
-              <button 
-                type="button" 
-                className="btn btn-secondary btn-block"
-                onClick={() => handleLinkClick(onOpenLogin)}
-              >
-                <LogIn size={16} />
-                <span>Log In</span>
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-primary btn-block"
-                onClick={() => handleLinkClick(onOpenRoleSelect)}
-              >
-                <span>Get Started</span>
-                <ArrowRight size={16} />
-              </button>
+              {currentUser ? (
+                <>
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    background: 'var(--bg-secondary, #F3EFEA)',
+                    border: '1px solid var(--border-light, rgba(26, 25, 24, 0.08))',
+                    marginBottom: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={displayName} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: activeRole === 'creator' ? 'var(--accent-lavender, #EAE6F8)' : 'var(--accent-peach, #FDE8DC)',
+                        color: activeRole === 'creator' ? 'var(--accent-lavender-deep, #6D28D9)' : 'var(--accent-peach-deep, #C2410C)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.84rem',
+                        fontWeight: 700,
+                        flexShrink: 0
+                      }}>
+                        {displayName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span style={{ fontWeight: 600, fontSize: '0.92rem', color: '#252525', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {displayName}
+                    </span>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="btn btn-primary btn-block"
+                    onClick={() => handleLinkClick(handleGoToWorkspace)}
+                  >
+                    <span>{activeRole === 'creator' ? 'Enter Creator Studio' : activeRole === 'brand' ? 'Enter Brand Studio' : 'Enter Workspace'}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-block"
+                    onClick={() => handleLinkClick(onLogout)}
+                    style={{
+                      height: '42px',
+                      background: '#ffffff',
+                      border: '1px solid rgba(220, 38, 38, 0.32)',
+                      color: '#b91c1c',
+                      fontWeight: 600,
+                      gap: '8px'
+                    }}
+                  >
+                    <LogOut size={16} />
+                    <span>Log Out</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-block"
+                    onClick={() => handleLinkClick(onOpenLogin)}
+                  >
+                    <LogIn size={16} />
+                    <span>Log In</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-primary btn-block"
+                    onClick={() => handleLinkClick(onOpenRoleSelect)}
+                  >
+                    <span>Get Started</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

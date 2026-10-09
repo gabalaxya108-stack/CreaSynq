@@ -51,15 +51,14 @@ export default function Header({
         {/* Brand Logo / Wordmark */}
         <a 
           href="#home" 
-          className="logo-link"
+          className="logo-link alloy-logo-link"
           onClick={(e) => {
             e.preventDefault();
             handleLinkClick(() => onNavigate('home'));
           }}
-          aria-label="CreaSync Home"
+          aria-label="ALLOY Home"
         >
-          <span className="logo-dot" />
-          <span className="logo-wordmark">CREASYNC</span>
+          <span className="logo-wordmark alloy-wordmark">A L L O Y</span>
         </a>
 
         {/* Desktop Navigation Links */}
@@ -73,6 +72,15 @@ export default function Header({
               onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => onNavigate('discover'))}
             >
               Discover
+            </li>
+            <li 
+              className="nav-item"
+              onClick={() => handleLinkClick(() => onNavigate('discover'))}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => onNavigate('discover'))}
+            >
+              Creators
             </li>
             <li 
               className="nav-item"
@@ -99,18 +107,8 @@ export default function Header({
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => scrollToSection('how-it-works'))}
             >
-              How It Works
+              How it works
             </li>
-            {currentView !== 'home' && (
-              <li 
-                className="nav-item nav-item-muted"
-                onClick={() => handleLinkClick(() => onNavigate('home'))}
-                role="button"
-                tabIndex={0}
-              >
-                Overview
-              </li>
-            )}
           </ul>
         </nav>
 
@@ -118,20 +116,20 @@ export default function Header({
         <div className="nav-actions">
           <button 
             type="button" 
-            className="btn btn-ghost btn-sm"
+            className="btn-link-login"
             onClick={onOpenLogin}
-            aria-label="Log In"
+            aria-label="Log in"
           >
-            <span>Log In</span>
+            <span>Log in</span>
           </button>
           <button 
             type="button" 
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary btn-sm alloy-nav-btn"
             onClick={onOpenRoleSelect}
-            aria-label="Get Started"
+            aria-label="Get started"
           >
-            <span>Get Started</span>
-            <ArrowRight size={14} />
+            <span>Get started</span>
+            <ArrowRight size={13} />
           </button>
 
           {/* Mobile Hamburger Button */}
@@ -152,7 +150,7 @@ export default function Header({
         <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
           <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="mobile-drawer-header">
-              <span className="logo-wordmark">CREASYNC</span>
+              <span className="logo-wordmark alloy-wordmark">ALLOY</span>
               <button 
                 type="button" 
                 className="btn-icon" 

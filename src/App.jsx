@@ -651,54 +651,24 @@ export default function App() {
 
       {/* Main Views */}
       <main>
-        {/* VIEW 1: HOME LANDING — Apple-inspired progressive storytelling */}
+        {/* VIEW 1: ALLOY LANDING — Compact 3-Section Cinematic Marketplace */}
         {currentView === 'home' && (
           <>
-            {/* SECTION B: Signature Hero ("The right creator. The right idea. In sync.") */}
+            {/* SECTION 1: The Cinematic Hero with 3D ALLOY Sculpture & Orbiting Assets */}
             <Hero
               onFindCreator={() => navigateTo('brand-onboard')}
               onJoinCreator={() => navigateTo('creator-join')}
               onExploreWork={() => navigateTo('discover')}
-            />
-
-            {/* SECTION C: Make the Two Journeys Obvious (Directly after Hero) */}
-            <TwoJourneysSection
-              onExploreBrandStudio={() => navigateTo('brand-workspace')}
-              onBuildCreatorProfile={() => navigateTo('creator-join')}
-            />
-
-            {/* SECTION D: Visual Marketplace ("Meet creativity in every direction.") */}
-            <CreativeShowcase
-              creators={creatorsList}
-              onSelectProject={handleSelectProject}
-              onExploreAll={() => navigateTo('discover')}
-            />
-
-            {/* SECTION E: Creator DNA ("Every creator has a signature.") */}
-            <CreatorDNASection
-              creators={creatorsList}
               onSelectCreator={handleOpenCreatorProfile}
             />
 
-            {/* SECTION E: The Intelligence Behind the Match (CreaMatch & CreaScore) */}
-            <CreaMatchSection
-              creators={creatorsList}
-              onExploreDiscover={() => navigateTo('discover')}
-              onEnterBrandStudio={() => navigateTo('brand-workspace')}
-            />
-
-            {/* SECTION: CreaSim: From Brief to Creative Concept */}
-            <ProductPreview
-              onSelectCreator={handleOpenCreatorProfile}
-              onExploreMarketplace={() => navigateTo('discover')}
-            />
-
-            {/* SECTION: The Collaboration Journey ("From first idea to final delivery.") */}
+            {/* SECTION 2: How ALLOY Works (3 Connected Steps + Dual Paths) */}
             <HowItWorks
-              onGetStarted={() => setIsRoleSelectOpen(true)}
+              onFindCreators={() => navigateTo('brand-onboard')}
+              onBuildPortfolio={() => navigateTo('creator-join')}
             />
 
-            {/* SECTION F: Closing Statement ("Let's make something worth creating.") */}
+            {/* SECTION 3: Compact Closing Banner & Actions */}
             <FinalCTA
               onFindCreator={() => navigateTo('brand-onboard')}
               onJoinCreator={() => navigateTo('creator-join')}

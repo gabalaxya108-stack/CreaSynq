@@ -1,207 +1,179 @@
 // src/components/HowItWorks.jsx
-// SECTION H: The Collaboration Journey
-// Headline: "From first idea to final delivery."
-// Editorial progressive timeline: Discover -> Brief -> Match -> Shortlist -> Invite -> Collaborate -> Review -> Complete.
+// SECTION 2 — How ALLOY Works
+// Eyebrow: "FROM IDEA TO CREATIVE TEAM"
+// Headline: "Your next great collaboration starts here."
+// 3 Horizontally Arranged Steps with visual micro-previews and dual Brand / Creator paths
 
 import React, { useState } from 'react';
-import { 
-  Compass, FileText, Sparkles, Bookmark, Send, 
-  MessageSquare, CheckCircle2, Award, ChevronRight, ArrowRight 
-} from 'lucide-react';
+import { ArrowRight, Sparkles, Compass, CheckCircle2, FileText, Users } from 'lucide-react';
 
-export default function HowItWorks({ onGetStarted }) {
-  const [activeStage, setActiveStage] = useState(0);
+export default function HowItWorks({ onFindCreators, onBuildPortfolio }) {
+  const [hoveredStep, setHoveredStep] = useState(null);
 
-  const stages = [
+  const steps = [
     {
       num: "01",
       title: "Discover",
-      label: "Visual Talent Roster",
-      desc: "Explore verified AI creators filtered by aesthetic style, content format, and documented tools.",
-      icon: Compass,
-      accent: "var(--accent-lavender)",
-      detail: "Browse curated portfolios featuring 35mm cinema, 3D spatial renders, generative fashion, and macro beauty."
+      desc: "Explore AI-native creators through their actual work, specialties, and creative styles.",
+      visualType: "portfolio"
     },
     {
       num: "02",
-      title: "Brief",
-      label: "Natural Language Campaign",
-      desc: "Describe your creative vision in natural prose. CreaSync structures requirements without inventing budgets.",
-      icon: FileText,
-      accent: "var(--accent-peach)",
-      detail: "Our brief engine extracts objectives, deliverables, and aesthetic tokens while flagging missing parameters."
+      title: "Match",
+      desc: "Find creators whose visual direction, skills, and capabilities fit your campaign.",
+      visualType: "match"
     },
     {
       num: "03",
-      title: "Match",
-      label: "Deterministic CreaMatch",
-      desc: "Algorithmic 6-dimension evaluation connects your brief to tangible creator portfolio evidence.",
-      icon: Sparkles,
-      accent: "var(--accent-pink)",
-      detail: "Scores assess Style (25%), Portfolio Evidence (25%), Format (15%), Industry (15%), Platform (10%), and Availability (10%)."
-    },
-    {
-      num: "04",
-      title: "Shortlist",
-      label: "Comparative Evaluation",
-      desc: "Save leading candidates and compare them side by side across aesthetic signatures and turnarounds.",
-      icon: Bookmark,
-      accent: "var(--accent-mint)",
-      detail: "Evaluate side-by-side Creator DNA to align on creative fit before extending offers."
-    },
-    {
-      num: "05",
-      title: "Invite",
-      label: "Structured Proposals",
-      desc: "Send project invitations with pre-aligned deliverables, commission budgets, and production milestones.",
-      icon: Send,
-      accent: "var(--accent-lavender)",
-      detail: "Creators receive structured opportunity briefs with direct accept or decline workflows."
-    },
-    {
-      num: "06",
       title: "Collaborate",
-      label: "Shared Production Hub",
-      desc: "Exchange feedback, reference boards, prompt parameters, and test renders in real-time.",
-      icon: MessageSquare,
-      accent: "var(--accent-peach)",
-      detail: "Maintain continuous creative synchronization with integrated messaging and asset sharing."
-    },
-    {
-      num: "07",
-      title: "Review",
-      label: "Frame-Level Deliverables",
-      desc: "Inspect high-resolution stills, video loops, and master color grades with precise revision requests.",
-      icon: CheckCircle2,
-      accent: "var(--accent-pink)",
-      detail: "Provide actionable creative direction and track change requests through transparent revision cycles."
-    },
-    {
-      num: "08",
-      title: "Complete",
-      label: "Final Commercial Sign-Off",
-      desc: "Approve final deliverables and release campaign assets directly into your digital marketing suite.",
-      icon: Award,
-      accent: "var(--accent-mint)",
-      detail: "Full commercial licensing handoff and completed project archiving in one seamless motion."
+      desc: "Share a brief, assemble your team, and move from creative direction to deliverables.",
+      visualType: "collaborate"
     }
   ];
 
   return (
-    <section className="section-how-it-works" id="how-it-works">
-      <div className="page-container">
+    <section className="alloy-how-section" id="how-it-works">
+      <div className="page-container alloy-how-container">
+        
         {/* Section Header */}
-        <div className="how-it-works-header">
-          <div className="section-pill-tag">
-            <span className="pill-dot-sm" />
-            <span>The End-to-End Collaboration Journey</span>
+        <div className="alloy-how-header">
+          <div className="alloy-eyebrow">
+            <span className="alloy-eyebrow-dot" />
+            <span className="alloy-eyebrow-text">FROM IDEA TO CREATIVE TEAM</span>
           </div>
-          <h2 className="section-headline-lg font-editorial">
-            From first idea to final delivery.
+
+          <h2 className="alloy-section-headline font-editorial">
+            Your next great collaboration starts here.
           </h2>
-          <p className="section-subtitle-max">
-            A cohesive creative journey connecting discovery, intelligent matching, 
-            concept development, and milestone-driven collaboration.
+
+          <p className="alloy-section-subtext">
+            From finding the right talent to building campaign-ready teams, ALLOY brings the creative process together.
           </p>
         </div>
 
-        {/* Desktop 8-Stage Progressive Sequence Tracker */}
-        <div className="journey-timeline-nav">
-          {stages.map((stage, idx) => {
-            const Icon = stage.icon;
-            const isActive = idx === activeStage;
-            return (
-              <button
-                key={stage.num}
-                type="button"
-                className={`timeline-step-btn ${isActive ? 'active' : ''}`}
-                onClick={() => setActiveStage(idx)}
-                aria-label={`Stage ${stage.num}: ${stage.title}`}
+        {/* 3 Horizontally Arranged Steps */}
+        <div className="alloy-steps-wrapper">
+          <div className="alloy-steps-track-line" aria-hidden="true" />
+          
+          <div className="alloy-steps-grid">
+            {steps.map((step, idx) => (
+              <div 
+                key={step.num}
+                className={`alloy-step-card ${hoveredStep === idx ? 'step-hovered' : ''}`}
+                onMouseEnter={() => setHoveredStep(idx)}
+                onMouseLeave={() => setHoveredStep(null)}
               >
-                <span className="timeline-step-num">{stage.num}</span>
-                <span className="timeline-step-title">{stage.title}</span>
-                <span className="timeline-step-indicator" />
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Featured Stage Focus Card */}
-        <div className="journey-stage-display-card">
-          <div className="stage-display-grid">
-            <div className="stage-display-info">
-              <div className="stage-badge-row">
-                <span className="stage-num-pill">Step {stages[activeStage].num} of 08</span>
-                <span className="stage-label-tag">{stages[activeStage].label}</span>
-              </div>
-              <h3 className="stage-display-title font-editorial">
-                {stages[activeStage].title}: {stages[activeStage].desc}
-              </h3>
-              <p className="stage-display-detail">
-                {stages[activeStage].detail}
-              </p>
-              
-              <div className="stage-cta-row">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={onGetStarted}
-                >
-                  <span>Experience Workflow</span>
-                  <ArrowRight size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setActiveStage((prev) => (prev + 1) % stages.length)}
-                >
-                  <span>Next Stage ({stages[(activeStage + 1) % stages.length].title})</span>
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-
-            {/* Stage Visual Representation */}
-            <div className="stage-display-visual">
-              <div className="stage-graphic-box">
-                <div className="stage-graphic-header">
-                  <span className="graphic-dot" />
-                  <span className="graphic-title">CreaSync Studio Lifecycle</span>
+                {/* Step Top Bar */}
+                <div className="step-card-top">
+                  <span className="step-num-badge">{step.num}</span>
+                  <span className="step-title-text">{step.title}</span>
                 </div>
-                <div className="stage-workflow-steps-mini">
-                  {stages.map((st, i) => (
-                    <div 
-                      key={st.num} 
-                      className={`mini-step-item ${i === activeStage ? 'active-mini' : i < activeStage ? 'done-mini' : ''}`}
-                      onClick={() => setActiveStage(i)}
-                    >
-                      <span className="mini-step-num">{st.num}</span>
-                      <span className="mini-step-name">{st.title}</span>
+
+                {/* Step Description */}
+                <p className="step-desc-text">
+                  {step.desc}
+                </p>
+
+                {/* Step Micro-Visual */}
+                <div className="step-visual-box">
+                  {step.visualType === 'portfolio' && (
+                    <div className="step-visual-portfolio">
+                      <div className="micro-thumb-card card-1">
+                        <img 
+                          src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=260&q=80" 
+                          alt="Fashion" 
+                        />
+                        <span className="micro-tag">Couture</span>
+                      </div>
+                      <div className="micro-thumb-card card-2">
+                        <img 
+                          src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=260&q=80" 
+                          alt="3D Spatial" 
+                        />
+                        <span className="micro-tag">Spatial 3D</span>
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {step.visualType === 'match' && (
+                    <div className="step-visual-match">
+                      <div className="match-node brand-node">
+                        <span className="node-label">Brief</span>
+                      </div>
+                      <div className="match-connector-line">
+                        <div className="match-pulse-node">
+                          <Sparkles size={11} />
+                          <span>98%</span>
+                        </div>
+                      </div>
+                      <div className="match-node creator-node">
+                        <span className="node-label">Creator</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {step.visualType === 'collaborate' && (
+                    <div className="step-visual-collab">
+                      <div className="collab-brief-bar">
+                        <FileText size={12} className="brief-icon" />
+                        <span className="brief-bar-title">Q4 Capsule Campaign</span>
+                        <span className="brief-status-tag">Ready</span>
+                      </div>
+                      <div className="collab-team-row">
+                        <div className="team-avatar-stack">
+                          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80" alt="Elena" />
+                          <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80" alt="Alex" />
+                        </div>
+                        <span className="team-status-text">2 Creators Assigned</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
               </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Clean Mobile Vertical Progressive Cards */}
-        <div className="journey-mobile-stack">
-          {stages.map((stage) => {
-            const Icon = stage.icon;
-            return (
-              <div key={stage.num} className="journey-mobile-card">
-                <div className="mobile-card-top">
-                  <span className="mobile-step-num">{stage.num}</span>
-                  <Icon size={18} style={{ color: stage.accent }} />
-                  <span className="mobile-step-title">{stage.title}</span>
-                </div>
-                <p className="mobile-step-desc">{stage.desc}</p>
-                <span className="mobile-step-detail">{stage.detail}</span>
-              </div>
-            );
-          })}
+        {/* Dual Paths for Brands and Creators */}
+        <div className="alloy-dual-paths" id="for-brands">
+          {/* For Brands */}
+          <div className="dual-path-card path-brands">
+            <div className="path-content-col">
+              <span className="path-eyebrow">FOR BRANDS</span>
+              <h3 className="path-heading font-editorial">Have a campaign in mind?</h3>
+              <p className="path-desc">Brief AI-native creators and assemble high-velocity creative teams.</p>
+            </div>
+            <button 
+              type="button" 
+              className="btn btn-primary path-action-btn"
+              onClick={onFindCreators}
+              id="how-find-creators-btn"
+            >
+              <span>Find creators</span>
+              <ArrowRight size={15} />
+            </button>
+          </div>
+
+          {/* For Creators */}
+          <div className="dual-path-card path-creators" id="for-creators">
+            <div className="path-content-col">
+              <span className="path-eyebrow">FOR CREATORS</span>
+              <h3 className="path-heading font-editorial">Ready to showcase your work?</h3>
+              <p className="path-desc">Exhibit verified portfolio projects and receive targeted brand briefs.</p>
+            </div>
+            <button 
+              type="button" 
+              className="btn btn-secondary path-action-btn"
+              onClick={onBuildPortfolio}
+              id="how-build-portfolio-btn"
+            >
+              <span>Build your portfolio</span>
+              <ArrowRight size={15} />
+            </button>
+          </div>
         </div>
+
       </div>
     </section>
   );

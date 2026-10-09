@@ -1,5 +1,12 @@
+// src/components/LoginModal.jsx
+// ALLOY — Luxury Blended Login & Account Creation Modal
+// Features:
+// - Seamlessly blended artwork of the ALLOY sculpture & creative ecosystem
+// - High-contrast, crisp typography for maximum legibility
+// - Full preservation of Supabase / mock backend authentication, instant 1-click demos, and role routing
+
 import React, { useState } from 'react';
-import { X, LogIn, Briefcase, Palette, ArrowRight, ShieldCheck, Mail, Lock, UserPlus, Database, AlertCircle, Loader } from 'lucide-react';
+import { X, LogIn, Briefcase, Palette, ArrowRight, ShieldCheck, Mail, Lock, UserPlus, Database, AlertCircle, Loader, Sparkles } from 'lucide-react';
 import { signIn, signUp, getBackendStatus } from '../services/marketplaceBackend';
 
 export default function LoginModal({ 
@@ -57,242 +64,265 @@ export default function LoginModal({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
-      <div className="login-modal-card" onClick={(e) => e.stopPropagation()}>
-        {/* Close Button */}
+    <div 
+      className="alloy-modal-backdrop" 
+      onClick={onClose} 
+      role="dialog" 
+      aria-modal="true" 
+      aria-labelledby="login-modal-title"
+    >
+      <div className="alloy-login-card-editorial" onClick={(e) => e.stopPropagation()}>
+        
+        {/* Floating Close Button */}
         <button 
           type="button" 
-          className="modal-close-btn" 
+          className="alloy-modal-close" 
           onClick={onClose}
           aria-label="Close dialog"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
 
-        <div className="login-modal-header">
-          <div className="section-tag-pill">
-            <LogIn size={13} className="text-lavender" />
-            <span>Workspace Entry</span>
-          </div>
-          <h2 id="login-modal-title" className="login-modal-title">
-            {authMode === 'signup' ? 'Create Your Account' : 'Sign In to CreaSync'}
-          </h2>
-          <p className="login-modal-desc">
-            {authMode === 'signup' 
-              ? 'Join as an AI Creator or Brand Partner to access the creative workspace.'
-              : 'Access your persistent workspace or try an instant milestone preview demo.'}
-          </p>
-
-          {/* Backend Status Engine Badge */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '10px', fontSize: '0.78rem', color: backendStatus.isLiveCloud ? '#10b981' : 'var(--text-muted, #94a3b8)' }}>
-            <Database size={13} />
-            <span>Active Engine: <strong>{backendStatus.database}</strong></span>
-          </div>
-        </div>
-
-        {/* Tab Switcher: Sign In vs Sign Up */}
-        <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '10px', padding: '4px', margin: '0 0 16px 0', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-          <button
-            type="button"
-            onClick={() => { setAuthMode('signin'); setErrorMsg(''); }}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              borderRadius: '7px',
-              border: 'none',
-              background: authMode === 'signin' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
-              color: authMode === 'signin' ? '#fff' : 'rgba(255, 255, 255, 0.6)',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAuthMode('signup'); setErrorMsg(''); }}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              borderRadius: '7px',
-              border: 'none',
-              background: authMode === 'signup' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
-              color: authMode === 'signup' ? '#fff' : 'rgba(255, 255, 255, 0.6)',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            Create Account
-          </button>
-        </div>
-
-        {/* Quick Instant Demo Logins (Only shown on Sign In for easy evaluation) */}
-        {authMode === 'signin' && (
-          <div className="instant-demo-section">
-            <span className="demo-section-label">Instant Workspace Access (1-Click Demo)</span>
-            
-            <div className="demo-login-grid">
-              <button
-                type="button"
-                className="demo-account-card brand-demo-card"
-                onClick={() => {
-                  onClose();
-                  onLoginBrand();
-                }}
-              >
-                <div className="demo-account-icon brand-icon">
-                  <Briefcase size={18} />
-                </div>
-                <div className="demo-account-info">
-                  <span className="demo-account-name">Lumina Botanica</span>
-                  <span className="demo-account-role">Brand Campaign Studio</span>
-                </div>
-                <ArrowRight size={15} className="demo-account-arrow" />
-              </button>
-
-              <button
-                type="button"
-                className="demo-account-card creator-demo-card"
-                onClick={() => {
-                  onClose();
-                  onLoginCreator();
-                }}
-              >
-                <div className="demo-account-icon creator-icon">
-                  <Palette size={18} />
-                </div>
-                <div className="demo-account-info">
-                  <span className="demo-account-name">Maya Chen</span>
-                  <span className="demo-account-role">AI Creator Studio</span>
-                </div>
-                <ArrowRight size={15} className="demo-account-arrow" />
-              </button>
+        {/* ========================================================
+            COLUMN 1: High-Contrast, Elegant Auth Form
+            ======================================================== */}
+        <div className="alloy-login-form-col">
+          
+          {/* Brand Wordmark & Header */}
+          <div className="alloy-login-brand-header">
+            <span className="alloy-login-logo">A L L O Y</span>
+            <div className="alloy-login-pill">
+              <Sparkles size={11} className="pill-star" />
+              <span>WORKSPACE ENTRY</span>
             </div>
+            
+            <h2 id="login-modal-title" className="alloy-login-headline font-editorial">
+              {authMode === 'signup' ? 'Create Your Account' : 'Welcome to ALLOY'}
+            </h2>
+            
+            <p className="alloy-login-subtext">
+              {authMode === 'signup' 
+                ? 'Join our network of verified AI creators and forward-thinking brands.'
+                : 'Sign in to access your persistent campaigns, creator DNA, and production hub.'}
+            </p>
           </div>
-        )}
 
-        {/* Divider */}
-        <div className="login-divider">
-          <span>{authMode === 'signup' ? 'Enter Account Details' : 'or enter with credentials'}</span>
-        </div>
-
-        {/* Error / Success Feedback */}
-        {errorMsg && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#fca5a5', fontSize: '0.84rem', marginBottom: '14px' }}>
-            <AlertCircle size={16} />
-            <span>{errorMsg}</span>
+          {/* Mode Switcher: Sign In vs Sign Up */}
+          <div className="alloy-auth-toggle-bar">
+            <button
+              type="button"
+              className={`auth-toggle-tab ${authMode === 'signin' ? 'is-active' : ''}`}
+              onClick={() => { setAuthMode('signin'); setErrorMsg(''); }}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              className={`auth-toggle-tab ${authMode === 'signup' ? 'is-active' : ''}`}
+              onClick={() => { setAuthMode('signup'); setErrorMsg(''); }}
+            >
+              Create Account
+            </button>
           </div>
-        )}
-        {successMsg && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#6ee7b7', fontSize: '0.84rem', marginBottom: '14px' }}>
-            <ShieldCheck size={16} />
-            <span>{successMsg}</span>
-          </div>
-        )}
 
-        {/* Auth form */}
-        <form onSubmit={handleSubmit} className="login-form">
-          {authMode === 'signup' && (
-            <div className="form-group">
-              <label className="form-label" htmlFor="login-name">Full Name / Studio Name</label>
-              <div className="input-with-icon">
-                <UserPlus size={16} className="input-icon" />
-                <input 
-                  id="login-name"
-                  type="text" 
-                  className="form-input" 
-                  placeholder="e.g. Alex Rivera or Aurora Studio"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  required
-                />
+          {/* 1-Click Instant Demo Accounts (Sign In Mode) */}
+          {authMode === 'signin' && (
+            <div className="alloy-demo-panel">
+              <span className="demo-panel-title">Instant 1-Click Workspace Demo</span>
+              <div className="demo-card-grid">
+                <button
+                  type="button"
+                  className="demo-choice-card brand-choice"
+                  onClick={() => {
+                    onClose();
+                    onLoginBrand();
+                  }}
+                >
+                  <div className="demo-icon-wrap brand-icon-wrap">
+                    <Briefcase size={16} />
+                  </div>
+                  <div className="demo-text-wrap">
+                    <span className="demo-name">Lumina Botanica</span>
+                    <span className="demo-role">Brand Campaign Studio</span>
+                  </div>
+                  <ArrowRight size={13} className="demo-arrow" />
+                </button>
+
+                <button
+                  type="button"
+                  className="demo-choice-card creator-choice"
+                  onClick={() => {
+                    onClose();
+                    onLoginCreator();
+                  }}
+                >
+                  <div className="demo-icon-wrap creator-icon-wrap">
+                    <Palette size={16} />
+                  </div>
+                  <div className="demo-text-wrap">
+                    <span className="demo-name">Elena Rostova</span>
+                    <span className="demo-role">AI Creator Studio</span>
+                  </div>
+                  <ArrowRight size={13} className="demo-arrow" />
+                </button>
               </div>
             </div>
           )}
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="login-email">Email Address</label>
-            <div className="input-with-icon">
-              <Mail size={16} className="input-icon" />
-              <input 
-                id="login-email"
-                type="email" 
-                className="form-input" 
-                placeholder="you@company.com or creator@studio.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
+          {/* Form Divider */}
+          <div className="alloy-auth-divider">
+            <span>{authMode === 'signup' ? 'Or Enter Account Details' : 'Or Sign In with Email'}</span>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="login-password">Password</label>
-            <div className="input-with-icon">
-              <Lock size={16} className="input-icon" />
-              <input 
-                id="login-password"
-                type="password" 
-                className="form-input" 
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
+          {/* Error / Success Messages */}
+          {errorMsg && (
+            <div className="auth-alert alert-error">
+              <AlertCircle size={15} />
+              <span>{errorMsg}</span>
             </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Select Workspace Role</label>
-            <div className="role-radio-group">
-              <label className={`role-radio-label ${selectedRole === 'brand' ? 'selected' : ''}`}>
-                <input 
-                  type="radio" 
-                  name="login-role" 
-                  value="brand" 
-                  checked={selectedRole === 'brand'} 
-                  onChange={() => setSelectedRole('brand')}
-                />
-                <span>Brand Studio</span>
-              </label>
-
-              <label className={`role-radio-label ${selectedRole === 'creator' ? 'selected' : ''}`}>
-                <input 
-                  type="radio" 
-                  name="login-role" 
-                  value="creator" 
-                  checked={selectedRole === 'creator'} 
-                  onChange={() => setSelectedRole('creator')}
-                />
-                <span>Creator Studio</span>
-              </label>
+          )}
+          {successMsg && (
+            <div className="auth-alert alert-success">
+              <ShieldCheck size={15} />
+              <span>{successMsg}</span>
             </div>
-          </div>
+          )}
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader size={16} className="spinner" />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <>
-                <span>{authMode === 'signup' ? 'Create Account & Enter' : 'Continue to Workspace'}</span>
-                <ArrowRight size={16} />
-              </>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="alloy-auth-form">
+            {authMode === 'signup' && (
+              <div className="auth-field-group">
+                <label className="auth-field-label" htmlFor="auth-name">
+                  Full Name / Studio Name
+                </label>
+                <div className="auth-input-container">
+                  <UserPlus size={16} className="auth-input-icon" />
+                  <input 
+                    id="auth-name"
+                    type="text" 
+                    className="auth-text-input" 
+                    placeholder="e.g. Alex Rivera or Studio Lumina"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
             )}
-          </button>
-        </form>
 
-        <div className="login-modal-footer">
-          <ShieldCheck size={14} className="text-muted" />
-          <span>Production-Ready Dual-Engine Security • Isolated multi-tenant workspaces</span>
+            <div className="auth-field-group">
+              <label className="auth-field-label" htmlFor="auth-email">
+                Email Address
+              </label>
+              <div className="auth-input-container">
+                <Mail size={16} className="auth-input-icon" />
+                <input 
+                  id="auth-email"
+                  type="email" 
+                  className="auth-text-input" 
+                  placeholder="name@company.com or creator@studio.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="auth-field-group">
+              <label className="auth-field-label" htmlFor="auth-password">
+                Password
+              </label>
+              <div className="auth-input-container">
+                <Lock size={16} className="auth-input-icon" />
+                <input 
+                  id="auth-password"
+                  type="password" 
+                  className="auth-text-input" 
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+            </div>
+
+            {/* Role Radio Picker */}
+            <div className="auth-field-group">
+              <label className="auth-field-label">Select Workspace Role</label>
+              <div className="auth-role-picker">
+                <label className={`role-pill-option ${selectedRole === 'brand' ? 'is-selected' : ''}`}>
+                  <input 
+                    type="radio" 
+                    name="alloy-role" 
+                    value="brand" 
+                    checked={selectedRole === 'brand'} 
+                    onChange={() => setSelectedRole('brand')}
+                  />
+                  <span>Brand Studio</span>
+                </label>
+
+                <label className={`role-pill-option ${selectedRole === 'creator' ? 'is-selected' : ''}`}>
+                  <input 
+                    type="radio" 
+                    name="alloy-role" 
+                    value="creator" 
+                    checked={selectedRole === 'creator'} 
+                    onChange={() => setSelectedRole('creator')}
+                  />
+                  <span>Creator Studio</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <button type="submit" className="auth-submit-btn" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader size={16} className="auth-spinner" />
+                  <span>Connecting...</span>
+                </>
+              ) : (
+                <>
+                  <span>{authMode === 'signup' ? 'Create Account & Enter' : 'Continue to Workspace'}</span>
+                  <ArrowRight size={15} />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer Security Badge */}
+          <div className="alloy-auth-footer-badge">
+            <ShieldCheck size={13} className="badge-shield-icon" />
+            <span>Isolated multi-tenant workspace security</span>
+          </div>
+
         </div>
+
+        {/* ========================================================
+            COLUMN 2: Seamlessly Blended Visual Showcase
+            ======================================================== */}
+        <div className="alloy-login-visual-col">
+          <div className="visual-blended-frame">
+            <img 
+              src="/assets/alloy-login-sculpture.png" 
+              alt="ALLOY Creative Fusion Artwork" 
+              className="blended-sculpture-img"
+            />
+            
+            {/* Soft Ambient Blend Overlay */}
+            <div className="visual-ambient-overlay" aria-hidden="true" />
+            
+            {/* Elegant Editorial Quote Badge */}
+            <div className="visual-quote-badge">
+              <span className="quote-eyebrow">THE ALLOY CONCEPT</span>
+              <p className="quote-text font-editorial">
+                “Creativity and technology intertwined to connect visionary brands with world-class AI creators.”
+              </p>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );

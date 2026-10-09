@@ -104,156 +104,213 @@ export default function AlloySculpture({ onOpenVideo, onExploreWork, onFindCreat
     const envMap = pmremGen.fromEquirectangular(envTexture).texture;
     scene.environment = envMap;
 
-    // --- Sculpture Master Group ---
+    // --- Sculpture Master Group (Kinetic Gyroscopic Alloy Core) ---
     const sculptureGroup = new THREE.Group();
-    sculptureGroup.position.y = 0.28;
+    sculptureGroup.position.y = 0.25;
 
-    // Detangled, Slender High-Luster Champagne Gold Alloy Sculpture
-    // Radius 1.36, tube thickness 0.14 (slender & detangled, down from 0.28)
-    const knotGeom = new THREE.TorusKnotGeometry(1.36, 0.14, 360, 64, 2, 3);
-    const goldMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xEBD6B8,        // Luminous Champagne Gold
-      metalness: 0.98,        // High-purity alloy
-      roughness: 0.075,       // Ultra-slick mirror-satin gloss
-      clearcoat: 1.0,         // Pristine lacquer clearcoat layer
-      clearcoatRoughness: 0.03,// Pin-sharp specular highlights
+    // 1. STREAM A: Liquid Champagne Gold Infinity Ribbon
+    // Generates a graceful, aerodynamic 3D Möbius / Lemniscate spline
+    const pointsA = [];
+    const countA = 24;
+    for (let i = 0; i < countA; i++) {
+      const theta = (i / countA) * Math.PI * 2;
+      const r = 1.48 + Math.sin(theta * 3) * 0.28;
+      const x = Math.cos(theta) * r;
+      const y = Math.sin(theta * 2) * 0.62;
+      const z = Math.sin(theta) * r * 0.82;
+      pointsA.push(new THREE.Vector3(x, y, z));
+    }
+    const curveA = new THREE.CatmullRomCurve3(pointsA, true, 'centripetal');
+    const geomA = new THREE.TubeGeometry(curveA, 280, 0.088, 42, true);
+    const goldStreamMat = new THREE.MeshPhysicalMaterial({
+      color: 0xF4DEBF,        // Radiant Champagne Gold
+      metalness: 0.99,        // Pure liquid alloy
+      roughness: 0.055,       // Mirror-slick surface
+      clearcoat: 1.0,         // Diamond-lacquer reflection
+      clearcoatRoughness: 0.02,
       reflectivity: 1.0,
-      envMapIntensity: 2.2,   // Enhanced studio reflections
+      envMapIntensity: 2.6,
     });
-    const knotMesh = new THREE.Mesh(knotGeom, goldMaterial);
-    knotMesh.castShadow = true;
-    knotMesh.receiveShadow = true;
-    sculptureGroup.add(knotMesh);
+    const meshStreamA = new THREE.Mesh(geomA, goldStreamMat);
+    meshStreamA.castShadow = true;
+    meshStreamA.receiveShadow = true;
+    sculptureGroup.add(meshStreamA);
+
+    // 2. STREAM B: Liquid Rose-Platinum Counter-Orbital Ribbon
+    // Weaves through and complements Stream A on counter-harmonic inclination
+    const pointsB = [];
+    const countB = 24;
+    for (let i = 0; i < countB; i++) {
+      const theta = (i / countB) * Math.PI * 2;
+      const r = 1.42 + Math.cos(theta * 3) * 0.26;
+      const x = Math.sin(theta) * r * 0.82;
+      const y = Math.cos(theta * 2) * 0.62;
+      const z = Math.cos(theta) * r;
+      pointsB.push(new THREE.Vector3(x, y, z));
+    }
+    const curveB = new THREE.CatmullRomCurve3(pointsB, true, 'centripetal');
+    const geomB = new THREE.TubeGeometry(curveB, 280, 0.082, 42, true);
+    const platinumStreamMat = new THREE.MeshPhysicalMaterial({
+      color: 0xEADAE0,        // Lustrous Rose-Platinum Chrome
+      metalness: 0.98,
+      roughness: 0.065,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.025,
+      reflectivity: 1.0,
+      envMapIntensity: 2.4,
+    });
+    const meshStreamB = new THREE.Mesh(geomB, platinumStreamMat);
+    meshStreamB.castShadow = true;
+    meshStreamB.receiveShadow = true;
+    sculptureGroup.add(meshStreamB);
+
+    // 3. STREAM C: Delicate Whispering Equatorial Aero-Ring
+    const ringGeomC = new THREE.TorusGeometry(1.92, 0.014, 24, 180);
+    const ringMatC = new THREE.MeshPhysicalMaterial({
+      color: 0xE2C5A0,
+      metalness: 0.96,
+      roughness: 0.08,
+      clearcoat: 0.9,
+      envMapIntensity: 2.2
+    });
+    const meshRingC = new THREE.Mesh(ringGeomC, ringMatC);
+    meshRingC.rotation.x = Math.PI * 0.44;
+    meshRingC.rotation.y = Math.PI * 0.16;
+    sculptureGroup.add(meshRingC);
+
+    // 4. THE LUMINOUS IRIDESCENT CORE (Creative Catalyst Orb)
+    // Floating refractive opaline crystal with an internal warm glow
+    const coreGeom = new THREE.SphereGeometry(0.38, 48, 48);
+    const coreMat = new THREE.MeshPhysicalMaterial({
+      color: 0xFFFCF5,
+      transmission: 0.85,     // Crystal glass refraction
+      transparent: true,
+      opacity: 0.98,
+      roughness: 0.04,
+      ior: 1.54,
+      thickness: 0.9,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.02,
+      attenuationColor: 0xFAD8AA,
+      attenuationDistance: 0.55,
+      envMapIntensity: 2.8,
+    });
+    const coreMesh = new THREE.Mesh(coreGeom, coreMat);
+    sculptureGroup.add(coreMesh);
+
+    // Inner Radiant Glow Source within the Core
+    const coreGlowLight = new THREE.PointLight(0xFFE4B5, 3.2, 5, 2);
+    coreMesh.add(coreGlowLight);
+
+    // 5. ZERO-GRAVITY MOLTEN SATELLITES (Floating Liquid Metal Droplets)
+    const dropletsGroup = new THREE.Group();
+    const dropletConfigs = [
+      { r: 0.085, mat: goldStreamMat, dist: 1.75, speed: 0.55, offset: 0, tilt: 0.3 },
+      { r: 0.068, mat: platinumStreamMat, dist: 2.05, speed: 0.42, offset: 2.1, tilt: -0.4 },
+      { r: 0.076, mat: goldStreamMat, dist: 1.62, speed: 0.62, offset: 4.2, tilt: 0.6 },
+      { r: 0.055, mat: platinumStreamMat, dist: 2.25, speed: 0.35, offset: 1.3, tilt: -0.2 },
+      { r: 0.062, mat: goldStreamMat, dist: 1.90, speed: 0.48, offset: 3.5, tilt: 0.15 },
+    ];
+    const droplets = dropletConfigs.map((cfg) => {
+      const dMesh = new THREE.Mesh(new THREE.SphereGeometry(cfg.r, 32, 32), cfg.mat);
+      dMesh.castShadow = true;
+      dropletsGroup.add(dMesh);
+      return { mesh: dMesh, ...cfg };
+    });
+    sculptureGroup.add(dropletsGroup);
 
     scene.add(sculptureGroup);
 
-    // --- Luminous 3D Orbital Rings with Traveling Gold & Pearl Beads ---
+    // --- Luminous 3D Orbital Outer Filament Tracks ---
     const orbitalTrackGroup = new THREE.Group();
-    orbitalTrackGroup.position.y = 0.28;
+    orbitalTrackGroup.position.y = 0.25;
 
-    // Ring 1 (Tilted ~22 deg)
-    const ringGeom1 = new THREE.TorusGeometry(2.38, 0.012, 16, 160);
-    const ringMat1 = new THREE.MeshPhysicalMaterial({
-      color: 0xF2DECA,
-      metalness: 0.92,
-      roughness: 0.12,
-      transparent: true,
-      opacity: 0.78,
-      clearcoat: 0.8
-    });
-    const ringMesh1 = new THREE.Mesh(ringGeom1, ringMat1);
-    ringMesh1.rotation.x = Math.PI * 0.42;
-    ringMesh1.rotation.y = Math.PI * 0.12;
-    orbitalTrackGroup.add(ringMesh1);
-
-    // Ring 2 (Opposite incline ~-18 deg)
-    const ringGeom2 = new THREE.TorusGeometry(2.18, 0.011, 16, 160);
-    const ringMat2 = new THREE.MeshPhysicalMaterial({
-      color: 0xDEC2A4,
-      metalness: 0.92,
-      roughness: 0.14,
-      transparent: true,
-      opacity: 0.68,
-      clearcoat: 0.8
-    });
-    const ringMesh2 = new THREE.Mesh(ringGeom2, ringMat2);
-    ringMesh2.rotation.x = Math.PI * 0.58;
-    ringMesh2.rotation.y = -Math.PI * 0.16;
-    orbitalTrackGroup.add(ringMesh2);
-
-    // Ring 3 (Outer delicate gossamer filament)
-    const ringGeom3 = new THREE.TorusGeometry(2.55, 0.009, 16, 160);
-    const ringMat3 = new THREE.MeshPhysicalMaterial({
-      color: 0xE8CEB0,
+    const outerRingGeom1 = new THREE.TorusGeometry(2.42, 0.009, 16, 180);
+    const outerRingMat1 = new THREE.MeshPhysicalMaterial({
+      color: 0xF0DEC8,
       metalness: 0.88,
-      roughness: 0.18,
-      transparent: true,
-      opacity: 0.55
-    });
-    const ringMesh3 = new THREE.Mesh(ringGeom3, ringMat3);
-    ringMesh3.rotation.x = Math.PI * 0.35;
-    ringMesh3.rotation.z = Math.PI * 0.18;
-    orbitalTrackGroup.add(ringMesh3);
-
-    // Luminous Metallic Gold & Pearl Spheres (Beads) on Rings
-    const mirrorBeadMat = new THREE.MeshPhysicalMaterial({
-      color: 0xF5DEBA,
-      metalness: 0.99,
-      roughness: 0.05,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.02,
-      envMapIntensity: 2.4
-    });
-
-    const pearlBeadMat = new THREE.MeshPhysicalMaterial({
-      color: 0xFFF9F0,
-      metalness: 0.3,
       roughness: 0.15,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.04,
-      envMapIntensity: 1.8
+      transparent: true,
+      opacity: 0.65,
     });
+    const outerRing1 = new THREE.Mesh(outerRingGeom1, outerRingMat1);
+    outerRing1.rotation.x = Math.PI * 0.40;
+    outerRing1.rotation.y = Math.PI * 0.14;
+    orbitalTrackGroup.add(outerRing1);
 
-    const bead1 = new THREE.Mesh(new THREE.SphereGeometry(0.078, 32, 32), mirrorBeadMat);
-    const bead2 = new THREE.Mesh(new THREE.SphereGeometry(0.065, 32, 32), mirrorBeadMat);
-    const bead3 = new THREE.Mesh(new THREE.SphereGeometry(0.072, 32, 32), pearlBeadMat);
-    const bead4 = new THREE.Mesh(new THREE.SphereGeometry(0.058, 28, 28), mirrorBeadMat);
-    const bead5 = new THREE.Mesh(new THREE.SphereGeometry(0.068, 28, 28), pearlBeadMat);
-
-    orbitalTrackGroup.add(bead1);
-    orbitalTrackGroup.add(bead2);
-    orbitalTrackGroup.add(bead3);
-    orbitalTrackGroup.add(bead4);
-    orbitalTrackGroup.add(bead5);
+    const outerRingGeom2 = new THREE.TorusGeometry(2.25, 0.008, 16, 180);
+    const outerRingMat2 = new THREE.MeshPhysicalMaterial({
+      color: 0xE2C8AB,
+      metalness: 0.88,
+      roughness: 0.15,
+      transparent: true,
+      opacity: 0.55,
+    });
+    const outerRing2 = new THREE.Mesh(outerRingGeom2, outerRingMat2);
+    outerRing2.rotation.x = Math.PI * 0.62;
+    outerRing2.rotation.y = -Math.PI * 0.18;
+    orbitalTrackGroup.add(outerRing2);
 
     scene.add(orbitalTrackGroup);
 
     // --- Ambient Floating Gold Dust Motes (Aesthetic Shimmer) ---
-    const motesCount = 28;
+    const motesCount = 32;
     const motesPositions = new Float32Array(motesCount * 3);
     for (let i = 0; i < motesCount; i++) {
-      const angle = (i / motesCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-      const rad = 1.6 + Math.random() * 1.5;
+      const angle = (i / motesCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const rad = 1.4 + Math.random() * 1.6;
       motesPositions[i * 3] = Math.cos(angle) * rad;
-      motesPositions[i * 3 + 1] = (Math.random() - 0.3) * 2.2;
+      motesPositions[i * 3 + 1] = (Math.random() - 0.3) * 2.4;
       motesPositions[i * 3 + 2] = Math.sin(angle) * rad;
     }
     const motesGeom = new THREE.BufferGeometry();
     motesGeom.setAttribute('position', new THREE.BufferAttribute(motesPositions, 3));
     const motesMat = new THREE.PointsMaterial({
       color: 0xE8CDA5,
-      size: 0.042,
+      size: 0.045,
       transparent: true,
-      opacity: 0.72,
+      opacity: 0.75,
       blending: THREE.AdditiveBlending
     });
     const motesMesh = new THREE.Points(motesGeom, motesMat);
     scene.add(motesMesh);
 
-    // --- Dual-Tier Travertine Pedestal with "ALLOY" Engraving ---
+    // --- Sleek Architectural Floating Plinth with "ALLOY" Inscription ---
     const pedestalGroup = new THREE.Group();
-    pedestalGroup.position.y = -1.62;
+    pedestalGroup.position.y = -1.68;
 
-    // Upper Tier: Smooth Cylindrical Plinth
-    const plinthGeom = new THREE.CylinderGeometry(1.5, 1.5, 0.44, 64);
+    // Upper Tier: Ultra-Slim Chamfered Disc
+    const plinthGeom = new THREE.CylinderGeometry(1.65, 1.72, 0.28, 64);
     const plinthMat = new THREE.MeshStandardMaterial({
-      color: 0xEAE2D7, // Warm Stone
-      roughness: 0.76,
-      metalness: 0.05
+      color: 0xEAE2D7, // Warm Travertine Stone
+      roughness: 0.75,
+      metalness: 0.04
     });
     const plinthMesh = new THREE.Mesh(plinthGeom, plinthMat);
     plinthMesh.receiveShadow = true;
     pedestalGroup.add(plinthMesh);
 
-    // Lower Tier: Rough-Cut Travertine Slab Base
-    const baseGeom = new THREE.CylinderGeometry(1.85, 2.05, 0.38, 48);
+    // Illuminated Luminous Halo Ring Under the Plinth
+    const haloGeom = new THREE.TorusGeometry(1.68, 0.018, 16, 64);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: 0xE8C89E,
+      transparent: true,
+      opacity: 0.75
+    });
+    const haloMesh = new THREE.Mesh(haloGeom, haloMat);
+    haloMesh.rotation.x = Math.PI / 2;
+    haloMesh.position.y = 0.13;
+    pedestalGroup.add(haloMesh);
+
+    // Lower Tier: Grounded Textured Travertine Foundation Base
+    const baseGeom = new THREE.CylinderGeometry(1.95, 2.15, 0.26, 48);
     const baseMat = new THREE.MeshStandardMaterial({
-      color: 0xDDD3C5, // Textured Travertine
+      color: 0xDDD3C5,
       roughness: 0.9,
       metalness: 0.02
     });
     const baseMesh = new THREE.Mesh(baseGeom, baseMat);
-    baseMesh.position.y = -0.41;
+    baseMesh.position.y = -0.27;
     baseMesh.receiveShadow = true;
     pedestalGroup.add(baseMesh);
 
@@ -264,39 +321,39 @@ export default function AlloySculpture({ onOpenVideo, onExploreWork, onFindCreat
     const ctxText = canvasText.getContext('2d');
     ctxText.fillStyle = '#EAE2D7';
     ctxText.fillRect(0, 0, 512, 128);
-    ctxText.font = 'bold 46px "Space Grotesk", sans-serif';
+    ctxText.font = 'bold 44px "Space Grotesk", sans-serif';
     ctxText.textAlign = 'center';
     ctxText.textBaseline = 'middle';
-    ctxText.fillStyle = '#4A423A';
-    ctxText.letterSpacing = '14px';
+    ctxText.fillStyle = '#443C34';
+    ctxText.letterSpacing = '16px';
     ctxText.fillText('A L L O Y', 256, 64);
 
     const textTexture = new THREE.CanvasTexture(canvasText);
     const plaqueMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.18, 0.3),
+      new THREE.PlaneGeometry(1.22, 0.24),
       new THREE.MeshBasicMaterial({ map: textTexture, transparent: true, opacity: 0.92 })
     );
-    plaqueMesh.position.set(0, 0.02, 1.51);
+    plaqueMesh.position.set(0, 0.01, 1.66);
     pedestalGroup.add(plaqueMesh);
 
-    // Soft Contact Floor Shadow
+    // Soft Ambient Contact Floor Shadow
     const shadowCanvas = document.createElement('canvas');
     shadowCanvas.width = 256;
     shadowCanvas.height = 256;
     const sCtx = shadowCanvas.getContext('2d');
     const grad = sCtx.createRadialGradient(128, 128, 10, 128, 128, 120);
-    grad.addColorStop(0, 'rgba(40, 32, 22, 0.35)');
-    grad.addColorStop(0.5, 'rgba(60, 48, 35, 0.12)');
+    grad.addColorStop(0, 'rgba(40, 32, 22, 0.38)');
+    grad.addColorStop(0.45, 'rgba(60, 48, 35, 0.14)');
     grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     sCtx.fillStyle = grad;
     sCtx.fillRect(0, 0, 256, 256);
 
     const floorShadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(5.2, 5.2),
+      new THREE.PlaneGeometry(5.4, 5.4),
       new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(shadowCanvas), transparent: true })
     );
     floorShadow.rotation.x = -Math.PI / 2;
-    floorShadow.position.y = -0.62;
+    floorShadow.position.y = -0.42;
     pedestalGroup.add(floorShadow);
 
     scene.add(pedestalGroup);
@@ -306,23 +363,23 @@ export default function AlloySculpture({ onOpenVideo, onExploreWork, onFindCreat
     scene.add(ambientLight);
 
     // High-angle studio key light
-    const keyLight = new THREE.DirectionalLight(0xFFF6EA, 3.6);
+    const keyLight = new THREE.DirectionalLight(0xFFF7EC, 3.8);
     keyLight.position.set(4.5, 6, 4.5);
     keyLight.castShadow = true;
     scene.add(keyLight);
 
-    // Opposite rim/fill light for crisp edge definitions
-    const fillLight = new THREE.DirectionalLight(0xDFEAF5, 1.4);
+    // Rim/fill light for crisp edge definitions
+    const fillLight = new THREE.DirectionalLight(0xDFEAF5, 1.5);
     fillLight.position.set(-4.5, 2.5, 2);
     scene.add(fillLight);
 
-    // Warm under-bounce from travertine plinth
-    const warmBounceLight = new THREE.DirectionalLight(0xE5C79E, 2.2);
+    // Warm under-bounce from plinth
+    const warmBounceLight = new THREE.DirectionalLight(0xE5C79E, 2.4);
     warmBounceLight.position.set(0, -1.8, 3.2);
     scene.add(warmBounceLight);
 
-    // Dynamic Orbiting Specular Glint Light (produces sweeping radiant glints as sculpture rotates)
-    const glintLight = new THREE.PointLight(0xFFFFFF, 4.2, 14, 1.6);
+    // Dynamic Orbiting Specular Glint Light (sweeps across curves for sparkling traveling reflections)
+    const glintLight = new THREE.PointLight(0xFFFFFF, 4.8, 15, 1.5);
     glintLight.position.set(2.5, 2.8, 3.5);
     scene.add(glintLight);
 
@@ -361,58 +418,48 @@ export default function AlloySculpture({ onOpenVideo, onExploreWork, onFindCreat
       mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.05;
       mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.05;
 
-      // CONTINUOUS REVOLVING ROTATION & AESTHETIC MOTION
+      // CONTINUOUS REVOLVING ROTATION & KINETIC HARMONY
       if (!prefersReducedMotion) {
-        // Sculpture rotates smoothly around Y axis (~30s per full rotation)
-        sculptureGroup.rotation.y += delta * 0.21;
-        sculptureGroup.rotation.x = Math.sin(time * 0.45) * 0.07;
-        sculptureGroup.rotation.z = Math.cos(time * 0.35) * 0.05;
+        // Stream A (Champagne Gold): Smooth clockwise orbital flow
+        meshStreamA.rotation.y += delta * 0.28;
+        meshStreamA.rotation.x = Math.sin(time * 0.55) * 0.12;
 
-        // Elegant floating levitation
-        sculptureGroup.position.y = 0.28 + Math.sin(time * 1.35) * 0.055;
+        // Stream B (Rose-Platinum): Counter-inclined harmonic flow
+        meshStreamB.rotation.y -= delta * 0.22;
+        meshStreamB.rotation.z = Math.cos(time * 0.45) * 0.14;
 
-        // Dynamic Glint Light counter-orbiting for traveling highlights
-        glintLight.position.x = Math.cos(time * 0.72) * 4.2;
-        glintLight.position.y = 1.4 + Math.sin(time * 0.95) * 1.3;
-        glintLight.position.z = Math.sin(time * 0.72) * 3.5 + 2.4;
+        // Stream C (Equatorial Ring): Delicate counter-wobble
+        meshRingC.rotation.z += delta * 0.15;
 
-        // Moving Gold & Pearl Beads Along Orbital Rings
-        const b1 = time * 0.42;
-        bead1.position.set(
-          Math.cos(b1) * 2.38,
-          Math.sin(b1) * 0.88,
-          Math.sin(b1) * 2.15
-        );
+        // Core Breathing Pulse (Hypnotic Luminous Heart)
+        const corePulse = 1.0 + Math.sin(time * 2.2) * 0.04;
+        coreMesh.scale.set(corePulse, corePulse, corePulse);
+        coreMesh.position.y = Math.sin(time * 1.5) * 0.04;
+        coreGlowLight.intensity = 2.8 + Math.sin(time * 2.2) * 0.8;
 
-        const b2 = time * 0.36 + 2.1;
-        bead2.position.set(
-          Math.cos(b2) * 2.18,
-          -Math.sin(b2) * 0.76,
-          Math.sin(b2) * 2.18
-        );
+        // Master Sculpture Floating Levitation
+        sculptureGroup.position.y = 0.25 + Math.sin(time * 1.25) * 0.05;
 
-        const b3 = time * 0.48 + 4.2;
-        bead3.position.set(
-          Math.cos(b3) * 2.35,
-          Math.sin(b3) * 0.68,
-          -Math.sin(b3) * 2.05
-        );
+        // Zero-Gravity Molten Droplets Orbiting
+        droplets.forEach((d) => {
+          const a = time * d.speed + d.offset;
+          d.mesh.position.set(
+            Math.cos(a) * d.dist,
+            Math.sin(a * 1.2 + d.tilt) * (d.dist * 0.38),
+            Math.sin(a) * d.dist
+          );
+        });
 
-        const b4 = time * 0.32 + 1.2;
-        bead4.position.set(
-          Math.cos(b4) * 2.55,
-          Math.sin(b4) * 0.52,
-          Math.sin(b4) * 2.4
-        );
+        // Dynamic Glint Light Counter-Orbit for Traveling Specular Gleams
+        glintLight.position.x = Math.cos(time * 0.82) * 4.6;
+        glintLight.position.y = 1.5 + Math.sin(time * 1.1) * 1.4;
+        glintLight.position.z = Math.sin(time * 0.82) * 3.8 + 2.5;
 
-        const b5 = time * 0.45 + 3.4;
-        bead5.position.set(
-          Math.cos(b5) * 2.22,
-          -Math.sin(b5) * 0.82,
-          -Math.sin(b5) * 2.1
-        );
+        // Outer Orbital Rings Slow Cosmic Drift
+        outerRing1.rotation.z = time * 0.08;
+        outerRing2.rotation.z = -time * 0.06;
 
-        // Ambient Motes Drift
+        // Ambient Motes Gentle Drift
         motesMesh.rotation.y = time * 0.05;
         motesMesh.position.y = Math.sin(time * 0.8) * 0.04;
       }

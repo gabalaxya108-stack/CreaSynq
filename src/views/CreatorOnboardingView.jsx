@@ -331,7 +331,7 @@ export default function CreatorOnboardingView({ onPublishCreator, onExploreMarke
       statusBadge: 'Profile Live',
       heroWork: profileData.portfolio[0]?.image || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
       avatar: profileData.avatar,
-      bio: profileData.bio || 'AI Creator on CreaSync.',
+      bio: profileData.bio || 'AI Creator on Alloy.',
       industries: ['Luxury Fashion', 'Editorial', 'Product Advertising'],
       capabilities: profileData.disciplines,
       tools: ['Midjourney v6.1', 'Runway Gen-3', 'ComfyUI', 'Photoshop'],
@@ -402,7 +402,7 @@ export default function CreatorOnboardingView({ onPublishCreator, onExploreMarke
               Let's build your creative identity.
             </h1>
             <p className="step-main-sub">
-              CreaSync is where exceptional AI creators connect with brands commissioning high-value campaigns. 
+              Alloy is where exceptional AI creators connect with brands commissioning high-value campaigns. 
               In 7 simple steps, create an evidence-grounded profile showcasing your verified work, unlock your Creator DNA, and start receiving direct invitations.
             </p>
 
@@ -846,7 +846,7 @@ export default function CreatorOnboardingView({ onPublishCreator, onExploreMarke
               </div>
               <h2 className="step-section-title font-editorial">Your Creator DNA Dossier</h2>
               <p className="step-section-desc">
-                CreaSync evaluates your profile and verified portfolio using AI to extract grounded attributes categorized into three provenance tiers.
+                Alloy evaluates your profile and verified portfolio using AI to extract grounded attributes categorized into three provenance tiers.
               </p>
             </div>
 
@@ -1026,7 +1026,7 @@ export default function CreatorOnboardingView({ onPublishCreator, onExploreMarke
               <CheckCircle2 size={36} className="text-mint" />
             </div>
             <h1 className="step-main-headline font-editorial">
-              Welcome to CreaSync Studio.
+              Welcome to Alloy Studio.
             </h1>
             <p className="step-main-sub">
               Your profile is now live. Creative agencies and brands searching for {profileData.disciplines[0] || 'AI content'} can discover your verified portfolio and send direct campaign invitations.

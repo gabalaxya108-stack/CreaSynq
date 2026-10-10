@@ -33,7 +33,7 @@ export function matchCampaignWithCreator(campaign, creator) {
         platformFit: 'Uncertain',
         availability: creator.availability.includes('Available') ? 'Available' : 'Booking'
       },
-      highlights: ['Creator profile is active on CreaSynq'],
+      highlights: ['Creator profile is active on Alloy'],
       potentialGap: 'Brief needs more creative direction to confirm compatibility.'
     };
   }

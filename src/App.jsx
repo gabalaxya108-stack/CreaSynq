@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import CreativeShowcase from './components/CreativeShowcase';
@@ -48,9 +48,25 @@ import {
 import {
   fetchCreators as fetchBackendCreators,
   fetchCampaigns as fetchBackendCampaigns,
+  fetchBrands as fetchBackendBrands,
+  fetchInvitations as fetchBackendInvitations,
+  fetchCollaborations as fetchBackendCollaborations,
+  fetchShortlists as fetchBackendShortlists,
   saveCreator as saveBackendCreator,
   saveCampaign as saveBackendCampaign,
+  deleteCampaign as deleteBackendCampaign,
+  saveBrand as saveBackendBrand,
   savePortfolioProject as saveBackendProject,
+  sendInvitation as sendBackendInvitation,
+  updateInvitationStatus as updateBackendInvitationStatus,
+  saveCollaboration as saveBackendCollaboration,
+  submitDeliverables as submitBackendDeliverables,
+  requestRevision as requestBackendRevision,
+  approveDeliverables as approveBackendDeliverables,
+  toggleShortlist as toggleBackendShortlist,
+  subscribeToInvitations,
+  subscribeToCollaborations,
+  subscribeToCampaigns,
   getBackendStatus,
   getCurrentUser,
   signOut as backendSignOut,
@@ -60,7 +76,51 @@ import {
 } from './services/marketplaceBackend';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 
+// Safely resolve the active role without letting Supabase default 'authenticated' confuse role logic
+function resolveUserRole(user) {
+  if (!user) {
+    if (typeof window !== 'undefined') {
+      const active = localStorage.getItem('creasync_active_role');
+      if (active === 'brand' || active === 'creator') return active;
+    }
+    return null;
+  }
+  if (user.profile?.role === 'brand' || user.profile?.role === 'creator') {
+    return user.profile.role;
+  }
+  if (user.user_metadata?.intended_role === 'brand' || user.user_metadata?.intended_role === 'creator') {
+    return user.user_metadata.intended_role;
+  }
+  if (user.user_metadata?.role === 'brand' || user.user_metadata?.role === 'creator') {
+    return user.user_metadata.role;
+  }
+  if (user.role === 'brand' || user.role === 'creator') {
+    return user.role;
+  }
+  if (typeof window !== 'undefined') {
+    const active = localStorage.getItem('creasync_active_role');
+    if (active === 'brand' || active === 'creator') return active;
+    const intended = sessionStorage.getItem('creasync_intended_role') || localStorage.getItem('creasync_intended_role');
+    if (intended === 'brand' || intended === 'creator') return intended;
+  }
+  return null;
+}
+
 export default function App() {
+  // Active Authenticated User & Protected Action Queue
+  const [currentUser, setCurrentUser] = useState(null);
+  const currentUserRef = useRef(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [loginInitialRole, setLoginInitialRole] = useState('brand');
+  const [loginNotice, setLoginNotice] = useState(null);
+
+  // Synchronously update both the ref and the React state
+  const updateActiveUser = (user) => {
+    currentUserRef.current = user;
+    setCurrentUser(user);
+  };
+
   const [currentView, setCurrentView] = useState('home'); // 'home' | 'discover' | 'creator-profile' | 'creator-not-found' | 'brand-workspace' | 'creator-join' | 'creator-workspace'
   const [activeCreatorId, setActiveCreatorId] = useState(null);
   const [initialBrandTab, setInitialBrandTab] = useState('overview');
@@ -105,24 +165,106 @@ export default function App() {
 
   // Sync with cloud backend on mount if Supabase is active
   useEffect(() => {
+    let isMounted = true;
     const syncBackend = async () => {
       try {
-        const cloudCreators = await fetchBackendCreators();
-        if (cloudCreators && cloudCreators.length > 0) {
-          setMarketplaceData(prev => ({
-            ...prev,
-            creators: cloudCreators
-          }));
-        }
+        const [
+          cloudCreators,
+          cloudCampaigns,
+          cloudBrands,
+          cloudInvs,
+          cloudCollabs,
+          cloudShortlists
+        ] = await Promise.allSettled([
+          fetchBackendCreators(),
+          fetchBackendCampaigns(),
+          fetchBackendBrands(),
+          fetchBackendInvitations(),
+          fetchBackendCollaborations(),
+          fetchBackendShortlists()
+        ]);
+
+        if (!isMounted) return;
+
+        setMarketplaceData(prev => {
+          const next = { ...prev };
+          if (cloudCreators.status === 'fulfilled' && cloudCreators.value?.length > 0) {
+            next.creators = cloudCreators.value;
+          }
+          if (cloudCampaigns.status === 'fulfilled' && cloudCampaigns.value?.length > 0) {
+            next.campaigns = cloudCampaigns.value;
+          }
+          if (cloudBrands.status === 'fulfilled' && cloudBrands.value?.length > 0) {
+            next.brands = cloudBrands.value;
+          }
+          if (cloudInvs.status === 'fulfilled' && cloudInvs.value?.length > 0) {
+            next.invitations = cloudInvs.value;
+          }
+          if (cloudCollabs.status === 'fulfilled' && cloudCollabs.value?.length > 0) {
+            next.projects = cloudCollabs.value;
+          }
+          if (cloudShortlists.status === 'fulfilled' && typeof cloudShortlists.value === 'object' && Object.keys(cloudShortlists.value || {}).length > 0) {
+            next.shortlists = cloudShortlists.value;
+          }
+          return next;
+        });
       } catch (e) {
         console.warn('[CreaSync] Initial cloud sync deferred to local cache:', e);
       }
     };
     syncBackend();
+
+    // Supabase Realtime listeners for live multi-user / multi-tab synchronicity
+    const unsubInv = subscribeToInvitations(payload => {
+      if (payload?.new) {
+        fetchBackendInvitations().then(freshInvs => {
+          if (isMounted && freshInvs?.length) {
+            setMarketplaceData(prev => ({ ...prev, invitations: freshInvs }));
+          }
+        }).catch(() => {});
+      }
+    });
+
+    const unsubCollab = subscribeToCollaborations(payload => {
+      if (payload?.new) {
+        fetchBackendCollaborations().then(freshCollabs => {
+          if (isMounted && freshCollabs?.length) {
+            setMarketplaceData(prev => ({ ...prev, projects: freshCollabs }));
+          }
+        }).catch(() => {});
+      }
+    });
+
+    const unsubCamp = subscribeToCampaigns(payload => {
+      if (payload?.new) {
+        fetchBackendCampaigns().then(freshCamps => {
+          if (isMounted && freshCamps?.length) {
+            setMarketplaceData(prev => ({ ...prev, campaigns: freshCamps }));
+          }
+        }).catch(() => {});
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubInv();
+      unsubCollab();
+      unsubCamp();
+    };
   }, []);
 
+  // Derive effective active brand ID strictly aligned with currentUser
+  const effectiveBrandId = useMemo(() => {
+    const role = resolveUserRole(currentUser);
+    if (role === 'brand' && currentUser?.email && currentUser.email !== 'lumina.demo@alloy.market') {
+      const emailKey = currentUser.email.toLowerCase().trim().replace(/[^a-zA-Z0-9]/g, '-');
+      return `brand-${emailKey}`;
+    }
+    return activeBrandId || 'brand-demo-lumina';
+  }, [currentUser, activeBrandId]);
+
   // Derived Brand-Scoped Data (Strict Data Isolation)
-  const brandScoped = getBrandScopedData(marketplaceData, activeBrandId, isDemoMode);
+  const brandScoped = getBrandScopedData(marketplaceData, effectiveBrandId, isDemoMode);
   const currentBrand = brandScoped.currentBrand;
   const brandCampaigns = brandScoped.campaigns;
   const activeCampaign = brandScoped.activeCampaign || brandCampaigns[0] || null;
@@ -130,6 +272,17 @@ export default function App() {
   const brandProjects = brandScoped.projects;
   const brandConnections = brandScoped.connections;
   const brandShortlists = brandScoped.shortlists;
+
+  // Visible brands: When a real brand user is logged in, ONLY their brand is in the architecture (no demo brands!)
+  const visibleBrands = useMemo(() => {
+    if (!currentUser || currentUser.email === 'lumina.demo@alloy.market') {
+      const demoList = (marketplaceData.brands || DEMO_BRANDS).filter(b => b.isDemo);
+      return demoList.length > 0 ? demoList : (marketplaceData.brands || DEMO_BRANDS);
+    }
+    const myBrands = (marketplaceData.brands || []).filter(b => !b.isDemo && (b.id === effectiveBrandId || b.userId === currentUser.id));
+    if (myBrands.length > 0) return myBrands;
+    return currentBrand ? [currentBrand] : [];
+  }, [marketplaceData.brands, effectiveBrandId, currentUser, currentBrand]);
 
   // Public Creator Opportunities (strictly published only)
   const publicOpportunities = getPublicCreatorOpportunities(marketplaceData);
@@ -166,49 +319,7 @@ export default function App() {
   const [activeConversationConnection, setActiveConversationConnection] = useState(null);
   const [conversationUserRole, setConversationUserRole] = useState('brand');
 
-  // Active Authenticated User & Protected Action Queue
-  const [currentUser, setCurrentUser] = useState(null);
-  const currentUserRef = useRef(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [pendingAction, setPendingAction] = useState(null);
-  const [loginInitialRole, setLoginInitialRole] = useState('brand');
-  const [loginNotice, setLoginNotice] = useState(null);
 
-  // Synchronously update both the ref and the React state
-  const updateActiveUser = (user) => {
-    currentUserRef.current = user;
-    setCurrentUser(user);
-  };
-
-  // Safely resolve the active role without letting Supabase default 'authenticated' confuse role logic
-  const resolveUserRole = (user) => {
-    if (!user) {
-      if (typeof window !== 'undefined') {
-        const active = localStorage.getItem('creasync_active_role');
-        if (active === 'brand' || active === 'creator') return active;
-      }
-      return null;
-    }
-    if (user.profile?.role === 'brand' || user.profile?.role === 'creator') {
-      return user.profile.role;
-    }
-    if (user.user_metadata?.intended_role === 'brand' || user.user_metadata?.intended_role === 'creator') {
-      return user.user_metadata.intended_role;
-    }
-    if (user.user_metadata?.role === 'brand' || user.user_metadata?.role === 'creator') {
-      return user.user_metadata.role;
-    }
-    if (user.role === 'brand' || user.role === 'creator') {
-      return user.role;
-    }
-    if (typeof window !== 'undefined') {
-      const active = localStorage.getItem('creasync_active_role');
-      if (active === 'brand' || active === 'creator') return active;
-      const intended = sessionStorage.getItem('creasync_intended_role') || localStorage.getItem('creasync_intended_role');
-      if (intended === 'brand' || intended === 'creator') return intended;
-    }
-    return null;
-  };
 
   // Role Conflict Resolution State
   const [isRoleConflictOpen, setIsRoleConflictOpen] = useState(false);
@@ -592,9 +703,13 @@ export default function App() {
     setPendingAction(null);
     setLoginNotice(null);
     setIsLoginOpen(false);
+    handleSwitchBrand('brand-demo-lumina');
+    handleToggleDemoMode(true);
     try {
       sessionStorage.removeItem('creasync_pending_action');
       sessionStorage.removeItem('creasync_intended_role');
+      localStorage.removeItem('creasync_active_user');
+      localStorage.removeItem('creasync_active_role');
     } catch (e) { }
     navigateTo('home', null, null);
   };
@@ -781,6 +896,34 @@ export default function App() {
         setIsRoleConflictOpen(true);
         return;
       }
+      if (activeUser.email && activeUser.email !== 'lumina.demo@alloy.market') {
+        const emailKey = activeUser.email.toLowerCase().trim().replace(/[^a-zA-Z0-9]/g, '-');
+        const customBrandId = `brand-${emailKey}`;
+        setMarketplaceData(prev => {
+          if (prev.activeBrandId !== customBrandId) {
+            const existingBrand = (prev.brands || []).find(b => b.id === customBrandId);
+            const brandName = activeUser.profile?.display_name || activeUser.display_name || activeUser.email.split('@')[0];
+            const updatedBrands = existingBrand ? prev.brands : [
+              {
+                id: customBrandId,
+                name: brandName,
+                industry: 'Creative & Digital',
+                description: `${brandName} private studio workspace.`,
+                aesthetic: 'Modern & Editorial',
+                isDemo: false
+              },
+              ...(prev.brands || [])
+            ];
+            return {
+              ...prev,
+              brands: updatedBrands,
+              activeBrandId: customBrandId,
+              isDemoMode: false
+            };
+          }
+          return prev;
+        });
+      }
       setCurrentView('brand-workspace');
       window.location.hash = '/brand';
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -857,19 +1000,31 @@ export default function App() {
       activeBrandId: newBrand.id,
       isDemoMode: false
     }));
+    saveBackendBrand(newBrand, currentUser?.id).catch(err => {
+      console.warn('[CreaSync] Background brand sync deferred:', err);
+    });
   };
 
   const handleUpdateBrand = (brandId, updates) => {
-    setMarketplaceData(prev => ({
-      ...prev,
-      brands: (prev.brands || []).map(b => b.id === brandId ? { ...b, ...updates } : b),
-      campaigns: (prev.campaigns || []).map(c => c.ownerBrandId === brandId ? {
-        ...c,
-        brandName: updates.name || c.brandName,
-        brandAvatar: updates.logo || c.brandAvatar,
-        brandWebsite: updates.website || c.brandWebsite
-      } : c)
-    }));
+    setMarketplaceData(prev => {
+      const updated = (prev.brands || []).map(b => b.id === brandId ? { ...b, ...updates } : b);
+      const target = updated.find(b => b.id === brandId);
+      if (target) {
+        saveBackendBrand(target, currentUser?.id).catch(err => {
+          console.warn('[CreaSync] Background brand update sync deferred:', err);
+        });
+      }
+      return {
+        ...prev,
+        brands: updated,
+        campaigns: (prev.campaigns || []).map(c => c.ownerBrandId === brandId ? {
+          ...c,
+          brandName: updates.name || c.brandName,
+          brandAvatar: updates.logo || c.brandAvatar,
+          brandWebsite: updates.website || c.brandWebsite
+        } : c)
+      };
+    });
   };
 
   const handleToggleDemoMode = (demoActive) => {
@@ -927,7 +1082,7 @@ export default function App() {
       activeCampaignId: finalCamp.id
     }));
     // Asynchronously synchronize with backend cloud store
-    saveBackendCampaign(newCampaignData, currentBrand).catch(err => {
+    saveBackendCampaign(newCampaignData, currentBrand, currentUser?.id).catch(err => {
       console.warn('[CreaSync] Background campaign sync deferred:', err);
     });
     setIsCampaignModalOpen(false);
@@ -956,6 +1111,9 @@ export default function App() {
       const updatedList = (prev.campaigns || []).map(c => {
         if (c.id === campaignId) {
           updatedCampaign = { ...c, ...updates, updatedAt: 'Just now' };
+          saveBackendCampaign(updatedCampaign, currentBrand, currentUser?.id).catch(err => {
+            console.warn('[CreaSync] Background campaign update sync deferred:', err);
+          });
           return updatedCampaign;
         }
         return c;
@@ -968,7 +1126,12 @@ export default function App() {
 
     if (!updatedCampaign) {
       const existing = (marketplaceData.campaigns || []).find(c => c.id === campaignId);
-      if (existing) updatedCampaign = { ...existing, ...updates };
+      if (existing) {
+        updatedCampaign = { ...existing, ...updates };
+        saveBackendCampaign(updatedCampaign, currentBrand, currentUser?.id).catch(err => {
+          console.warn('[CreaSync] Background campaign update sync deferred:', err);
+        });
+      }
     }
 
     if (!updatedCampaign) return;
@@ -1063,6 +1226,9 @@ export default function App() {
       campaigns: [duplicated, ...(prev.campaigns || [])],
       activeCampaignId: duplicated.id
     }));
+    saveBackendCampaign(duplicated, currentBrand, currentUser?.id).catch(err => {
+      console.warn('[CreaSync] Background campaign duplicate sync deferred:', err);
+    });
   };
 
   const handleDeleteCampaign = (campaignId) => {
@@ -1071,6 +1237,9 @@ export default function App() {
       const nextActive = remaining.find(c => c.ownerBrandId === currentBrand?.id)?.id || remaining[0]?.id || null;
       const newShortlists = { ...(prev.shortlists || {}) };
       delete newShortlists[campaignId];
+      deleteBackendCampaign(campaignId).catch(err => {
+        console.warn('[CreaSync] Background campaign delete sync deferred:', err);
+      });
       return {
         ...prev,
         campaigns: remaining,
@@ -1087,6 +1256,9 @@ export default function App() {
       const updatedList = currentList.includes(creatorId)
         ? currentList.filter(id => id !== creatorId)
         : [...currentList, creatorId];
+      toggleBackendShortlist(currentBrand?.id || 'brand-active', campaignId, creatorId).catch(err => {
+        console.warn('[CreaSync] Background shortlist toggle sync deferred:', err);
+      });
       return {
         ...prev,
         shortlists: {
@@ -1148,6 +1320,10 @@ export default function App() {
       invitations: [newInvitation, ...prev.invitations],
       connections: [newConn, ...prev.connections.filter(c => !(c.creatorId === invData.creatorId && c.campaignId === newInvitation.campaignId))]
     }));
+
+    sendBackendInvitation(newInvitation, currentBrand?.name, currentUser?.id).catch(err => {
+      console.warn('[CreaSync] Background invitation send sync deferred:', err);
+    });
   };
 
   // Creator Accepts Invitation -> Spawns/Activates Project
@@ -1196,6 +1372,13 @@ export default function App() {
         ? prev.projects.map(p => p.id === existingProject.id ? newProject : p)
         : [newProject, ...prev.projects]
     }));
+
+    updateBackendInvitationStatus(invitation.id, 'accepted', currentUser?.display_name, currentUser?.id).catch(err => {
+      console.warn('[CreaSync] Background invitation accept sync deferred:', err);
+    });
+    saveBackendCollaboration(newProject, currentUser?.display_name, currentUser?.id).catch(err => {
+      console.warn('[CreaSync] Background collaboration sync deferred:', err);
+    });
   };
 
   // Creator Declines Invitation
@@ -1204,6 +1387,9 @@ export default function App() {
       ...prev,
       invitations: prev.invitations.map(inv => inv.id === invitation.id ? { ...inv, status: 'declined' } : inv)
     }));
+    updateBackendInvitationStatus(invitation.id, 'declined', currentUser?.display_name, currentUser?.id).catch(err => {
+      console.warn('[CreaSync] Background invitation decline sync deferred:', err);
+    });
   };
 
   // --- Collaboration Lifecycle Handlers: Submit -> Review -> Revise -> Approve ---
@@ -1229,20 +1415,25 @@ export default function App() {
         return p;
       })
     }));
+
+    submitBackendDeliverables(projectId, { assetsUrl, notes, milestone }, currentUser?.display_name, currentUser?.id).catch(err => {
+      console.warn('[CreaSync] Background deliverable submission sync deferred:', err);
+    });
   };
 
   const handleRequestRevision = (projectId, { revisionNotes }) => {
+    const newFb = {
+      id: `fb-${Date.now()}`,
+      author: "Brand Creative Director",
+      role: "brand",
+      text: `“Revision requested: ${revisionNotes}”`,
+      timestamp: "Just now"
+    };
+
     setMarketplaceData(prev => ({
       ...prev,
       projects: prev.projects.map(p => {
         if (p.id === projectId) {
-          const newFb = {
-            id: `fb-${Date.now()}`,
-            author: "Brand Creative Director",
-            role: "brand",
-            text: `“Revision requested: ${revisionNotes}”`,
-            timestamp: "Just now"
-          };
           return {
             ...p,
             status: 'revision-requested',
@@ -1253,20 +1444,25 @@ export default function App() {
         return p;
       })
     }));
+
+    requestBackendRevision(projectId, { revisionNotes }, currentUser?.display_name, currentUser?.id).catch(err => {
+      console.warn('[CreaSync] Background revision request sync deferred:', err);
+    });
   };
 
   const handleApproveDeliverables = (projectId, { approvalNotes }) => {
+    const newFb = {
+      id: `fb-${Date.now()}`,
+      author: "Brand Creative Director",
+      role: "brand",
+      text: approvalNotes ? `“Approved: ${approvalNotes}”` : "“Deliverables approved! Final milestone unlocked & payout released.”",
+      timestamp: "Just now"
+    };
+
     setMarketplaceData(prev => ({
       ...prev,
       projects: prev.projects.map(p => {
         if (p.id === projectId) {
-          const newFb = {
-            id: `fb-${Date.now()}`,
-            author: "Brand Creative Director",
-            role: "brand",
-            text: approvalNotes ? `“Approved: ${approvalNotes}”` : "“Deliverables approved! Final milestone unlocked & payout released.”",
-            timestamp: "Just now"
-          };
           return {
             ...p,
             status: 'approved',
@@ -1279,6 +1475,10 @@ export default function App() {
         return p;
       })
     }));
+
+    approveBackendDeliverables(projectId, { approvalNotes }, currentUser?.display_name, currentUser?.id).catch(err => {
+      console.warn('[CreaSync] Background deliverable approval sync deferred:', err);
+    });
   };
 
   // Creator Profile & Portfolio Management (Unified Single Source of Truth)
@@ -1475,7 +1675,7 @@ export default function App() {
         {currentView === 'brand-workspace' && (
           <BrandWorkspaceView
             currentBrand={currentBrand}
-            allBrands={brands}
+            allBrands={visibleBrands}
             isDemoMode={isDemoMode}
             onSwitchBrand={handleSwitchBrand}
             onCreateBrand={handleCreateBrand}
@@ -1713,76 +1913,214 @@ export default function App() {
           setIsLoginOpen(false);
           setLoginNotice(null);
           const targetRole = role || user?.profile?.role || (user?.role !== 'authenticated' ? user?.role : null) || 'brand';
-          const activeUser = {
-            ...user,
-            role: targetRole,
-            profile: {
-              ...(user?.profile || {}),
-              role: targetRole,
-              display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || user?.email?.split('@')[0] || 'User'
+          if (targetRole === 'brand') {
+            const isLuminaDemo = !user || (!user.email || user.email === 'lumina.demo@alloy.market');
+            const brandUser = user ? {
+              ...user,
+              role: 'brand',
+              isDemoOnly: isLuminaDemo,
+              profile: {
+                ...(user?.profile || {}),
+                role: 'brand',
+                display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || (isLuminaDemo ? 'Lumina Botanica' : (user.email ? user.email.split('@')[0] : 'Brand Studio')),
+                isDemoOnly: isLuminaDemo
+              }
+            } : {
+              id: 'brand-demo-lumina',
+              email: 'lumina.demo@alloy.market',
+              role: 'brand',
+              display_name: 'Lumina Botanica',
+              isDemoOnly: true,
+              profile: {
+                id: 'brand-demo-lumina',
+                email: 'lumina.demo@alloy.market',
+                role: 'brand',
+                display_name: 'Lumina Botanica',
+                isDemoOnly: true
+              }
+            };
+            localStorage.setItem('creasync_active_user', JSON.stringify(brandUser));
+            localStorage.setItem('creasync_active_role', 'brand');
+            updateActiveUser(brandUser);
+
+            if (isLuminaDemo) {
+              handleSwitchBrand('brand-demo-lumina');
+              handleToggleDemoMode(true);
+            } else {
+              const emailKey = (brandUser.email || brandUser.id || 'custom').toLowerCase().trim().replace(/[^a-zA-Z0-9]/g, '-');
+              const customBrandId = `brand-${emailKey}`;
+              const brandName = brandUser.profile?.display_name || brandUser.display_name || (brandUser.email ? brandUser.email.split('@')[0] : 'My Brand Studio');
+
+              const brandRecord = {
+                id: customBrandId,
+                userId: brandUser.id,
+                name: brandName,
+                industry: 'Creative & Digital',
+                description: `${brandName} private studio workspace.`,
+                aesthetic: 'Modern & Editorial',
+                isDemo: false
+              };
+
+              setMarketplaceData(prev => {
+                const existingBrand = (prev.brands || []).find(b => b.id === customBrandId);
+                if (!existingBrand) {
+                  return {
+                    ...prev,
+                    brands: [brandRecord, ...(prev.brands || [])],
+                    activeBrandId: customBrandId,
+                    isDemoMode: false
+                  };
+                }
+                return {
+                  ...prev,
+                  activeBrandId: customBrandId,
+                  isDemoMode: false
+                };
+              });
+
+              saveBackendBrand(brandRecord, brandUser.id).catch(err => {
+                console.warn('[CreaSync] Background brand sync deferred:', err);
+              });
             }
-          };
-          localStorage.setItem('creasync_active_user', JSON.stringify(activeUser));
-          localStorage.setItem('creasync_active_role', targetRole);
-          updateActiveUser(activeUser);
-          executePendingActionOrRoute(activeUser, targetRole);
+            executePendingActionOrRoute(brandUser, 'brand');
+          } else {
+            const isDemo = !user || (!user.email || user.email === 'maya.demo@alloy.market') || !!user.isDemoOnly;
+            const creatorUser = user ? {
+              ...user,
+              role: 'creator',
+              isDemoOnly: isDemo,
+              profile: {
+                ...(user?.profile || {}),
+                role: 'creator',
+                display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || (isDemo ? 'Maya Chen' : (user.email ? user.email.split('@')[0] : 'Creator Studio')),
+                isDemoOnly: isDemo
+              }
+            } : {
+              id: 'maya-chen',
+              email: 'maya.demo@alloy.market',
+              role: 'creator',
+              display_name: 'Maya Chen',
+              isDemoOnly: true,
+              profile: {
+                id: 'maya-chen',
+                email: 'maya.demo@alloy.market',
+                role: 'creator',
+                display_name: 'Maya Chen',
+                isDemoOnly: true
+              }
+            };
+            localStorage.setItem('creasync_active_user', JSON.stringify(creatorUser));
+            localStorage.setItem('creasync_active_role', 'creator');
+            updateActiveUser(creatorUser);
+            handleToggleDemoMode(isDemo);
+            executePendingActionOrRoute(creatorUser, 'creator');
+          }
         }}
         onLoginBrand={(user) => {
           setIsLoginOpen(false);
           setLoginNotice(null);
+          const isLuminaDemo = !user || (!user.email || user.email === 'lumina.demo@alloy.market');
           const brandUser = user ? {
             ...user,
             role: 'brand',
+            isDemoOnly: isLuminaDemo,
             profile: {
               ...(user?.profile || {}),
               role: 'brand',
-              display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || 'Lumina Botanica'
+              display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || (isLuminaDemo ? 'Lumina Botanica' : (user.email ? user.email.split('@')[0] : 'Brand Studio')),
+              isDemoOnly: isLuminaDemo
             }
           } : {
             id: 'brand-demo-lumina',
-            email: 'lumina@botanica.com',
+            email: 'lumina.demo@alloy.market',
             role: 'brand',
             display_name: 'Lumina Botanica',
+            isDemoOnly: true,
             profile: {
               id: 'brand-demo-lumina',
-              email: 'lumina@botanica.com',
+              email: 'lumina.demo@alloy.market',
               role: 'brand',
-              display_name: 'Lumina Botanica'
+              display_name: 'Lumina Botanica',
+              isDemoOnly: true
             }
           };
           localStorage.setItem('creasync_active_user', JSON.stringify(brandUser));
           localStorage.setItem('creasync_active_role', 'brand');
           updateActiveUser(brandUser);
-          handleSwitchBrand('brand-demo-lumina');
-          handleToggleDemoMode(true);
+
+          if (isLuminaDemo) {
+            handleSwitchBrand('brand-demo-lumina');
+            handleToggleDemoMode(true);
+          } else {
+            const emailKey = (brandUser.email || brandUser.id || 'custom').toLowerCase().trim().replace(/[^a-zA-Z0-9]/g, '-');
+            const customBrandId = `brand-${emailKey}`;
+            const brandName = brandUser.profile?.display_name || brandUser.display_name || (brandUser.email ? brandUser.email.split('@')[0] : 'My Brand Studio');
+
+            const brandRecord = {
+              id: customBrandId,
+              userId: brandUser.id,
+              name: brandName,
+              industry: 'Creative & Digital',
+              description: `${brandName} private studio workspace.`,
+              aesthetic: 'Modern & Editorial',
+              isDemo: false
+            };
+
+            setMarketplaceData(prev => {
+              const existingBrand = (prev.brands || []).find(b => b.id === customBrandId);
+              if (!existingBrand) {
+                return {
+                  ...prev,
+                  brands: [brandRecord, ...(prev.brands || [])],
+                  activeBrandId: customBrandId,
+                  isDemoMode: false
+                };
+              }
+              return {
+                ...prev,
+                activeBrandId: customBrandId,
+                isDemoMode: false
+              };
+            });
+
+            saveBackendBrand(brandRecord, brandUser.id).catch(err => {
+              console.warn('[CreaSync] Background brand sync deferred:', err);
+            });
+          }
           executePendingActionOrRoute(brandUser, 'brand');
         }}
         onLoginCreator={(user) => {
           setIsLoginOpen(false);
           setLoginNotice(null);
+          const isDemo = !user || (!user.email || user.email === 'maya.demo@alloy.market') || !!user.isDemoOnly;
           const creatorUser = user ? {
             ...user,
             role: 'creator',
+            isDemoOnly: isDemo,
             profile: {
               ...(user?.profile || {}),
               role: 'creator',
-              display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || 'Maya Chen'
+              display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || (isDemo ? 'Maya Chen' : (user.email ? user.email.split('@')[0] : 'Creator Studio')),
+              isDemoOnly: isDemo
             }
           } : {
-            id: 'creator-demo-maya',
-            email: 'maya@studio.com',
+            id: 'maya-chen',
+            email: 'maya.demo@alloy.market',
             role: 'creator',
             display_name: 'Maya Chen',
+            isDemoOnly: true,
             profile: {
-              id: 'creator-demo-maya',
-              email: 'maya@studio.com',
+              id: 'maya-chen',
+              email: 'maya.demo@alloy.market',
               role: 'creator',
-              display_name: 'Maya Chen'
+              display_name: 'Maya Chen',
+              isDemoOnly: true
             }
           };
           localStorage.setItem('creasync_active_user', JSON.stringify(creatorUser));
           localStorage.setItem('creasync_active_role', 'creator');
           updateActiveUser(creatorUser);
+          handleToggleDemoMode(isDemo);
           executePendingActionOrRoute(creatorUser, 'creator');
         }}
       />

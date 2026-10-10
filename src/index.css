@@ -12294,7 +12294,7 @@ img, video {
 
 .brand-workspace-view {
   min-height: calc(100vh - var(--nav-height));
-  padding: 40px 0 100px 0;
+  padding: calc(var(--nav-height) + 24px) 0 100px 0;
   background: var(--bg-primary);
 }
 
@@ -12311,6 +12311,8 @@ img, video {
   box-shadow: var(--shadow-sm);
   position: relative;
   z-index: 40;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .brand-switcher-wrap {
@@ -13138,6 +13140,13 @@ img, video {
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   text-align: left;
+}
+
+@media (max-width: 900px) {
+  .first-choice-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 .first-choice-box {

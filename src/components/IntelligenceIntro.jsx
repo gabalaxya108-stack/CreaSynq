@@ -9,7 +9,7 @@ export default function IntelligenceIntro() {
             “Less searching. Better creative fits.”
           </h2>
           <p className="intelligence-note">
-            CreaSynq Intelligence • Invisible matching underneath
+            Alloy Intelligence • Invisible matching underneath
           </p>
         </div>
       </div>

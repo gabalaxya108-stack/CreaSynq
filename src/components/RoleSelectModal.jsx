@@ -25,10 +25,10 @@ export default function RoleSelectModal({
         <div className="role-modal-header">
           <div className="section-tag-pill">
             <Sparkles size={13} className="text-lavender" />
-            <span>Get Started with CreaSync</span>
+            <span>Get Started with Alloy</span>
           </div>
           <h2 id="role-modal-title" className="role-modal-title">
-            How would you like to use CreaSync?
+            How would you like to use Alloy?
           </h2>
           <p className="role-modal-desc">
             Choose your workspace to get started. You can explore both experiences at any time.

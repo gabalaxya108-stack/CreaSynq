@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS public.portfolio_projects (
   client_type TEXT,
   creative_direction TEXT,
   capabilities TEXT[] DEFAULT '{}',
+  media JSONB DEFAULT '[]'::jsonb,
+  workflow_id TEXT,
   visibility TEXT NOT NULL DEFAULT 'published' CHECK (visibility IN ('published', 'private')),
   featured BOOLEAN NOT NULL DEFAULT FALSE,
   display_order INT NOT NULL DEFAULT 0,
@@ -205,10 +207,15 @@ CREATE TABLE IF NOT EXISTS public.invitations (
   campaign_title TEXT NOT NULL,
   brand_name TEXT NOT NULL,
   brand_logo TEXT,
+  creator_name TEXT,
+  creator_avatar TEXT,
   budget TEXT,
+  timeline TEXT,
   deadline TEXT,
+  deliverables TEXT,
   summary TEXT,
-  status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Accepted', 'Declined')),
+  status TEXT NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Accepted', 'Declined', 'pending', 'accepted', 'declined')),
+  is_demo BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -228,13 +235,23 @@ CREATE TABLE IF NOT EXISTS public.collaborations (
   brand_name TEXT NOT NULL,
   creator_name TEXT NOT NULL,
   creator_avatar TEXT,
+  brand_contact TEXT,
   budget TEXT,
+  agreed_budget TEXT,
   milestone TEXT DEFAULT 'Milestone 1 of 3',
+  progress_percent INT DEFAULT 0,
+  deadline TEXT,
   deliverables TEXT[] DEFAULT '{}',
+  deliverables_scope TEXT,
   submission_url TEXT,
   submission_notes TEXT,
   revision_notes TEXT,
+  latest_feedback TEXT,
+  submission_previews TEXT[] DEFAULT '{}',
+  feedback_history JSONB DEFAULT '[]'::jsonb,
+  revision_history JSONB DEFAULT '[]'::jsonb,
   status TEXT NOT NULL DEFAULT 'in-progress' CHECK (status IN ('in-progress', 'submitted', 'revision-requested', 'approved', 'completed')),
+  is_demo BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -429,3 +446,96 @@ CREATE POLICY "Collaborations participant isolation" ON public.collaborations FO
       WHERE b.id = collaborations.brand_id AND (b.user_id = auth.uid() OR b.is_demo = true)
     )
   );
+
+-- ----------------------------------------------------------------------------
+-- 12. CREATOR WORKFLOWS TABLE
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.creator_workflows (
+  id TEXT PRIMARY KEY,
+  creator_id TEXT NOT NULL REFERENCES public.creator_profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  specialization TEXT,
+  linked_project_id TEXT REFERENCES public.portfolio_projects(id) ON DELETE SET NULL,
+  linked_project_title TEXT,
+  status TEXT NOT NULL DEFAULT 'Published' CHECK (status IN ('Draft', 'Published', 'Archived')),
+  visibility TEXT NOT NULL DEFAULT 'published' CHECK (visibility IN ('published', 'draft', 'private')),
+  human_involvement_notes TEXT,
+  steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_demo BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_creator_workflows_creator ON public.creator_workflows(creator_id);
+CREATE INDEX IF NOT EXISTS idx_creator_workflows_visibility ON public.creator_workflows(visibility);
+
+ALTER TABLE public.creator_workflows ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Workflows public read" ON public.creator_workflows FOR SELECT
+  USING (
+    visibility = 'published' 
+    OR is_demo = true
+    OR EXISTS (
+      SELECT 1 FROM public.creator_profiles c 
+      WHERE c.id = creator_workflows.creator_id AND (c.user_id = auth.uid() OR c.is_demo = true)
+    )
+  );
+
+CREATE POLICY "Workflows owner insert" ON public.creator_workflows FOR INSERT
+  WITH CHECK (
+    is_demo = true
+    OR EXISTS (
+      SELECT 1 FROM public.creator_profiles c 
+      WHERE c.id = creator_workflows.creator_id AND (c.user_id = auth.uid() OR c.is_demo = true)
+    )
+  );
+
+CREATE POLICY "Workflows owner update" ON public.creator_workflows FOR UPDATE
+  USING (
+    is_demo = true
+    OR EXISTS (
+      SELECT 1 FROM public.creator_profiles c 
+      WHERE c.id = creator_workflows.creator_id AND (c.user_id = auth.uid() OR c.is_demo = true)
+    )
+  );
+
+CREATE POLICY "Workflows owner delete" ON public.creator_workflows FOR DELETE
+  USING (
+    is_demo = true
+    OR EXISTS (
+      SELECT 1 FROM public.creator_profiles c 
+      WHERE c.id = creator_workflows.creator_id AND (c.user_id = auth.uid() OR c.is_demo = true)
+    )
+  );
+
+-- ----------------------------------------------------------------------------
+-- 13. ACTIVITY LOGS AUDIT TABLE
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.activity_logs (
+  id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  actor_role TEXT NOT NULL CHECK (actor_role IN ('creator', 'brand', 'system', 'admin')),
+  actor_name TEXT NOT NULL,
+  action_type TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON public.activity_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user ON public.activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON public.activity_logs(created_at DESC);
+
+ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Activity logs read" ON public.activity_logs FOR SELECT
+  USING (
+    auth.uid() = user_id 
+    OR user_id IS NULL
+  );
+
+CREATE POLICY "Activity logs insert" ON public.activity_logs FOR INSERT
+  WITH CHECK (true);
+

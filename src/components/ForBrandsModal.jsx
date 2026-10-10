@@ -30,7 +30,7 @@ export default function ForBrandsModal({ isOpen, onClose, onStartCampaign }) {
           <div className="section-label">For Brands & Agencies</div>
           <h2 className="modal-title">Bring Your Next Campaign to Life</h2>
           <p className="modal-subtitle">
-            CreaSynq connects creative directors and brands with exceptional AI creators who master generative tools.
+            Alloy connects creative directors and brands with exceptional AI creators who master generative tools.
           </p>
         </div>
 

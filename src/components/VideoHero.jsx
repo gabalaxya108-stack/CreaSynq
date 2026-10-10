@@ -89,7 +89,7 @@ export default function VideoHero({ onExploreClick }) {
         ) : (
           <img 
             src={currentScene.poster} 
-            alt="CreaSynq Creative Universe" 
+            alt="Alloy Creative Universe" 
             className="hero-video-element"
           />
         )}

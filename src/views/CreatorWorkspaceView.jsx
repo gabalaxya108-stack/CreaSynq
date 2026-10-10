@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Palette, Eye, EyeOff, Star, Plus, MessageSquare, Briefcase, ExternalLink, 
   CheckCircle, ArrowRight, Dna, CheckCircle2, X, Send, ChevronRight, Check,
@@ -9,6 +9,13 @@ import {
 import { generateCreatorDNA } from '../intelligence/creatorDNA';
 import { generateCreatorDNA as generateCreatorDNAWithGroq } from '../ai/groqClient';
 import { INITIAL_CREATOR_INVITATIONS, INITIAL_CREATOR_PROJECTS } from '../data/connectionsData';
+
+function formatInvitationField(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return 'Not specified in this invitation';
+}
 
 export default function CreatorWorkspaceView({ 
   creator, 
@@ -98,6 +105,71 @@ export default function CreatorWorkspaceView({
   const [localInvitationsList, setLocalInvitationsList] = useState(INITIAL_CREATOR_INVITATIONS);
   const invitationsList = propInvitations || localInvitationsList;
   const [invitationNotice, setInvitationNotice] = useState(null);
+  const [invitationToConfirm, setInvitationToConfirm] = useState(null);
+
+  // Consent dialog keyboard access: initial focus, Tab containment, Escape, focus restoration
+  const consentDialogRef = useRef(null);
+  const consentInitialFocusRef = useRef(null);
+  const consentOpenerRef = useRef(null);
+
+  useEffect(() => {
+    if (!invitationToConfirm) return undefined;
+
+    const dialog = consentDialogRef.current;
+    if (!dialog) return undefined;
+
+    const opener = document.activeElement;
+    consentOpenerRef.current = opener instanceof HTMLElement && opener !== document.body ? opener : null;
+
+    (consentInitialFocusRef.current || dialog).focus();
+
+    const getFocusable = () =>
+      Array.from(
+        dialog.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setInvitationToConfirm(null);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const items = getFocusable();
+      if (items.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = items[0];
+      const last = items[items.length - 1];
+      const current = document.activeElement;
+
+      if (!dialog.contains(current) || !items.includes(current)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && current === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && current === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      const openerToRestore = consentOpenerRef.current;
+      consentOpenerRef.current = null;
+      if (openerToRestore && typeof openerToRestore.focus === 'function' && document.contains(openerToRestore)) {
+        openerToRestore.focus();
+      }
+    };
+  }, [invitationToConfirm]);
 
   // Projects / Collaborations state (synced with shared props)
   const [localProjects, setLocalProjects] = useState(INITIAL_CREATOR_PROJECTS);
@@ -413,6 +485,15 @@ export default function CreatorWorkspaceView({
     }
     setInvitationNotice(`Invitation from ${invitation.brandName || invitation.brand} politely declined.`);
     setTimeout(() => setInvitationNotice(null), 4000);
+  };
+
+  // --- Handlers: Invitation Acceptance Consent ---
+  const handleConfirmInvitationAcceptance = () => {
+    const invitation = invitationToConfirm;
+    if (!invitation) return;
+    // Close before invoking so a rapid re-click on Confirm cannot accept twice
+    setInvitationToConfirm(null);
+    handleAcceptInvitation(invitation);
   };
 
   // --- Handlers: Projects (Deliverable Submission) ---
@@ -828,7 +909,7 @@ export default function CreatorWorkspaceView({
                         <button 
                           type="button" 
                           className="btn btn-primary btn-xs"
-                          onClick={() => handleAcceptInvitation(inv)}
+                          onClick={() => setInvitationToConfirm(inv)}
                         >
                           Accept
                         </button>
@@ -1219,7 +1300,7 @@ export default function CreatorWorkspaceView({
                       <button 
                         type="button" 
                         className="btn btn-primary btn-sm"
-                        onClick={() => handleAcceptInvitation(inv)}
+                        onClick={() => setInvitationToConfirm(inv)}
                       >
                         <Check size={15} />
                         <span>Accept Invitation & Open Studio</span>
@@ -1976,6 +2057,95 @@ export default function CreatorWorkspaceView({
               >
                 <span>Apply to Campaign</span>
                 <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: INVITATION ACCEPTANCE — INFORMED CONSENT
+          ======================================================== */}
+      {invitationToConfirm && (
+        <div className="modal-backdrop" onClick={() => setInvitationToConfirm(null)}>
+          <div
+            className="creator-modal-card invitation-consent-modal"
+            ref={consentDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="invitation-consent-title"
+            aria-describedby="invitation-consent-desc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="modal-close-btn"
+              aria-label="Close confirmation dialog"
+              onClick={() => setInvitationToConfirm(null)}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="modal-header-block">
+              <span className="section-label-pill">Informed Consent</span>
+              <h2 className="modal-title" id="invitation-consent-title" tabIndex={-1} ref={consentInitialFocusRef}>
+                Confirm collaboration terms
+              </h2>
+              <p className="modal-sub" id="invitation-consent-desc">
+                Accepting this invitation will activate the collaboration project below under the
+                following terms. Please review them carefully before confirming.
+              </p>
+            </div>
+
+            <div className="invitation-consent-body">
+              <div className="consent-counterparty-box">
+                <span className="consent-brand-name">
+                  {formatInvitationField(invitationToConfirm.brand, invitationToConfirm.brandName)}
+                </span>
+                <span className="consent-campaign-title">
+                  {formatInvitationField(invitationToConfirm.title)}
+                </span>
+              </div>
+
+              <div className="consent-terms-list">
+                <div className="consent-term-row">
+                  <span className="consent-term-label">Budget / Compensation</span>
+                  <span className="consent-term-value">{formatInvitationField(invitationToConfirm.budget)}</span>
+                </div>
+
+                <div className="consent-term-row">
+                  <span className="consent-term-label">Timeline / Delivery</span>
+                  <span className="consent-term-value">{formatInvitationField(invitationToConfirm.timeline)}</span>
+                </div>
+
+                <div className="consent-term-row">
+                  <span className="consent-term-label">Required Deliverables</span>
+                  <span className="consent-term-value">{formatInvitationField(invitationToConfirm.deliverables)}</span>
+                </div>
+              </div>
+
+              <p className="consent-review-notice">
+                Once accepted, a collaboration project is created in your Projects tab and direct
+                messaging with the brand opens in Messages. By confirming, you agree to deliver
+                under the terms shown above.
+              </p>
+            </div>
+
+            <div className="modal-actions-row">
+              <button
+                type="button"
+                className="btn btn-secondary btn-md"
+                onClick={() => setInvitationToConfirm(null)}
+              >
+                Go Back
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-md"
+                onClick={handleConfirmInvitationAcceptance}
+              >
+                <Check size={15} />
+                <span>Confirm Acceptance</span>
               </button>
             </div>
           </div>

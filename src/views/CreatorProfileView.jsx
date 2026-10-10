@@ -7,7 +7,7 @@ import {
   ArrowLeft, MapPin, Heart, Share2, Send, Sparkles, ArrowDown, Dna, 
   CheckCircle2, MessageSquare, Clock, ShieldCheck, AlertCircle, Bookmark, 
   BookmarkCheck, ExternalLink, Edit3, Eye, Layers, ChevronRight, Check,
-  Sparkle, Compass, UserCheck
+  Sparkle, Compass, UserCheck, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { getPublicCreatorProfile } from '../data/marketplaceStore';
 import { generateCreatorDNA } from '../intelligence/creatorDNA';
@@ -34,6 +34,16 @@ export default function CreatorProfileView({
 }) {
   const [copied, setCopied] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [expandedProjectIds, setExpandedProjectIds] = useState([]);
+
+  const toggleExpandProject = (e, projectId) => {
+    e.stopPropagation();
+    setExpandedProjectIds(prev =>
+      prev.includes(projectId)
+        ? prev.filter(id => id !== projectId)
+        : [...prev, projectId]
+    );
+  };
 
   // Strict Single Source of Truth: Filter out private portfolio items for brand view
   const publicCreator = useMemo(() => getPublicCreatorProfile(creator), [creator]);
@@ -138,13 +148,14 @@ export default function CreatorProfileView({
     <div className="creator-profile-view">
       <div className="page-container">
         {/* Navigation Breadcrumb & Context Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
           <button 
             type="button" 
             className="profile-back-link"
             onClick={onBack}
+            aria-label="Back to Marketplace"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={16} className="profile-back-arrow" />
             <span>Back to Marketplace</span>
           </button>
 
@@ -239,7 +250,7 @@ export default function CreatorProfileView({
                 </div>
               )}
 
-              {/* Brand Actions */}
+              {/* Brand Actions — Stable Positions & No Horizontal Shift */}
               <div className="profile-hero-actions" style={{ marginTop: '24px' }}>
                 {isConnected ? (
                   <button 
@@ -262,13 +273,14 @@ export default function CreatorProfileView({
                   </button>
                 )}
 
-                {/* Shortlist Action */}
+                {/* Shortlist Action with Stable Min-Width */}
                 {evaluatedCampaign && onToggleShortlist && (
                   <button
                     type="button"
-                    className={`btn btn-secondary btn-lg ${isShortlisted ? 'saved' : ''}`}
+                    className={`btn btn-secondary btn-lg btn-shortlist-stable ${isShortlisted ? 'saved' : ''}`}
                     onClick={() => onToggleShortlist(evaluatedCampaign.id, publicCreator.id)}
                     title={isShortlisted ? `Remove from ${evaluatedCampaign.title} shortlist` : `Add to ${evaluatedCampaign.title} shortlist`}
+                    aria-pressed={isShortlisted}
                   >
                     {isShortlisted ? (
                       <>
@@ -407,118 +419,10 @@ export default function CreatorProfileView({
         )}
 
         {/* ========================================================
-            B. PORTFOLIO — THE VISUAL CENTERPIECE
+            B. CREATIVE DNA DOSSIER (EVIDENCE-GROUNDED 3-TIER PROVENANCE)
+            Positioned before full portfolio for immediate creative comprehension
             ======================================================== */}
-        <section className="profile-portfolio-section" id="selected-work-section" style={{ marginTop: '40px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-            <div>
-              <span className="section-label">Section 01 • Portfolio</span>
-              <h2 className="profile-section-title font-editorial">
-                Featured Work & Case Studies
-              </h2>
-              <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                Demonstrated commercial commissions, generative pipelines, and visual worldbuilding.
-              </p>
-            </div>
-
-            {/* Category Filter Pills */}
-            {availableCategories.length > 2 && (
-              <div className="portfolio-filters-group">
-                {availableCategories.map(cat => (
-                  <button
-                    key={cat}
-                    type="button"
-                    className={`portfolio-filter-pill ${selectedCategory === cat ? 'active' : ''}`}
-                    onClick={() => setSelectedCategory(cat)}
-                  >
-                    {cat === 'all' ? `All Works (${publishedProjects.length})` : cat}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Editorial Portfolio Grid */}
-          {filteredProjects.length > 0 ? (
-            <div className="portfolio-gallery-grid">
-              {filteredProjects.map((proj) => (
-                <div 
-                  key={proj.id} 
-                  className="portfolio-item-card"
-                  onClick={() => onSelectProject && onSelectProject(proj, publicCreator)}
-                >
-                  <div className="portfolio-item-media" style={{ position: 'relative' }}>
-                    <img 
-                      src={proj.image} 
-                      alt={proj.title} 
-                      loading="lazy" 
-                      onError={(e) => {
-                        e.currentTarget.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85";
-                      }}
-                    />
-                    
-                    {proj.featured && (
-                      <span style={{ position: 'absolute', top: '12px', left: '12px', fontSize: '0.72rem', padding: '3px 9px', borderRadius: '100px', background: 'rgba(245, 158, 11, 0.95)', color: '#FFFFFF', fontWeight: 600 }}>
-                        ★ Featured
-                      </span>
-                    )}
-
-                    <div className="portfolio-item-overlay">
-                      <span>Explore Case Study →</span>
-                    </div>
-                  </div>
-
-                  <div className="portfolio-item-details">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <span className="portfolio-item-cat">{proj.category || 'Visual Art'}</span>
-                      {proj.format && (
-                        <span style={{ fontSize: '0.74rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>
-                          {proj.format}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <h3 className="portfolio-item-title">{proj.title}</h3>
-                    
-                    {proj.role && (
-                      <p style={{ fontSize: '0.76rem', color: 'var(--text-tertiary)', margin: '0 0 6px 0' }}>
-                        Role: {proj.role} {proj.clientType ? `• ${proj.clientType}` : ''}
-                      </p>
-                    )}
-
-                    <p className="portfolio-item-desc">{proj.description}</p>
-
-                    {/* Capabilities Tags */}
-                    {proj.capabilities && proj.capabilities.length > 0 && (
-                      <div className="chip-cloud" style={{ marginTop: '10px' }}>
-                        {proj.capabilities.slice(0, 3).map((cap, i) => (
-                          <span key={i} className="skill-chip" style={{ fontSize: '0.72rem', padding: '2px 8px', background: 'var(--bg-secondary)' }}>
-                            {cap}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            /* Honest Empty State */
-            <div className="portfolio-empty-state" style={{ padding: '48px 24px', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: '16px', border: '1px dashed var(--border-subtle)' }}>
-              <h3 className="font-editorial" style={{ fontSize: '1.4rem', marginBottom: '6px' }}>
-                No published portfolio projects yet
-              </h3>
-              <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto', fontSize: '0.9rem' }}>
-                This creator has not yet published brand-visible case studies to their public profile.
-              </p>
-            </div>
-          )}
-        </section>
-
-        {/* ========================================================
-            C. CREATIVE DNA DOSSIER (EVIDENCE-GROUNDED 3-TIER PROVENANCE)
-            ======================================================== */}
-        <section className="profile-dna-section" id="creative-dna-section" style={{ marginTop: '50px' }}>
+        <section className="profile-dna-section" id="creative-dna-section" style={{ marginTop: '36px' }}>
           <div className="profile-dna-card" style={{ padding: '32px' }}>
             {/* Header */}
             <div className="dna-card-header" style={{ marginBottom: '20px' }}>
@@ -529,9 +433,9 @@ export default function CreatorProfileView({
                     CreaSync Creative DNA Dossier
                   </span>
                 </div>
-                <h3 className="font-editorial" style={{ margin: 0, fontSize: '1.7rem' }}>
+                <h2 className="font-editorial" style={{ margin: 0, fontSize: '1.75rem' }}>
                   Creative Fingerprint & Provenance
-                </h3>
+                </h2>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -551,7 +455,7 @@ export default function CreatorProfileView({
               </div>
             </div>
 
-            {/* Developing Portfolio Callout (Mandatory Requirement) */}
+            {/* Developing Portfolio Callout */}
             {isDevelopingPortfolio && (
               <div style={{ padding: '14px 18px', background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.25)', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <AlertCircle size={18} style={{ color: '#D97706', flexShrink: 0 }} />
@@ -575,7 +479,7 @@ export default function CreatorProfileView({
             {/* 3-Tier Provenance Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', marginTop: '16px' }}>
               {/* Provenance Category 1: Creator-Provided */}
-              <div style={{ padding: '20px', borderRadius: '12px', background: 'rgba(0, 0, 0, 0.02)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ padding: '20px', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border-medium)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', fontWeight: 700 }}>
                     1. Creator-Provided
@@ -594,12 +498,12 @@ export default function CreatorProfileView({
               </div>
 
               {/* Provenance Category 2: Portfolio-Supported */}
-              <div style={{ padding: '20px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+              <div style={{ padding: '20px', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#059669', fontWeight: 700 }}>
                     2. Portfolio-Supported
                   </span>
-                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '100px', background: 'rgba(16, 185, 129, 0.15)', color: '#059669', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '100px', background: 'rgba(16, 185, 129, 0.12)', color: '#059669', fontWeight: 600 }}>
                     Verified Evidence
                   </span>
                 </div>
@@ -612,12 +516,12 @@ export default function CreatorProfileView({
               </div>
 
               {/* Provenance Category 3: AI-Inferred */}
-              <div style={{ padding: '20px', borderRadius: '12px', background: 'rgba(124, 58, 237, 0.05)', border: '1px solid rgba(124, 58, 237, 0.2)' }}>
+              <div style={{ padding: '20px', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid rgba(124, 58, 237, 0.3)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-lavender-deep)', fontWeight: 700 }}>
                     3. AI-Inferred
                   </span>
-                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '100px', background: 'rgba(124, 58, 237, 0.15)', color: 'var(--accent-lavender-deep)', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '100px', background: 'rgba(124, 58, 237, 0.12)', color: 'var(--accent-lavender-deep)', fontWeight: 600 }}>
                     Synthesized Observation
                   </span>
                 </div>
@@ -634,7 +538,7 @@ export default function CreatorProfileView({
             </div>
 
             {/* Footer Trust Guarantee */}
-            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>
+            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>
               <ShieldCheck size={16} style={{ color: 'var(--accent-lavender-deep)', flexShrink: 0 }} />
               <span>CreaSync enforces strict truth-in-advertising. Creative DNA never manufactures fake follower numbers, client logos, or engagement statistics.</span>
             </div>
@@ -642,24 +546,185 @@ export default function CreatorProfileView({
         </section>
 
         {/* ========================================================
-            D. COLLABORATION INFORMATION & EDITORIAL SPECS
+            C. PORTFOLIO — THE VISUAL CENTERPIECE
+            Image-led, artwork occupies ~1 viewport in height on desktop
+            with compact information panel and vertically centered text
             ======================================================== */}
-        <div className="profile-editorial-details-grid" style={{ marginTop: '40px' }}>
+        <section className="profile-portfolio-section" id="selected-work-section" style={{ marginTop: '48px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <span className="section-label">Section 02 • Portfolio</span>
+              <h2 className="profile-section-title font-editorial">
+                Featured Work & Case Studies
+              </h2>
+              <p style={{ fontSize: '0.94rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                Demonstrated commercial commissions, generative pipelines, and visual worldbuilding.
+              </p>
+            </div>
+
+            {/* Category Filter Pills */}
+            {availableCategories.length > 2 && (
+              <div className="portfolio-filters-group">
+                {availableCategories.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`portfolio-filter-pill ${selectedCategory === cat ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat === 'all' ? `All Works (${publishedProjects.length})` : cat}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Image-Led Editorial Showcase Grid */}
+          {filteredProjects.length > 0 ? (
+            <div className="portfolio-gallery-grid">
+              {filteredProjects.map((proj) => {
+                const isExpanded = expandedProjectIds.includes(proj.id);
+
+                return (
+                  <article
+                    key={proj.id}
+                    className="portfolio-showcase-card"
+                  >
+                    {/* Dominant Artwork Side (Approx 1 desktop viewport height) */}
+                    <div
+                      className="portfolio-showcase-media"
+                      onClick={() => onSelectProject && onSelectProject(proj, publicCreator)}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Explore case study for ${proj.title}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.stopPropagation();
+                          onSelectProject && onSelectProject(proj, publicCreator);
+                        }
+                      }}
+                    >
+                      <img
+                        src={proj.image}
+                        alt={proj.title}
+                        loading="lazy"
+                        className="portfolio-showcase-img"
+                        onError={(e) => {
+                          e.currentTarget.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85";
+                        }}
+                      />
+
+                      {proj.featured && (
+                        <span className="portfolio-featured-badge">
+                          ★ Featured
+                        </span>
+                      )}
+
+                      <div className="portfolio-showcase-overlay">
+                        <span>Explore Case Study →</span>
+                      </div>
+                    </div>
+
+                    {/* Compact Information Panel Alongside Artwork (Vertically Centered) */}
+                    <div className="portfolio-showcase-info">
+                      <div className="portfolio-info-meta-top">
+                        <span className="portfolio-item-cat">{proj.category || 'Visual Art'}</span>
+                        {proj.format && (
+                          <span className="portfolio-item-format">
+                            {proj.format}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="portfolio-showcase-title font-editorial">
+                        {proj.title}
+                      </h3>
+
+                      {proj.role && (
+                        <p className="portfolio-item-role">
+                          Role: <strong>{proj.role}</strong> {proj.clientType ? `• ${proj.clientType}` : ''}
+                        </p>
+                      )}
+
+                      {/* Description with Restrained Keyboard-Accessible "View Details" Interaction */}
+                      <div className="portfolio-desc-wrapper">
+                        <p className={`portfolio-showcase-desc ${isExpanded ? 'expanded' : 'clamped'}`}>
+                          {proj.description}
+                        </p>
+                        {proj.description && proj.description.length > 120 && (
+                          <button
+                            type="button"
+                            className="portfolio-details-toggle"
+                            onClick={(e) => toggleExpandProject(e, proj.id)}
+                            aria-expanded={isExpanded}
+                            aria-label={isExpanded ? `Show less description for ${proj.title}` : `View full description for ${proj.title}`}
+                          >
+                            <span>{isExpanded ? "Show less" : "View details"}</span>
+                            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Capabilities Tags Cloud */}
+                      {proj.capabilities && proj.capabilities.length > 0 && (
+                        <div className="chip-cloud" style={{ marginTop: '14px' }}>
+                          {proj.capabilities.map((cap, i) => (
+                            <span key={i} className="skill-chip portfolio-spec-chip">
+                              {cap}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="portfolio-showcase-actions" style={{ marginTop: '20px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => onSelectProject && onSelectProject(proj, publicCreator)}
+                        >
+                          <span>Open Case Study</span>
+                          <ExternalLink size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            /* Honest Empty State */
+            <div className="portfolio-empty-state" style={{ padding: '48px 24px', textAlign: 'center', background: 'var(--bg-card)', borderRadius: '16px', border: '1px dashed var(--border-medium)' }}>
+              <h3 className="font-editorial" style={{ fontSize: '1.4rem', marginBottom: '6px' }}>
+                No published portfolio projects yet
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto', fontSize: '0.9rem' }}>
+                This creator has not yet published brand-visible case studies to their public profile.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* ========================================================
+            D. COLLABORATION INFORMATION & EDITORIAL SPECS
+            Sections 03 and 04: Restrained typography, borders, and clean surfaces
+            No heavy colored background boxes
+            ======================================================== */}
+        <div className="profile-editorial-details-grid" style={{ marginTop: '48px' }}>
           {/* Section: Creative Direction & Bio */}
           <div className="profile-details-card">
             <span className="section-label">Section 03 • Creative Approach</span>
-            <h3 className="font-editorial" style={{ fontSize: '1.8rem', marginBottom: '12px' }}>
+            <h3 className="font-editorial" style={{ fontSize: '1.85rem', marginBottom: '12px' }}>
               Artistic Philosophy
             </h3>
-            <p style={{ fontSize: '1.05rem', lineHeight: 1.65, color: 'var(--text-secondary)', marginBottom: '18px' }}>
+            <p style={{ fontSize: '1.02rem', lineHeight: 1.65, color: 'var(--text-secondary)', marginBottom: '20px' }}>
               {publicCreator.bio}
             </p>
 
             <div style={{ marginTop: '24px', paddingTop: '18px', borderTop: '1px solid var(--border-light)' }}>
               <span className="sidebar-heading">Preferred Industries</span>
-              <div className="chip-cloud" style={{ marginTop: '8px' }}>
+              <div className="chip-cloud" style={{ marginTop: '10px' }}>
                 {(publicCreator.industries || []).map((ind, i) => (
-                  <span key={i} className="skill-chip" style={{ background: 'var(--bg-secondary)', fontWeight: 500 }}>
+                  <span key={i} className="skill-chip spec-clean-chip">
                     {ind}
                   </span>
                 ))}
@@ -668,13 +733,13 @@ export default function CreatorProfileView({
           </div>
 
           {/* Section: Capabilities, Styles & Generative Tools */}
-          <div className="profile-details-card profile-details-secondary">
+          <div className="profile-details-card">
             {/* Capabilities */}
             <div className="profile-block-row">
               <span className="sidebar-heading">Section 04 • Core Capabilities</span>
-              <div className="chip-cloud" style={{ marginTop: '8px' }}>
+              <div className="chip-cloud" style={{ marginTop: '10px' }}>
                 {(publicCreator.capabilities || []).map((cap, i) => (
-                  <span key={i} className="skill-chip" style={{ background: '#FFFFFF', fontWeight: 500 }}>
+                  <span key={i} className="skill-chip spec-clean-chip">
                     {cap}
                   </span>
                 ))}
@@ -684,9 +749,9 @@ export default function CreatorProfileView({
             {/* Aesthetics */}
             <div className="profile-block-row">
               <span className="sidebar-heading">Section 05 • Aesthetic Styles</span>
-              <div className="chip-cloud" style={{ marginTop: '8px' }}>
+              <div className="chip-cloud" style={{ marginTop: '10px' }}>
                 {(publicCreator.styles || []).map((st, i) => (
-                  <span key={i} className="skill-chip" style={{ background: 'var(--accent-lavender-light)', color: 'var(--accent-lavender-deep)', borderColor: 'var(--accent-lavender)' }}>
+                  <span key={i} className="skill-chip spec-aesthetic-chip">
                     {st}
                   </span>
                 ))}
@@ -696,9 +761,9 @@ export default function CreatorProfileView({
             {/* Generative Stack */}
             <div className="profile-block-row" style={{ marginBottom: 0 }}>
               <span className="sidebar-heading">Section 06 • Generative Pipeline</span>
-              <div className="chip-cloud" style={{ marginTop: '8px' }}>
+              <div className="chip-cloud" style={{ marginTop: '10px' }}>
                 {(publicCreator.tools || []).map((tool, i) => (
-                  <span key={i} className="skill-chip" style={{ background: '#FFFFFF', opacity: 0.9 }}>
+                  <span key={i} className="skill-chip spec-clean-chip">
                     {tool}
                   </span>
                 ))}
@@ -709,8 +774,10 @@ export default function CreatorProfileView({
 
         {/* ========================================================
             E. BOTTOM BRAND ACTIONS BANNER
+            Order matches hero: Primary action first, Shortlist second
+            with stable min-width to avoid any horizontal shift
             ======================================================== */}
-        <div className="profile-bottom-cta-banner" style={{ marginTop: '50px' }}>
+        <div className="profile-bottom-cta-banner" style={{ marginTop: '56px' }}>
           <div>
             <h3 className="font-editorial" style={{ fontSize: '1.9rem', marginBottom: '4px' }}>
               Work with {publicCreator.name.split(' ')[0]}
@@ -720,27 +787,7 @@ export default function CreatorProfileView({
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            {evaluatedCampaign && onToggleShortlist && (
-              <button
-                type="button"
-                className={`btn btn-secondary btn-lg ${isShortlisted ? 'saved' : ''}`}
-                onClick={() => onToggleShortlist(evaluatedCampaign.id, publicCreator.id)}
-              >
-                {isShortlisted ? (
-                  <>
-                    <BookmarkCheck size={16} style={{ color: 'var(--accent-lavender-deep)' }} />
-                    <span>In Shortlist</span>
-                  </>
-                ) : (
-                  <>
-                    <Bookmark size={16} />
-                    <span>Add to Shortlist</span>
-                  </>
-                )}
-              </button>
-            )}
-
+          <div className="profile-cta-actions">
             {isConnected ? (
               <button 
                 type="button" 
@@ -759,6 +806,27 @@ export default function CreatorProfileView({
               >
                 <Send size={15} />
                 <span>Invite to Campaign</span>
+              </button>
+            )}
+
+            {evaluatedCampaign && onToggleShortlist && (
+              <button
+                type="button"
+                className={`btn btn-secondary btn-lg btn-shortlist-stable ${isShortlisted ? 'saved' : ''}`}
+                onClick={() => onToggleShortlist(evaluatedCampaign.id, publicCreator.id)}
+                aria-pressed={isShortlisted}
+              >
+                {isShortlisted ? (
+                  <>
+                    <BookmarkCheck size={16} style={{ color: 'var(--accent-lavender-deep)' }} />
+                    <span>Shortlisted</span>
+                  </>
+                ) : (
+                  <>
+                    <Bookmark size={16} />
+                    <span>Add to Shortlist</span>
+                  </>
+                )}
               </button>
             )}
           </div>

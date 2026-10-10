@@ -121,6 +121,7 @@ export default function BrandWorkspaceView({
   const [comparisonCreatorIds, setComparisonCreatorIds] = useState(['maya-chen', 'zora-vance', 'kai-sorenson']);
   const [reviewModalProject, setReviewModalProject] = useState(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isReviewModalRevisionMode, setIsReviewModalRevisionMode] = useState(false);
   const [inviteModalCreator, setInviteModalCreator] = useState(null);
   const [inviteModalInitialData, setInviteModalInitialData] = useState(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -1622,10 +1623,9 @@ export default function BrandWorkspaceView({
                             type="button" 
                             className="btn btn-secondary btn-sm"
                             onClick={() => {
-                              const notes = prompt("Enter revision instructions for the creator:");
-                              if (notes && onRequestRevision) {
-                                onRequestRevision(proj.id, { revisionNotes: notes });
-                              }
+                              setReviewModalProject(proj);
+                              setIsReviewModalRevisionMode(true);
+                              setIsReviewModalOpen(true);
                             }}
                           >
                             <RotateCcw size={14} />
@@ -1636,10 +1636,9 @@ export default function BrandWorkspaceView({
                             type="button" 
                             className="btn btn-primary btn-sm"
                             onClick={() => {
-                              const approvalNotes = prompt("Enter approval remarks (optional):", "Outstanding work! Master passes approved.");
-                              if (onApproveDeliverables) {
-                                onApproveDeliverables(proj.id, { approvalNotes });
-                              }
+                              setReviewModalProject(proj);
+                              setIsReviewModalRevisionMode(false);
+                              setIsReviewModalOpen(true);
                             }}
                           >
                             <CheckCircle2 size={14} />
@@ -2326,10 +2325,12 @@ export default function BrandWorkspaceView({
         onClose={() => {
           setIsReviewModalOpen(false);
           setReviewModalProject(null);
+          setIsReviewModalRevisionMode(false);
         }}
         project={reviewModalProject}
         onRequestRevision={onRequestRevision}
         onApproveDeliverables={onApproveDeliverables}
+        initialRevisionMode={isReviewModalRevisionMode}
       />
     </div>
   );

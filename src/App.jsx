@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import CreativeShowcase from './components/CreativeShowcase';
@@ -182,7 +182,12 @@ export default function App() {
     }));
   };
 
-  // Hash & URL Synchronization
+  // Hash & URL Synchronization — Stabilized with ref so creator state updates do not re-trigger scroll
+  const creatorsListRef = useRef(creatorsList);
+  useEffect(() => {
+    creatorsListRef.current = creatorsList;
+  }, [creatorsList]);
+
   useEffect(() => {
     const handleLocationChange = () => {
       const hash = window.location.hash.replace('#', '');
@@ -192,7 +197,7 @@ export default function App() {
         setCurrentView('creator-workspace');
       } else if (hash.startsWith('/creator/')) {
         const id = hash.replace('/creator/', '');
-        const found = creatorsList.find(c => c.id === id);
+        const found = creatorsListRef.current.find(c => c.id === id);
         if (found) {
           setActiveCreatorId(id);
           setCurrentView('creator-profile');
@@ -218,7 +223,7 @@ export default function App() {
       handleLocationChange();
     }
     return () => window.removeEventListener('hashchange', handleLocationChange);
-  }, [creatorsList]);
+  }, []);
 
   const navigateTo = (view, extraId = null) => {
     setCurrentView(view);

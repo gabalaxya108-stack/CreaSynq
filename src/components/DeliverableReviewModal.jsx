@@ -1,7 +1,7 @@
 // src/components/DeliverableReviewModal.jsx
 // Part 11: Campaign Review and Approval — Brand Deliverable Review Modal
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, CheckCircle, AlertCircle, ExternalLink, Download, 
   MessageSquare, Sparkles, CheckCircle2, RotateCcw, Send, FileText 
@@ -13,12 +13,31 @@ export default function DeliverableReviewModal({
   project, 
   onRequestRevision, 
   onApproveDeliverables,
-  onOpenMessages 
+  onOpenMessages,
+  initialRevisionMode = false
 }) {
-  const [isRevisionMode, setIsRevisionMode] = useState(false);
+  const [isRevisionMode, setIsRevisionMode] = useState(initialRevisionMode);
   const [revisionNotes, setRevisionNotes] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsRevisionMode(initialRevisionMode);
+      setRevisionNotes('');
+      setErrorMsg('');
+      if (initialRevisionMode) {
+        setTimeout(() => textareaRef.current?.focus(), 50);
+      }
+    }
+  }, [isOpen, initialRevisionMode]);
+
+  useEffect(() => {
+    if (isRevisionMode) {
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [isRevisionMode]);
 
   if (!isOpen || !project) return null;
 
@@ -26,6 +45,7 @@ export default function DeliverableReviewModal({
     e.preventDefault();
     if (!revisionNotes.trim()) {
       setErrorMsg('Please enter feedback notes describing the requested revision.');
+      textareaRef.current?.focus();
       return;
     }
 
@@ -197,11 +217,13 @@ export default function DeliverableReviewModal({
               <RotateCcw size={15} style={{ color: '#D97706' }} />
               <strong style={{ fontSize: '0.95rem', color: '#B45309' }}>Request Creative Revision</strong>
             </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
+            <label htmlFor="revision-instructions-textarea" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
               Be specific about adjustments to lighting, color grading, pacing, or formatting for {project.creatorName}.
-            </p>
+            </label>
 
             <textarea
+              id="revision-instructions-textarea"
+              ref={textareaRef}
               rows={3}
               className="form-textarea"
               placeholder="e.g., The color grading on pass 2 is slightly cool. Please warm ambient tone to 3200K and increase bottle label contrast by 10%."
@@ -210,11 +232,12 @@ export default function DeliverableReviewModal({
                 setRevisionNotes(e.target.value);
                 if (errorMsg) setErrorMsg('');
               }}
+              aria-invalid={!!errorMsg}
               style={{ width: '100%', marginBottom: '10px' }}
             />
 
             {errorMsg && (
-              <p style={{ color: '#EF4444', fontSize: '0.82rem', margin: '0 0 10px 0' }}>{errorMsg}</p>
+              <p style={{ color: '#EF4444', fontSize: '0.82rem', margin: '0 0 10px 0' }} role="alert">{errorMsg}</p>
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -229,6 +252,7 @@ export default function DeliverableReviewModal({
                 type="submit" 
                 className="btn btn-primary btn-sm"
                 style={{ background: '#D97706', borderColor: '#D97706' }}
+                disabled={!revisionNotes.trim()}
               >
                 <Send size={13} />
                 <span>Submit Revision Request to Creator</span>

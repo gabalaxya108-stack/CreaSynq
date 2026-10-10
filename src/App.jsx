@@ -59,8 +59,10 @@ import {
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'discover' | 'creator-profile' | 'brand-workspace' | 'creator-join' | 'creator-workspace'
+  const [currentView, setCurrentView] = useState('home'); // 'home' | 'discover' | 'creator-profile' | 'creator-not-found' | 'brand-workspace' | 'creator-join' | 'creator-workspace'
   const [activeCreatorId, setActiveCreatorId] = useState(null);
+  const [initialBrandTab, setInitialBrandTab] = useState('overview');
+  const [initialCreatorTab, setInitialCreatorTab] = useState('overview');
 
   // Centralized persistent state (synced with localStorage & reactive cross-tab events)
   const [marketplaceData, setMarketplaceData] = useState(() => getInitialMarketplaceState());
@@ -131,8 +133,10 @@ export default function App() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteTargetCreator, setInviteTargetCreator] = useState(null);
 
-  // Creator profile generated during onboarding
-  const [createdCreatorProfile, setCreatedCreatorProfile] = useState(null);
+  // Persistent pointer to the creator profile published on this device.
+  // Derived from marketplace state so it survives refresh; never substituted with a different creator.
+  const myCreatorId = marketplaceData.myCreatorId || null;
+  const myCreator = myCreatorId ? (creatorsList.find(c => c.id === myCreatorId) || null) : null;
 
   // Informative Modals & Authentication
   const [isRoleSelectOpen, setIsRoleSelectOpen] = useState(false);
@@ -426,9 +430,20 @@ export default function App() {
           return;
         case 'PUBLISH_CREATOR':
           if (action.creator) {
-            setCreatedCreatorProfile(action.creator);
-            handleUpdateCreator(action.creator);
+            // Same persistence path as handlePublishCreator — ownership pointer must land
+            // in localStorage before backend sync to avoid stale shared-store snapshots
+            saveMarketplaceState({
+              ...updateCreatorRecord(getInitialMarketplaceState(), action.creator),
+              myCreatorId: action.creator.id
+            });
+            setMarketplaceData(prev => ({
+              ...updateCreatorRecord(prev, action.creator),
+              myCreatorId: action.creator.id
+            }));
             setActiveCreatorId(action.creator.id);
+            saveBackendCreator(action.creator).catch(err => {
+              console.warn('[CreaSync] Background creator sync deferred:', err);
+            });
             navigateTo('creator-workspace', null, activeUser);
           }
           return;
@@ -591,6 +606,36 @@ export default function App() {
     );
   };
 
+  // --- Context-Aware Direct Messages Navigation ---
+  const handleOpenMessages = () => {
+    const activeUser = currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
+
+    if (!activeUser) {
+      requireAuth({
+        type: 'NAVIGATE',
+        view: 'brand-workspace',
+        role: 'brand',
+        notice: 'Please sign in to access direct messaging'
+      }, () => {
+        setInitialBrandTab('messages');
+        navigateTo('brand-workspace');
+      });
+      return;
+    }
+
+    const role = (currentView === 'creator-workspace') ? 'creator' :
+                 (currentView === 'brand-workspace') ? 'brand' :
+                 resolveUserRole(activeUser);
+
+    if (role === 'creator') {
+      setInitialCreatorTab('messages');
+      navigateTo('creator-workspace', null, activeUser);
+    } else {
+      setInitialBrandTab('messages');
+      navigateTo('brand-workspace', null, activeUser);
+    }
+  };
+
   // --- Messaging Action ---
   const handleSendMessage = (connectionId, newMsg) => {
     setMarketplaceData(prev => ({
@@ -614,6 +659,12 @@ export default function App() {
   };
 
   // Hash & URL Synchronization with Protected Route Guards
+  // Stabilized with ref so creator state updates do not re-trigger scroll or auth-dependent effects
+  const creatorsListRef = useRef(creatorsList);
+  useEffect(() => {
+    creatorsListRef.current = creatorsList;
+  }, [creatorsList]);
+
   useEffect(() => {
     if (authLoading) return; // Prevent race conditions during initial session restoration
 
@@ -652,10 +703,14 @@ export default function App() {
         }
       } else if (hash.startsWith('/creator/')) {
         const id = hash.replace('/creator/', '');
-        const found = creatorsList.find(c => c.id === id);
+        const found = creatorsListRef.current.find(c => c.id === id);
         if (found) {
           setActiveCreatorId(id);
           setCurrentView('creator-profile');
+        } else {
+          // Missing creator: surface it explicitly instead of showing another creator's profile
+          setActiveCreatorId(id || null);
+          setCurrentView('creator-not-found');
         }
       } else if (hash === 'discover') {
         setCurrentView('discover');
@@ -696,7 +751,7 @@ export default function App() {
     window.addEventListener('hashchange', handleLocationChange);
     handleLocationChange();
     return () => window.removeEventListener('hashchange', handleLocationChange);
-  }, [creatorsList, authLoading, currentUser]);
+  }, [authLoading, currentUser]);
 
   const navigateTo = (view, extraId = null, overrideUser = null) => {
     const activeUser = overrideUser || currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
@@ -743,6 +798,7 @@ export default function App() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+
 
     setCurrentView(view);
     if (view === 'creator-profile' && extraId) {
@@ -1095,9 +1151,6 @@ export default function App() {
   const handleUpdateCreator = (updatedCreator) => {
     if (!updatedCreator || !updatedCreator.id) return;
     setMarketplaceData(prev => updateCreatorRecord(prev, updatedCreator));
-    if (createdCreatorProfile && createdCreatorProfile.id === updatedCreator.id) {
-      setCreatedCreatorProfile(prev => ({ ...prev, ...updatedCreator }));
-    }
     // Asynchronously synchronize with backend cloud store
     saveBackendCreator(updatedCreator).catch(err => {
       console.warn('[CreaSync] Background creator sync deferred:', err);
@@ -1109,9 +1162,19 @@ export default function App() {
     requireAuth(
       { type: 'PUBLISH_CREATOR', creator: newCreator, role: 'creator', notice: 'Please sign in to publish your creator profile to the marketplace' },
       () => {
-        setCreatedCreatorProfile(newCreator);
-        handleUpdateCreator(newCreator);
+        // Persist ownership pointer to localStorage before backend sync to avoid stale snapshots
+        saveMarketplaceState({
+          ...updateCreatorRecord(getInitialMarketplaceState(), newCreator),
+          myCreatorId: newCreator.id
+        });
+        setMarketplaceData(prev => ({
+          ...updateCreatorRecord(prev, newCreator),
+          myCreatorId: newCreator.id
+        }));
         setActiveCreatorId(newCreator.id);
+        saveBackendCreator(newCreator).catch(err => {
+          console.warn('[CreaSync] Background creator sync deferred:', err);
+        });
         navigateTo('creator-workspace');
       }
     );
@@ -1138,7 +1201,8 @@ export default function App() {
   };
 
   const handleOpportunityResponse = (opportunity, message) => {
-    const creator = createdCreatorProfile || creatorsList[0];
+    const creator = myCreator;
+    if (!creator) return;
     const newConn = {
       id: `conn-opp-${opportunity.id}-${Date.now()}`,
       creatorId: creator.id,
@@ -1168,10 +1232,9 @@ export default function App() {
     }));
   };
 
-  const activeCreator = creatorsList.find(c => c.id === activeCreatorId)
-    || (createdCreatorProfile && createdCreatorProfile.id === activeCreatorId ? createdCreatorProfile : null)
-    || createdCreatorProfile
-    || creatorsList[0];
+  const activeCreator = activeCreatorId
+    ? (creatorsList.find(c => c.id === activeCreatorId) || null)
+    : null;
 
   return (
     <div className="creasynq-app">
@@ -1188,8 +1251,9 @@ export default function App() {
         }}
         onOpenForBrandsModal={() => setIsForBrandsOpen(true)}
         onOpenForCreatorsModal={() => setIsForCreatorsOpen(true)}
+        onOpenMessages={handleOpenMessages}
         activeCampaign={activeCampaign}
-        createdCreatorProfile={createdCreatorProfile}
+        createdCreatorProfile={myCreator}
         currentUser={currentUser}
         onLogout={handleLogout}
       />
@@ -1284,6 +1348,7 @@ export default function App() {
             connections={brandConnections}
             onSendMessage={handleSendMessage}
             onSelectCreator={handleOpenCreatorProfile}
+            initialTab={initialBrandTab}
           />
         )}
 
@@ -1317,11 +1382,11 @@ export default function App() {
         )}
 
         {/* VIEW 5: CREATOR WORKSPACE / STUDIO (Milestone 2 Experience connected to Brand Studio) */}
-        {currentView === 'creator-workspace' && (
+        {currentView === 'creator-workspace' && myCreator && (
           <CreatorWorkspaceView
-            creator={createdCreatorProfile || activeCreator || creatorsList[0]}
+            creator={myCreator}
             onUpdateCreator={handleUpdateCreator}
-            onViewPublicProfile={() => handleOpenCreatorProfile(createdCreatorProfile?.id || activeCreator?.id || creatorsList[0].id)}
+            onViewPublicProfile={() => handleOpenCreatorProfile(myCreator.id)}
             onExploreMarketplace={() => navigateTo('discover')}
             connections={connections}
             onOpenConversation={(conn) => handleOpenConversation(conn, 'creator')}
@@ -1333,7 +1398,34 @@ export default function App() {
             projects={projects}
             onSubmitDeliverables={handleSubmitDeliverables}
             onSendMessage={handleSendMessage}
+            initialTab={initialCreatorTab}
           />
+        )}
+
+        {/* VIEW 5b: CREATOR WORKSPACE EMPTY STATE (no published creator on this device) */}
+        {currentView === 'creator-workspace' && !myCreator && (
+          <div className="page-container-narrow" style={{ padding: '96px 24px', textAlign: 'center' }}>
+            <h2 className="step-main-headline font-editorial">No Creator Studio On This Device Yet</h2>
+            <p className="step-main-sub" style={{ margin: '12px auto 28px', maxWidth: '560px' }}>
+              Your Creator Studio opens after you publish a creator profile. Finish creator onboarding to publish your identity and portfolio for brands to discover.
+            </p>
+            <div className="step-footer-actions justify-center">
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => navigateTo('creator-join')}
+              >
+                <span>Start Creator Onboarding</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-lg"
+                onClick={() => navigateTo('discover')}
+              >
+                <span>Explore Creator Marketplace</span>
+              </button>
+            </div>
+          </div>
         )}
 
         {/* VIEW 6: CREATOR PUBLIC PROFILE */}
@@ -1353,9 +1445,28 @@ export default function App() {
             isSaved={savedCreatorIds.includes(activeCreator.id)}
             onToggleSave={handleToggleSaveCreator}
             onUpdateCreator={handleUpdateCreator}
-            isCurrentCreatorOwner={createdCreatorProfile?.id === activeCreator?.id}
+            isCurrentCreatorOwner={myCreator?.id === activeCreator?.id}
             onEditInStudio={() => navigateTo('creator-workspace')}
           />
+        )}
+
+        {/* VIEW 6b: CREATOR NOT FOUND (explicit — never substitutes another creator's profile) */}
+        {(currentView === 'creator-not-found' || (currentView === 'creator-profile' && !activeCreator)) && (
+          <div className="page-container-narrow" style={{ padding: '96px 24px', textAlign: 'center' }}>
+            <h2 className="step-main-headline font-editorial">Creator Profile Not Found</h2>
+            <p className="step-main-sub" style={{ margin: '12px auto 28px', maxWidth: '560px' }}>
+              We couldn't find a creator matching this link on this device. The profile may have been unpublished, or the link may be incorrect.
+            </p>
+            <div className="step-footer-actions justify-center">
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => navigateTo('discover')}
+              >
+                <span>Back to Marketplace</span>
+              </button>
+            </div>
+          </div>
         )}
       </main>
 

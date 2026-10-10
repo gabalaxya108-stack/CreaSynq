@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Palette, Eye, EyeOff, Star, Plus, MessageSquare, Briefcase, ExternalLink, 
   CheckCircle, ArrowRight, Dna, CheckCircle2, X, Send, ChevronRight, Check,
@@ -24,10 +24,17 @@ export default function CreatorWorkspaceView({
   onDeclineInvitation: propOnDeclineInvitation,
   projects: propProjects,
   onSubmitDeliverables: propOnSubmitDeliverables,
-  onSendMessage: propOnSendMessage
+  onSendMessage: propOnSendMessage,
+  initialTab = 'overview'
 }) {
   const [activeCreator, setActiveCreator] = useState(creator || {});
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'portfolio' | 'opportunities' | 'invitations' | 'projects' | 'messages' | 'profile'
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview'); // 'overview' | 'portfolio' | 'opportunities' | 'invitations' | 'projects' | 'messages' | 'profile'
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   
   // Portfolio state
   const [projectsList, setProjectsList] = useState(creator?.projects || []);
@@ -70,10 +77,20 @@ export default function CreatorWorkspaceView({
   const [applyModalOpp, setApplyModalOpp] = useState(null);
   const [applyNoteText, setApplyNoteText] = useState('');
 
-  // Synchronize opportunities when published by brands
+  // Synchronize opportunities when published by brands,
+  // preserving any locally-applied statuses that are not in the parent prop.
   useEffect(() => {
     if (opportunities) {
-      setOpportunitiesList(opportunities);
+      setOpportunitiesList(prev => {
+        // Build a set of IDs that have been locally marked as 'applied'
+        const appliedIds = new Set(
+          prev.filter(o => o.status === 'applied').map(o => o.id)
+        );
+        // Merge parent opportunities while preserving applied status
+        return opportunities.map(o =>
+          appliedIds.has(o.id) ? { ...o, status: 'applied' } : o
+        );
+      });
     }
   }, [opportunities]);
 
@@ -119,8 +136,29 @@ export default function CreatorWorkspaceView({
       }
     ];
   });
-  const [selectedConnectionId, setSelectedConnectionId] = useState(creatorConnections[0]?.id || null);
+
+  // Single source of truth: synchronize with connections prop while preserving local demo fallback
+  const activeConnectionsList = useMemo(() => {
+    const forMe = (connections || []).filter(c => !c.creatorId || c.creatorId === activeCreator?.id);
+    if (forMe.length > 0) return forMe;
+    if ((connections || []).length > 0) return connections;
+    return creatorConnections;
+  }, [connections, activeCreator?.id, creatorConnections]);
+
+  const [selectedConnectionId, setSelectedConnectionId] = useState(() => {
+    const initial = (connections && connections.length > 0) ? connections : creatorConnections;
+    return initial[0]?.id || null;
+  });
   const [chatInputText, setChatInputText] = useState('');
+
+  // Keep selectedConnectionId pointing to a valid connection
+  useEffect(() => {
+    if (activeConnectionsList.length > 0) {
+      if (!selectedConnectionId || !activeConnectionsList.some(c => c.id === selectedConnectionId)) {
+        setSelectedConnectionId(activeConnectionsList[0].id);
+      }
+    }
+  }, [activeConnectionsList, selectedConnectionId]);
 
   // Profile Form State
   const [profileForm, setProfileForm] = useState({
@@ -298,29 +336,31 @@ export default function CreatorWorkspaceView({
     e.preventDefault();
     if (!applyModalOpp) return;
 
-    // Trigger opportunity response
     if (onOpportunityResponse) {
+      // Parent creates the authoritative connection in marketplaceData.connections;
+      // it will flow back via the connections prop and activeConnectionsList.
+      // The selection-validity useEffect (line 138) will auto-select the new connection.
       onOpportunityResponse(applyModalOpp, applyNoteText);
+    } else {
+      // Demo/standalone fallback: no parent handler, so manage connections locally
+      const newConn = {
+        id: `conn-opp-${applyModalOpp.id}-${Date.now()}`,
+        campaignTitle: applyModalOpp.title,
+        brandName: applyModalOpp.brand,
+        status: 'connected',
+        messages: [
+          {
+            id: `msg-${Date.now()}`,
+            sender: 'creator',
+            senderName: activeCreator.name,
+            text: applyNoteText,
+            timestamp: 'Just now'
+          }
+        ]
+      };
+      setCreatorConnections(prev => [newConn, ...prev]);
+      setSelectedConnectionId(newConn.id);
     }
-
-    // Add to local connection messages
-    const newConn = {
-      id: `conn-opp-${applyModalOpp.id}-${Date.now()}`,
-      campaignTitle: applyModalOpp.title,
-      brandName: applyModalOpp.brand,
-      status: 'connected',
-      messages: [
-        {
-          id: `msg-${Date.now()}`,
-          sender: 'creator',
-          senderName: activeCreator.name,
-          text: applyNoteText,
-          timestamp: 'Just now'
-        }
-      ]
-    };
-    setCreatorConnections(prev => [newConn, ...prev]);
-    setSelectedConnectionId(newConn.id);
 
     // Update opportunity status
     setOpportunitiesList(prev => prev.map(o => 
@@ -411,24 +451,25 @@ export default function CreatorWorkspaceView({
   // --- Handlers: Chat Messages ---
   const handleSendChatMessage = (e) => {
     e.preventDefault();
-    if (!chatInputText.trim() || !selectedConnectionId) return;
+    const trimmed = chatInputText.trim();
+    if (!trimmed || !selectedConnectionId) return;
+
+    const newMsg = {
+      id: `msg-${Date.now()}`,
+      sender: 'creator',
+      senderName: activeCreator.name || 'Creator',
+      text: trimmed,
+      timestamp: 'Just now'
+    };
 
     if (propOnSendMessage) {
-      propOnSendMessage(selectedConnectionId, {
-        sender: 'creator',
-        senderName: activeCreator.name,
-        text: chatInputText.trim(),
-        timestamp: 'Just now'
-      });
+      // Parent handler is the single source of truth: it updates
+      // marketplaceData.connections which flows back via the connections prop.
+      // activeConnectionsList prioritizes prop connections, so a local
+      // setCreatorConnections update here would be invisible (dead write).
+      propOnSendMessage(selectedConnectionId, newMsg);
     } else {
-      const newMsg = {
-        id: `msg-${Date.now()}`,
-        sender: 'creator',
-        senderName: activeCreator.name,
-        text: chatInputText.trim(),
-        timestamp: 'Just now'
-      };
-
+      // Demo/standalone fallback: no parent handler, manage messages locally
       setCreatorConnections(prev => prev.map(c => {
         if (c.id === selectedConnectionId) {
           return {
@@ -458,7 +499,7 @@ export default function CreatorWorkspaceView({
     setTimeout(() => setProfileSuccessNotice(false), 3500);
   };
 
-  const activeConnection = creatorConnections.find(c => c.id === selectedConnectionId) || creatorConnections[0];
+  const activeConnection = activeConnectionsList.find(c => c.id === selectedConnectionId) || activeConnectionsList[0] || null;
 
   const filteredProjects = portfolioCategoryFilter === 'all'
     ? projectsList
@@ -575,7 +616,7 @@ export default function CreatorWorkspaceView({
             onClick={() => setActiveTab('messages')}
           >
             <span>Messages</span>
-            <span className="tab-count-pill">{creatorConnections.length}</span>
+            <span className="tab-count-pill">{activeConnectionsList.length}</span>
           </button>
 
           <button 
@@ -826,10 +867,11 @@ export default function CreatorWorkspaceView({
                       </div>
                       <button 
                         type="button" 
-                        className="btn btn-secondary btn-xs"
+                        className={`btn ${opp.status === 'applied' ? 'btn-secondary' : 'btn-primary'} btn-xs`}
                         onClick={() => handleOpenApplyModal(opp)}
+                        disabled={opp.status === 'applied'}
                       >
-                        Apply
+                        {opp.status === 'applied' ? 'Interest Expressed' : 'Apply'}
                       </button>
                     </div>
                   ))}
@@ -922,7 +964,11 @@ export default function CreatorWorkspaceView({
                           type="button"
                           className="control-icon-btn"
                           title={proj.visibility === 'private' ? "Publish Project (Visible to Brands)" : "Make Private (Hide from Brands)"}
-                          onClick={() => handleToggleVisibility(proj.id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleToggleVisibility(proj.id);
+                          }}
                         >
                           {proj.visibility === 'private' ? <Eye size={14} /> : <EyeOff size={14} />}
                         </button>
@@ -930,7 +976,11 @@ export default function CreatorWorkspaceView({
                           type="button"
                           className="control-icon-btn"
                           title={proj.featured ? "Remove from Featured" : "Feature on Portfolio"}
-                          onClick={() => handleToggleFeatured(proj.id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleToggleFeatured(proj.id);
+                          }}
                         >
                           <Star size={14} fill={proj.featured ? "#F59E0B" : "none"} stroke={proj.featured ? "#F59E0B" : "currentColor"} />
                         </button>
@@ -1307,10 +1357,10 @@ export default function CreatorWorkspaceView({
               {/* Left Conversations Sidebar */}
               <div className="chat-sidebar">
                 <div className="chat-sidebar-header">
-                  <h4>Collaborations ({creatorConnections.length})</h4>
+                  <h4>Collaborations ({activeConnectionsList.length})</h4>
                 </div>
                 <div className="chat-threads-list">
-                  {creatorConnections.map((conn) => (
+                  {activeConnectionsList.map((conn) => (
                     <button
                       key={conn.id}
                       type="button"

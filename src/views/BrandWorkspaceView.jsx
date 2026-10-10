@@ -64,11 +64,18 @@ export default function BrandWorkspaceView({
   onApproveDeliverables,
   connections = [],
   onSendMessage,
-  onSelectCreator
+  onSelectCreator,
+  initialTab = 'overview'
 }) {
   // Navigation Tabs:
   // 'overview' | 'campaigns' | 'discover' | 'shortlists' | 'invitations' | 'collaborations' | 'deliverables' | 'messages' | 'brand-settings'
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Currently inspected campaign
   const inspectedCampaign = activeCampaign || campaigns[0] || null;
@@ -121,6 +128,7 @@ export default function BrandWorkspaceView({
   const [comparisonCreatorIds, setComparisonCreatorIds] = useState(['maya-chen', 'zora-vance', 'kai-sorenson']);
   const [reviewModalProject, setReviewModalProject] = useState(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isReviewModalRevisionMode, setIsReviewModalRevisionMode] = useState(false);
   const [inviteModalCreator, setInviteModalCreator] = useState(null);
   const [inviteModalInitialData, setInviteModalInitialData] = useState(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -897,6 +905,10 @@ export default function BrandWorkspaceView({
                             </div>
                           </div>
 
+                          <p className="creator-bio-preview">
+                            {creator.bio || creator.introduction || creator.summary || creator.tagline || 'No introduction provided yet.'}
+                          </p>
+
                           <p className="creator-match-reason">
                             “{explanation.topReason || explanation.headline}”
                           </p>
@@ -1222,6 +1234,10 @@ export default function BrandWorkspaceView({
                         className="market-preview-img" 
                       />
                     </div>
+
+                    <p className="market-creator-bio">
+                      {creator.bio || creator.introduction || creator.summary || creator.tagline || 'No introduction provided yet.'}
+                    </p>
 
                     <div className="market-card-tags">
                       {(creator.styles || []).slice(0, 3).map((st, i) => (
@@ -1622,10 +1638,9 @@ export default function BrandWorkspaceView({
                             type="button" 
                             className="btn btn-secondary btn-sm"
                             onClick={() => {
-                              const notes = prompt("Enter revision instructions for the creator:");
-                              if (notes && onRequestRevision) {
-                                onRequestRevision(proj.id, { revisionNotes: notes });
-                              }
+                              setReviewModalProject(proj);
+                              setIsReviewModalRevisionMode(true);
+                              setIsReviewModalOpen(true);
                             }}
                           >
                             <RotateCcw size={14} />
@@ -1636,10 +1651,9 @@ export default function BrandWorkspaceView({
                             type="button" 
                             className="btn btn-primary btn-sm"
                             onClick={() => {
-                              const approvalNotes = prompt("Enter approval remarks (optional):", "Outstanding work! Master passes approved.");
-                              if (onApproveDeliverables) {
-                                onApproveDeliverables(proj.id, { approvalNotes });
-                              }
+                              setReviewModalProject(proj);
+                              setIsReviewModalRevisionMode(false);
+                              setIsReviewModalOpen(true);
                             }}
                           >
                             <CheckCircle2 size={14} />
@@ -2326,10 +2340,12 @@ export default function BrandWorkspaceView({
         onClose={() => {
           setIsReviewModalOpen(false);
           setReviewModalProject(null);
+          setIsReviewModalRevisionMode(false);
         }}
         project={reviewModalProject}
         onRequestRevision={onRequestRevision}
         onApproveDeliverables={onApproveDeliverables}
+        initialRevisionMode={isReviewModalRevisionMode}
       />
     </div>
   );

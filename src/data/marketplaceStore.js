@@ -809,31 +809,45 @@ export function createBrandRecord(brandData) {
  */
 export function getBrandScopedData(state, brandId, isDemoMode = false) {
   const brands = state.brands || DEMO_BRANDS;
-  const currentBrand = brands.find(b => b.id === brandId) || brands[0] || DEMO_BRANDS[0];
+  let currentBrand = brands.find(b => b.id === brandId);
+  if (!currentBrand && brandId && brandId.startsWith('brand-') && brandId !== 'brand-demo-lumina') {
+    const rawName = brandId.replace(/^brand-/, '').replace(/-/g, ' ');
+    currentBrand = {
+      id: brandId,
+      name: rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : 'Brand Studio',
+      industry: 'Creative & Digital',
+      description: 'Private studio workspace.',
+      aesthetic: 'Modern & Editorial',
+      isDemo: false
+    };
+  }
+  if (!currentBrand) {
+    currentBrand = DEMO_BRANDS[0];
+  }
 
-  // In My Brand mode, only campaigns owned by this specific brandId
-  // In Demo Mode, campaigns owned by this demo brand
+  // Strict Brand Isolation:
+  // In real brand mode, ONLY campaigns owned by this specific brandId
   const campaigns = (state.campaigns || []).filter(c => c.ownerBrandId === currentBrand.id);
 
-  // Active campaign must belong to this brand
-  const activeCampaign = campaigns.find(c => c.id === state.activeCampaignId) || campaigns[0] || null;
+  // Active campaign must strictly belong to this brand
+  const activeCampaign = (state.activeCampaignId && campaigns.find(c => c.id === state.activeCampaignId)) || campaigns[0] || null;
 
-  // Invitations belonging to this brand
+  // Invitations strictly belonging to this brand
   const invitations = (state.invitations || []).filter(inv => 
-    inv.brandId === currentBrand.id || campaigns.some(c => c.id === inv.campaignId)
+    inv.brandId === currentBrand.id || (campaigns.length > 0 && campaigns.some(c => c.id === inv.campaignId))
   );
 
-  // Collaborations / Projects belonging to this brand
+  // Collaborations / Projects strictly belonging to this brand
   const projects = (state.projects || []).filter(p => 
-    p.brandId === currentBrand.id || campaigns.some(c => c.id === p.campaignId)
+    p.brandId === currentBrand.id || (campaigns.length > 0 && campaigns.some(c => c.id === p.campaignId))
   );
 
-  // Messaging connections belonging to this brand
+  // Messaging connections strictly belonging to this brand
   const connections = (state.connections || []).filter(conn => 
-    conn.brandId === currentBrand.id || campaigns.some(c => c.id === conn.campaignId)
+    conn.brandId === currentBrand.id || (campaigns.length > 0 && campaigns.some(c => c.id === conn.campaignId))
   );
 
-  // Brand-scoped shortlists
+  // Brand-scoped shortlists strictly belonging to this brand's campaigns
   const shortlists = {};
   campaigns.forEach(c => {
     if (state.shortlists && state.shortlists[c.id]) {

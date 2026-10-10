@@ -143,7 +143,7 @@ export default function CreatorJoinModal({ isOpen, onClose }) {
             </div>
             <h2 className="modal-title">Application Received!</h2>
             <p style={{ color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto 24px auto', lineHeight: 1.5 }}>
-              Welcome to CreaSynq, <strong>{formData.name}</strong>. Our curator team reviews portfolios weekly. You'll receive profile activation details at <strong>{formData.email}</strong>.
+              Welcome to Alloy, <strong>{formData.name}</strong>. Our curator team reviews portfolios weekly. You'll receive profile activation details at <strong>{formData.email}</strong>.
             </p>
             <button type="button" className="btn btn-primary" onClick={handleReset}>
               Explore Marketplace

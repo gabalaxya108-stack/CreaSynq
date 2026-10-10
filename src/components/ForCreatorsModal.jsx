@@ -30,7 +30,7 @@ export default function ForCreatorsModal({ isOpen, onClose, onJoinCreator }) {
           <div className="section-label">For AI Creators</div>
           <h2 className="modal-title">Where Creators Meet Opportunity</h2>
           <p className="modal-subtitle">
-            CreaSynq is built creator-first. We celebrate the artists shaping the future of diffusion, spatial 3D, and narrative AI.
+            Alloy is built creator-first. We celebrate the artists shaping the future of diffusion, spatial 3D, and narrative AI.
           </p>
         </div>
 

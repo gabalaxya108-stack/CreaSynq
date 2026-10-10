@@ -146,7 +146,7 @@ export default function DiscoverView({
             </div>
 
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              CreaMatch scores calculated for your brief.
+              Alloy Match scores calculated for your brief.
             </span>
           </div>
         )}
@@ -348,7 +348,7 @@ export default function DiscoverView({
               <span className="search-understood-prefix">You searched:</span>
               <span className="search-understood-query">"{searchQuery}"</span>
               <span className="search-understood-dot">•</span>
-              <span className="search-understood-prefix">CreaSync AI understood:</span>
+              <span className="search-understood-prefix">Alloy AI understood:</span>
               <div className="search-understood-tokens">
                 {interpretedTokens && interpretedTokens.length > 0 ? (
                   interpretedTokens.map((token, idx) => (

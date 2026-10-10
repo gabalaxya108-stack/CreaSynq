@@ -148,7 +148,7 @@ export default function CampaignModal({ isOpen, onClose, onCampaignCreated, acti
                 Describe what you want to create.
               </h2>
               <p className="modal-subtitle">
-                Speak naturally. CreaSynq extracts the creative direction, deliverables, timeline, and platform automatically.
+                Speak naturally. Alloy extracts the creative direction, deliverables, timeline, and platform automatically.
               </p>
             </div>
 
@@ -215,7 +215,7 @@ export default function CampaignModal({ isOpen, onClose, onCampaignCreated, acti
                 {clarification.question}
               </h2>
               <p className="modal-subtitle">
-                Clarifying this helps CreaSynq pinpoint the exact creators who match your format.
+                Clarifying this helps Alloy pinpoint the exact creators who match your format.
               </p>
             </div>
 
@@ -268,7 +268,7 @@ export default function CampaignModal({ isOpen, onClose, onCampaignCreated, acti
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                 <span className="live-pulse-dot" />
                 <span className="section-label" style={{ marginBottom: 0, color: 'var(--accent-lavender-deep)' }}>
-                  CreaSynq Understood Your Brief
+                  Alloy Understood Your Brief
                 </span>
               </div>
               <h2 className="modal-title font-editorial" style={{ fontSize: '2.3rem' }}>

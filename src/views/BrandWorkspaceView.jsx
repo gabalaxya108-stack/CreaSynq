@@ -537,31 +537,10 @@ export default function BrandWorkspaceView({
             {/* Brand Switcher Dropdown */}
             {isBrandDropdownOpen && (
               <div className="brand-switcher-dropdown">
-                <div className="dropdown-section-title">Demo Showcases</div>
-                {allBrands.filter(b => b.isDemo).map(b => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    className={`dropdown-brand-item ${b.id === currentBrand?.id ? 'active' : ''}`}
-                    onClick={() => {
-                      if (onSwitchBrand) onSwitchBrand(b.id);
-                      setIsBrandDropdownOpen(false);
-                    }}
-                  >
-                    <img src={b.logo} alt={b.name} className="brand-item-thumb" />
-                    <div className="brand-item-info">
-                      <span className="brand-item-name">{b.name}</span>
-                      <span className="brand-item-sub">{b.industry} • Demo</span>
-                    </div>
-                    {b.id === currentBrand?.id && <Check size={14} className="text-mint" />}
-                  </button>
-                ))}
-
-                {allBrands.some(b => !b.isDemo) && (
+                {isDemoMode && allBrands.some(b => b.isDemo) && (
                   <>
-                    <div className="dropdown-divider" />
-                    <div className="dropdown-section-title">Your Brands</div>
-                    {allBrands.filter(b => !b.isDemo).map(b => (
+                    <div className="dropdown-section-title">Demo Showcases</div>
+                    {allBrands.filter(b => b.isDemo).map(b => (
                       <button
                         key={b.id}
                         type="button"
@@ -574,13 +553,34 @@ export default function BrandWorkspaceView({
                         <img src={b.logo} alt={b.name} className="brand-item-thumb" />
                         <div className="brand-item-info">
                           <span className="brand-item-name">{b.name}</span>
-                          <span className="brand-item-sub">{b.industry}</span>
+                          <span className="brand-item-sub">{b.industry} • Demo</span>
                         </div>
                         {b.id === currentBrand?.id && <Check size={14} className="text-mint" />}
                       </button>
                     ))}
+                    <div className="dropdown-divider" />
                   </>
                 )}
+
+                <div className="dropdown-section-title">{isDemoMode ? "Your Brands" : "Active Brand Studio"}</div>
+                {allBrands.filter(b => !b.isDemo).map(b => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    className={`dropdown-brand-item ${b.id === currentBrand?.id ? 'active' : ''}`}
+                    onClick={() => {
+                      if (onSwitchBrand) onSwitchBrand(b.id);
+                      setIsBrandDropdownOpen(false);
+                    }}
+                  >
+                    <img src={b.logo || "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=80&q=80"} alt={b.name} className="brand-item-thumb" />
+                    <div className="brand-item-info">
+                      <span className="brand-item-name">{b.name}</span>
+                      <span className="brand-item-sub">{b.industry}</span>
+                    </div>
+                    {b.id === currentBrand?.id && <Check size={14} className="text-mint" />}
+                  </button>
+                ))}
 
                 <div className="dropdown-divider" />
                 <button
@@ -596,29 +596,17 @@ export default function BrandWorkspaceView({
                   <span>Create New Brand Workspace</span>
                 </button>
                 
-                {isDemoMode ? (
+                {!isDemoMode && (
                   <button
                     type="button"
                     className="dropdown-action-btn secondary"
                     onClick={() => {
-                      setIsBrandDropdownOpen(false);
-                      setIsCreateBrandModalOpen(true);
-                    }}
-                  >
-                    <ArrowRight size={14} />
-                    <span>Leave Demo & Start Clean Workspace</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="dropdown-action-btn secondary"
-                    onClick={() => {
-                      if (onToggleDemoMode) onToggleDemoMode(true);
+                      setActiveTab('brand-settings');
                       setIsBrandDropdownOpen(false);
                     }}
                   >
-                    <RotateCcw size={14} />
-                    <span>Return to Explore Demo</span>
+                    <SlidersHorizontal size={14} />
+                    <span>Brand Profile & Settings</span>
                   </button>
                 )}
               </div>
@@ -752,10 +740,10 @@ export default function BrandWorkspaceView({
                   <Sparkles size={32} className="text-mint" />
                 </div>
                 <h2 className="empty-title font-editorial">
-                  Welcome to {currentBrand?.name || 'Your Brand Studio'}
+                  Welcome {currentBrand?.name || 'Brand Studio'}
                 </h2>
                 <p className="empty-subtext">
-                  Your workspace is clean and ready. Create your first campaign brief or explore curated demo workflows to see CreaSync in action.
+                  Your workspace is clean and ready. Create your first campaign brief or explore curated demo workflows to see Alloy in action.
                 </p>
 
                 <div className="first-choice-grid">
@@ -768,17 +756,26 @@ export default function BrandWorkspaceView({
 
                   <div className="first-choice-box highlighted" onClick={() => handleOpenCreateCampaign('ai')}>
                     <div className="choice-icon"><Sparkles size={20} className="text-lavender" /></div>
-                    <h3>Structure with CreaBrief AI</h3>
+                    <h3>Structure with Alloy Brief AI</h3>
                     <p>Write what you want in plain words. Groq AI structures deliverables and targets.</p>
                     <span className="btn btn-primary btn-sm">Describe Brief</span>
                   </div>
 
-                  <div className="first-choice-box" onClick={() => onToggleDemoMode && onToggleDemoMode(true)}>
-                    <div className="choice-icon"><Film size={20} /></div>
-                    <h3>Explore Demo Experience</h3>
-                    <p>Tour Lumina Botanica and Vanguard Horology sample briefs and collaborations.</p>
-                    <span className="btn btn-secondary btn-sm">View Demo</span>
-                  </div>
+                  {isDemoMode ? (
+                    <div className="first-choice-box" onClick={() => onToggleDemoMode && onToggleDemoMode(true)}>
+                      <div className="choice-icon"><Film size={20} /></div>
+                      <h3>Explore Demo Experience</h3>
+                      <p>Tour Lumina Botanica and Vanguard Horology sample briefs and collaborations.</p>
+                      <span className="btn btn-secondary btn-sm">View Demo</span>
+                    </div>
+                  ) : (
+                    <div className="first-choice-box" onClick={() => setActiveTab('discover')}>
+                      <div className="choice-icon"><Compass size={20} className="text-mint" /></div>
+                      <h3>Discover Verified Creators</h3>
+                      <p>Browse top AI directors, photographers, and 3D visual artists to commission.</p>
+                      <span className="btn btn-secondary btn-sm">Explore Creators</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1849,7 +1846,7 @@ export default function BrandWorkspaceView({
               {/* Form 2: Identity Scope & Storage Diagnostics */}
               <div className="settings-card studio-card">
                 <h2>Workspace Identity & Data Isolation</h2>
-                <p>CreaSync client-side prototype identity controls.</p>
+                <p>Alloy client-side prototype identity controls.</p>
 
                 <div className="identity-status-box">
                   <div className="status-row">
@@ -2017,7 +2014,7 @@ export default function BrandWorkspaceView({
               <div className="ai-brief-assistant-box">
                 <div className="assistant-header">
                   <Sparkles size={16} className="text-lavender" />
-                  <span>Structure with CreaBrief AI (Powered by Groq)</span>
+                  <span>Structure with Alloy Brief AI (Powered by Groq)</span>
                 </div>
                 <textarea 
                   rows={2}

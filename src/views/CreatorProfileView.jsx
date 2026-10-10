@@ -445,7 +445,7 @@ export default function CreatorProfileView({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span className="live-pulse-dot" />
                   <span className="section-label" style={{ marginBottom: 0, color: 'var(--accent-lavender-deep)' }}>
-                    CreaSync Creative DNA Dossier
+                    Alloy Creative DNA Dossier
                   </span>
                 </div>
                 <h2 className="font-editorial" style={{ margin: 0, fontSize: '1.75rem' }}>
@@ -555,7 +555,7 @@ export default function CreatorProfileView({
             {/* Footer Trust Guarantee */}
             <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>
               <ShieldCheck size={16} style={{ color: 'var(--accent-lavender-deep)', flexShrink: 0 }} />
-              <span>CreaSync enforces strict truth-in-advertising. Creative DNA never manufactures fake follower numbers, client logos, or engagement statistics.</span>
+              <span>Alloy enforces strict truth-in-advertising. Creative DNA never manufactures fake follower numbers, client logos, or engagement statistics.</span>
             </div>
           </div>
         </section>

@@ -195,6 +195,22 @@ export default function Header({
                 <span className="header-user-name" style={{ fontSize: '0.82rem', fontWeight: 600, color: '#191816' }}>
                   {displayName}
                 </span>
+                {currentUser?.isDemoOnly && (
+                  <span style={{
+                    fontSize: '0.62rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: '#FAF3EA',
+                    border: '1px solid #E5DAC8',
+                    color: '#8F663B',
+                    marginLeft: '4px'
+                  }}>
+                    Demo
+                  </span>
+                )}
               </button>
 
               {/* Messages Entry-Point Button */}

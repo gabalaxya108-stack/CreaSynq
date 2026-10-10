@@ -235,24 +235,24 @@ export default function BrandOnboardingView({
               Let's find the right creative partner.
             </h1>
             <p className="step-main-sub">
-              CreaSync connects visionary brands with AI content creators who genuinely match your aesthetic. 
+              Alloy connects visionary brands with AI content creators who genuinely match your aesthetic. 
               In just a few steps, describe your campaign vision and discover verified talent with explainable creative fit.
             </p>
 
             <div className="welcome-value-grid">
               <div className="welcome-value-card">
                 <Compass size={22} className="text-peach-deep" />
-                <h4 className="value-card-title">CreaBrief Intelligence</h4>
+                <h4 className="value-card-title">Alloy Brief Intelligence</h4>
                 <p className="value-card-desc">Type your idea naturally. We structure it into production-ready specifications without hallucinated budgets.</p>
               </div>
               <div className="welcome-value-card">
                 <ShieldCheck size={22} className="text-lavender-deep" />
-                <h4 className="value-card-title">Grounded CreaMatch</h4>
+                <h4 className="value-card-title">Grounded Alloy Match</h4>
                 <p className="value-card-desc">Every match recommendation cites verified past projects, eliminating guesswork.</p>
               </div>
               <div className="welcome-value-card">
                 <Layers size={22} className="text-mint" />
-                <h4 className="value-card-title">CreaSim Concepts</h4>
+                <h4 className="value-card-title">Alloy Studio Concepts</h4>
                 <p className="value-card-desc">Explore tailored visual storyboards customized for individual creators before sending invitations.</p>
               </div>
             </div>
@@ -433,7 +433,7 @@ export default function BrandOnboardingView({
                 disabled={isAnalyzingBrief || !naturalPrompt.trim()}
               >
                 <Sparkles size={14} className={isAnalyzingBrief ? 'spin-slow' : ''} />
-                <span>{isAnalyzingBrief ? 'Analyzing with Groq AI...' : 'Structure with CreaBrief AI'}</span>
+                <span>{isAnalyzingBrief ? 'Analyzing with Groq AI...' : 'Structure with Alloy Brief AI'}</span>
               </button>
             </div>
 

@@ -33,14 +33,19 @@ export default function Footer({
         <div className="alloy-footer-brand">
           <a 
             href="#home" 
-            className="alloy-footer-wordmark font-editorial"
+            className="alloy-footer-wordmark-link"
             onClick={(e) => {
               e.preventDefault();
               if (onNavigate) onNavigate('home');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
+            aria-label="Alloy Home"
           >
-            Alloy
+            <img 
+              src="/assets/alloy-wordmark.webp" 
+              alt="Alloy" 
+              className="alloy-footer-wordmark-img" 
+            />
           </a>
           <p className="alloy-footer-tagline">
             The AI-native creative marketplace connecting brands with exceptional AI creators who turn ideas into extraordinary campaigns.

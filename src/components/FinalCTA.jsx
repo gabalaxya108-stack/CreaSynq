@@ -14,6 +14,14 @@ export default function FinalCTA({ onFindCreator, onJoinCreator }) {
       <div className="page-container alloy-closing-container">
         <div className="alloy-closing-card">
           
+          <div className="alloy-closing-sculpture-bg" aria-hidden="true">
+            <img 
+              src="/assets/alloy-emblem-transparent.png" 
+              alt="" 
+              className="closing-sculpture-img" 
+            />
+          </div>
+
           <div className="section-pill-badge closing-badge">
             <span className="pill-dot" />
             <span>READY TO COLLABORATE?</span>

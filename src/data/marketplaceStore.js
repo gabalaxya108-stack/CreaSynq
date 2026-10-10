@@ -4,6 +4,7 @@
 
 import { INITIAL_CONNECTIONS, INITIAL_CREATOR_OPPORTUNITIES, INITIAL_CREATOR_INVITATIONS, INITIAL_CREATOR_PROJECTS } from './connectionsData.js';
 import { CREATORS } from './creatorsData.js';
+import { DEMO_WORKFLOWS } from './workflowsData.js';
 
 const STORAGE_KEY = 'creasync_marketplace_state_v2';
 
@@ -378,6 +379,18 @@ export function getInitialMarketplaceState() {
           if (!Array.isArray(parsed.creators) || parsed.creators.length === 0) {
             parsed.creators = CREATORS;
           }
+          // Ensure workflows array exists
+          if (!Array.isArray(parsed.workflows) || parsed.workflows.length === 0) {
+            parsed.workflows = DEMO_WORKFLOWS;
+          }
+          // Populate creator workflows if missing
+          parsed.creators = parsed.creators.map(c => {
+            if (!Array.isArray(c.workflows) || c.workflows.length === 0) {
+              const matchedWfs = (parsed.workflows || DEMO_WORKFLOWS).filter(w => w.creatorId === c.id);
+              return { ...c, workflows: matchedWfs };
+            }
+            return c;
+          });
           return parsed;
         }
       }
@@ -386,12 +399,18 @@ export function getInitialMarketplaceState() {
     }
   }
 
+  const initialCreators = CREATORS.map(c => ({
+    ...c,
+    workflows: DEMO_WORKFLOWS.filter(w => w.creatorId === c.id)
+  }));
+
   return {
     brands: DEMO_BRANDS,
     activeBrandId: DEMO_BRANDS[0].id,
     isDemoMode: true,
-    creators: CREATORS,
-    activeCreatorId: CREATORS[0].id,
+    creators: initialCreators,
+    workflows: DEMO_WORKFLOWS,
+    activeCreatorId: initialCreators[0].id,
     campaigns: INITIAL_CAMPAIGNS,
     activeCampaignId: INITIAL_CAMPAIGNS[0].id,
     projects: INITIAL_COLLAB_PROJECTS,
@@ -408,19 +427,21 @@ export function getInitialMarketplaceState() {
 }
 
 /**
- * Returns brand-facing public view of a creator, strictly filtering out private portfolio items
- */
-/**
- * Returns brand-facing public view of a creator, strictly filtering out private portfolio items
+ * Returns brand-facing public view of a creator, strictly filtering out private portfolio items and draft workflows
  */
 export function getPublicCreatorProfile(creator) {
   if (!creator) return null;
   const isDraft = creator.status === 'Draft' || creator.visibility === 'draft' || creator.visibility === 'private';
   const publishedProjects = (creator.projects || []).filter(p => p.visibility !== 'private');
+  // Brands have read-only access to published workflows only
+  const publishedWorkflows = (creator.workflows || []).filter(w => 
+    (w.visibility === 'published' || w.status === 'Published') && w.visibility !== 'private'
+  );
   return {
     ...creator,
     isDraft,
-    projects: publishedProjects
+    projects: publishedProjects,
+    workflows: publishedWorkflows
   };
 }
 
@@ -436,6 +457,104 @@ export function updateCreatorRecord(state, updatedCreator) {
     : [updatedCreator, ...currentCreators];
   return {
     ...state,
+    creators: updatedCreators
+  };
+}
+
+/**
+ * Saves or updates a creative workflow for a specific creator
+ */
+export function saveWorkflowRecord(state, creatorId, workflowData) {
+  if (!creatorId || !workflowData || !workflowData.id) return state;
+
+  const currentWorkflows = state.workflows || [];
+  const existingWfIndex = currentWorkflows.findIndex(w => w.id === workflowData.id);
+  const updatedWorkflows = existingWfIndex >= 0
+    ? currentWorkflows.map(w => w.id === workflowData.id ? { ...w, ...workflowData, updatedAt: 'Just now' } : w)
+    : [{ ...workflowData, updatedAt: 'Just now' }, ...currentWorkflows];
+
+  // Update in creator record as well
+  const currentCreators = state.creators || CREATORS;
+  const updatedCreators = currentCreators.map(c => {
+    if (c.id === creatorId) {
+      const cWfs = c.workflows || [];
+      const cIdx = cWfs.findIndex(w => w.id === workflowData.id);
+      const nextCWfs = cIdx >= 0
+        ? cWfs.map(w => w.id === workflowData.id ? { ...w, ...workflowData, updatedAt: 'Just now' } : w)
+        : [{ ...workflowData, updatedAt: 'Just now' }, ...cWfs];
+      return { ...c, workflows: nextCWfs };
+    }
+    return c;
+  });
+
+  return {
+    ...state,
+    workflows: updatedWorkflows,
+    creators: updatedCreators
+  };
+}
+
+/**
+ * Deletes a workflow belonging to a creator
+ */
+export function deleteWorkflowRecord(state, creatorId, workflowId) {
+  if (!creatorId || !workflowId) return state;
+
+  const updatedWorkflows = (state.workflows || []).filter(w => w.id !== workflowId);
+  const updatedCreators = (state.creators || CREATORS).map(c => {
+    if (c.id === creatorId) {
+      return {
+        ...c,
+        workflows: (c.workflows || []).filter(w => w.id !== workflowId)
+      };
+    }
+    return c;
+  });
+
+  return {
+    ...state,
+    workflows: updatedWorkflows,
+    creators: updatedCreators
+  };
+}
+
+/**
+ * Toggles published vs draft status for a workflow
+ */
+export function toggleWorkflowPublishRecord(state, creatorId, workflowId) {
+  if (!creatorId || !workflowId) return state;
+
+  let nextVisibility = 'published';
+  let nextStatus = 'Published';
+
+  const updatedWorkflows = (state.workflows || []).map(w => {
+    if (w.id === workflowId) {
+      const isCurrentlyPub = w.visibility === 'published' || w.status === 'Published';
+      nextVisibility = isCurrentlyPub ? 'draft' : 'published';
+      nextStatus = isCurrentlyPub ? 'Draft' : 'Published';
+      return { ...w, visibility: nextVisibility, status: nextStatus, updatedAt: 'Just now' };
+    }
+    return w;
+  });
+
+  const updatedCreators = (state.creators || CREATORS).map(c => {
+    if (c.id === creatorId) {
+      return {
+        ...c,
+        workflows: (c.workflows || []).map(w => {
+          if (w.id === workflowId) {
+            return { ...w, visibility: nextVisibility, status: nextStatus, updatedAt: 'Just now' };
+          }
+          return w;
+        })
+      };
+    }
+    return c;
+  });
+
+  return {
+    ...state,
+    workflows: updatedWorkflows,
     creators: updatedCreators
   };
 }

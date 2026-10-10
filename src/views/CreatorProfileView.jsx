@@ -7,12 +7,14 @@ import {
   ArrowLeft, MapPin, Heart, Share2, Send, Sparkles, ArrowDown, Dna, 
   CheckCircle2, MessageSquare, Clock, ShieldCheck, AlertCircle, Bookmark, 
   BookmarkCheck, ExternalLink, Edit3, Eye, Layers, ChevronRight, Check,
-  Sparkle, Compass, UserCheck
+  Sparkle, Compass, UserCheck, Wrench, Cpu
 } from 'lucide-react';
 import { getPublicCreatorProfile } from '../data/marketplaceStore';
 import { generateCreatorDNA } from '../intelligence/creatorDNA';
 import { calculateCreaMatch } from '../intelligence/matchingEngine';
 import { explainMatch } from '../intelligence/matchExplainer';
+import WorkflowTimeline from '../components/WorkflowTimeline';
+import { DEMO_WORKFLOWS } from '../data/workflowsData';
 
 export default function CreatorProfileView({ 
   creator, 
@@ -76,6 +78,17 @@ export default function CreatorProfileView({
   const isShortlisted = evaluatedCampaign 
     ? (shortlists[evaluatedCampaign.id] || []).includes(publicCreator.id)
     : false;
+
+  // Creative Workflows: Read-only, published workflows only
+  const publishedWorkflows = useMemo(() => {
+    const raw = (publicCreator.workflows && publicCreator.workflows.length > 0)
+      ? publicCreator.workflows
+      : DEMO_WORKFLOWS.filter(w => w.creatorId === publicCreator.id);
+    return raw.filter(w => (w.visibility === 'published' || w.status === 'Published') && w.visibility !== 'private');
+  }, [publicCreator]);
+
+  const [activeWorkflowId, setActiveWorkflowId] = useState(null);
+  const selectedWorkflow = publishedWorkflows.find(w => w.id === activeWorkflowId) || publishedWorkflows[0] || null;
 
   // Available categories for portfolio filtering
   const availableCategories = useMemo(() => {
@@ -510,6 +523,64 @@ export default function CreatorProfileView({
               </h3>
               <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto', fontSize: '0.9rem' }}>
                 This creator has not yet published brand-visible case studies to their public profile.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* ========================================================
+            B2. SECTION 02 • CREATIVE WORKFLOW — HOW THEY CREATE
+            ======================================================== */}
+        <section className="profile-workflow-section" id="creative-workflows-section" style={{ marginTop: '50px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <span className="section-label">Section 02 • Creative Workflow</span>
+              <h2 className="profile-section-title font-editorial">
+                How They Create — Production Pipelines
+              </h2>
+              <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                Standardized production methodologies, generative models, and human artistry verified in commercial practice.
+              </p>
+            </div>
+
+            {/* Workflow Switcher Pills if creator has multiple published workflows */}
+            {publishedWorkflows.length > 1 && (
+              <div className="portfolio-filters-group">
+                {publishedWorkflows.map(wf => (
+                  <button
+                    key={wf.id}
+                    type="button"
+                    className={`portfolio-filter-pill ${(selectedWorkflow && selectedWorkflow.id === wf.id) ? 'active' : ''}`}
+                    onClick={() => setActiveWorkflowId(wf.id)}
+                  >
+                    {wf.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Render Timeline or Clean Empty State */}
+          {selectedWorkflow ? (
+            <WorkflowTimeline 
+              workflow={selectedWorkflow}
+              isReadOnly={true}
+              onSelectProject={(projId) => {
+                const matchedProj = publishedProjects.find(p => p.id === projId);
+                if (matchedProj && onSelectProject) {
+                  onSelectProject(matchedProj, publicCreator);
+                }
+              }}
+            />
+          ) : (
+            /* Clean Empty State (strictly without fabricated content) */
+            <div className="portfolio-empty-state" style={{ padding: '48px 24px', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: '16px', border: '1px dashed var(--border-subtle)' }}>
+              <Compass size={40} style={{ color: 'var(--text-tertiary)', margin: '0 auto 12px' }} />
+              <h3 className="font-editorial" style={{ fontSize: '1.4rem', marginBottom: '6px' }}>
+                No published creative workflows yet
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto', fontSize: '0.9rem' }}>
+                This creator has not yet published step-by-step production pipelines to their public profile.
               </p>
             </div>
           )}

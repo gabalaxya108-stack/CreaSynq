@@ -15784,5 +15784,55 @@ img, video {
   }
 }
 
+/* ==========================================================================
+   ALLOY CREATIVE WORKFLOW — EDITORIAL TIMELINES & PIPELINE STYLES
+   ========================================================================== */
 
+.studio-workflows-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
+.workflow-manage-card {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.workflow-manage-card:hover {
+  border-color: rgba(199, 164, 123, 0.45) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.creative-workflow-timeline-card {
+  transition: box-shadow 0.2s ease;
+}
+
+.creative-workflow-timeline-card.compact-timeline {
+  padding: 20px 24px;
+}
+
+.workflow-steps-timeline-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.workflow-timeline-step-row {
+  transition: transform 0.15s ease;
+}
+
+@media (max-width: 768px) {
+  .workflow-timeline-step-row {
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 24px !important;
+  }
+  .workflow-timeline-step-row > div:first-child {
+    flex-direction: row !important;
+    width: 100% !important;
+    gap: 12px;
+  }
+  .workflow-timeline-step-row > div:first-child > div:last-child {
+    display: none !important;
+  }
+}

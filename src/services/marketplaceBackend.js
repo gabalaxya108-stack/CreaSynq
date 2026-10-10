@@ -10,7 +10,10 @@ import {
   updateCreatorRecord,
   createCampaignRecord,
   createBrandRecord,
-  getPublicCreatorProfile
+  getPublicCreatorProfile,
+  saveWorkflowRecord,
+  deleteWorkflowRecord,
+  toggleWorkflowPublishRecord
 } from '../data/marketplaceStore.js';
 import { CREATORS } from '../data/creatorsData.js';
 
@@ -908,3 +911,39 @@ function normalizeSupabaseCreator(row) {
     } : null
   };
 }
+
+// ============================================================================
+// 6. CREATIVE WORKFLOWS SERVICE LAYER
+// ============================================================================
+
+export async function fetchCreatorWorkflows(creatorId, includeDrafts = true) {
+  const state = getInitialMarketplaceState();
+  const creator = (state.creators || []).find(c => c.id === creatorId);
+  const workflows = creator?.workflows || (state.workflows || []).filter(w => w.creatorId === creatorId);
+  if (!includeDrafts) {
+    return workflows.filter(w => (w.visibility === 'published' || w.status === 'Published') && w.visibility !== 'private');
+  }
+  return workflows;
+}
+
+export async function saveCreatorWorkflow(creatorId, workflowData) {
+  const state = getInitialMarketplaceState();
+  const nextState = saveWorkflowRecord(state, creatorId, workflowData);
+  saveMarketplaceState(nextState);
+  return workflowData;
+}
+
+export async function deleteCreatorWorkflow(creatorId, workflowId) {
+  const state = getInitialMarketplaceState();
+  const nextState = deleteWorkflowRecord(state, creatorId, workflowId);
+  saveMarketplaceState(nextState);
+  return { ok: true };
+}
+
+export async function toggleCreatorWorkflowPublish(creatorId, workflowId) {
+  const state = getInitialMarketplaceState();
+  const nextState = toggleWorkflowPublishRecord(state, creatorId, workflowId);
+  saveMarketplaceState(nextState);
+  return { ok: true };
+}
+

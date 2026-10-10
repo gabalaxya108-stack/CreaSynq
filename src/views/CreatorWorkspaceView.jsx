@@ -4,11 +4,15 @@ import {
   CheckCircle, ArrowRight, Dna, CheckCircle2, X, Send, ChevronRight, Check,
   Clock, DollarSign, Calendar, Sparkles, Filter, Bookmark, BookmarkCheck,
   Edit3, Trash2, Upload, AlertCircle, FileText, UserCheck, ShieldCheck,
-  ArrowUp, ArrowDown
+  ArrowUp, ArrowDown, Globe, Lock, Cpu, Play, Minimize2, Wrench, Compass, Layers,
+  Workflow
 } from 'lucide-react';
 import { generateCreatorDNA } from '../intelligence/creatorDNA';
 import { generateCreatorDNA as generateCreatorDNAWithGroq } from '../ai/groqClient';
 import { INITIAL_CREATOR_INVITATIONS, INITIAL_CREATOR_PROJECTS } from '../data/connectionsData';
+import { DEMO_WORKFLOWS, WORKFLOW_SPECIALIZATIONS, createBlankWorkflow } from '../data/workflowsData';
+import WorkflowTimeline from '../components/WorkflowTimeline';
+import WorkflowEditorModal from '../components/WorkflowEditorModal';
 
 export default function CreatorWorkspaceView({ 
   creator, 
@@ -28,8 +32,18 @@ export default function CreatorWorkspaceView({
   onSelectProject: propOnSelectProject
 }) {
   const [activeCreator, setActiveCreator] = useState(creator || {});
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'portfolio' | 'opportunities' | 'invitations' | 'projects' | 'messages' | 'profile'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'portfolio' | 'workflows' | 'opportunities' | 'invitations' | 'projects' | 'messages' | 'profile'
   
+  // Workflows state
+  const [workflowsList, setWorkflowsList] = useState(() => {
+    if (creator?.workflows && creator.workflows.length > 0) return creator.workflows;
+    return DEMO_WORKFLOWS.filter(w => w.creatorId === creator?.id);
+  });
+  const [isWorkflowEditorOpen, setIsWorkflowEditorOpen] = useState(false);
+  const [editingWorkflow, setEditingWorkflow] = useState(null);
+  const [previewingWorkflow, setPreviewingWorkflow] = useState(null);
+  const [workflowFilter, setWorkflowFilter] = useState('all'); // 'all' | 'published' | 'draft'
+
   // Portfolio state
   const [projectsList, setProjectsList] = useState(creator?.projects || []);
   const [portfolioCategoryFilter, setPortfolioCategoryFilter] = useState('all');
@@ -47,6 +61,12 @@ export default function CreatorWorkspaceView({
     if (creator) {
       setActiveCreator(creator);
       setProjectsList(creator.projects || []);
+      if (creator.workflows && creator.workflows.length > 0) {
+        setWorkflowsList(creator.workflows);
+      } else {
+        const matching = DEMO_WORKFLOWS.filter(w => w.creatorId === creator.id);
+        setWorkflowsList(matching);
+      }
       if (creator.creativeDNA) {
         setCustomAiDNA(creator.creativeDNA);
       }
@@ -66,7 +86,8 @@ export default function CreatorWorkspaceView({
     visibility: 'published',
     featured: false,
     role: 'Lead Visual Artist',
-    clientType: 'Commercial Campaign'
+    clientType: 'Commercial Campaign',
+    workflowId: ''
   });
   const [projectFormErrors, setProjectFormErrors] = useState({});
 
@@ -164,6 +185,85 @@ export default function CreatorWorkspaceView({
   // Quick stats
   const portfolioCompletion = Math.min(100, Math.round((projectsList.length / 5) * 100));
 
+  // --- Handlers: Creative Workflows ---
+  const handleOpenCreateWorkflow = (templateSpec = null) => {
+    if (templateSpec) {
+      const template = DEMO_WORKFLOWS.find(w => w.specialization.toLowerCase().includes(templateSpec.toLowerCase())) || DEMO_WORKFLOWS[0];
+      const cloned = {
+        ...JSON.parse(JSON.stringify(template)),
+        id: `wf-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        creatorId: activeCreator?.id || 'maya-chen',
+        status: 'Draft',
+        visibility: 'draft',
+        isDemo: false,
+        updatedAt: 'Just now'
+      };
+      setEditingWorkflow(cloned);
+    } else {
+      setEditingWorkflow(createBlankWorkflow(activeCreator?.id || 'maya-chen', activeCreator?.specialty));
+    }
+    setIsWorkflowEditorOpen(true);
+  };
+
+  const handleEditWorkflow = (wf) => {
+    setEditingWorkflow(wf);
+    setIsWorkflowEditorOpen(true);
+  };
+
+  const handleSaveWorkflow = (savedWorkflow) => {
+    let updated;
+    const exists = workflowsList.some(w => w.id === savedWorkflow.id);
+    if (exists) {
+      updated = workflowsList.map(w => w.id === savedWorkflow.id ? { ...w, ...savedWorkflow } : w);
+    } else {
+      updated = [savedWorkflow, ...workflowsList];
+    }
+    setWorkflowsList(updated);
+    const updatedCreator = { ...activeCreator, workflows: updated };
+    setActiveCreator(updatedCreator);
+    if (onUpdateCreator) {
+      onUpdateCreator(updatedCreator);
+    }
+    setInvitationNotice(`Workflow “${savedWorkflow.title}” saved successfully!`);
+    setTimeout(() => setInvitationNotice(null), 4000);
+  };
+
+  const handleDeleteWorkflow = (wfId) => {
+    if (typeof window !== 'undefined' && !window.confirm('Are you sure you want to delete this creative workflow?')) {
+      return;
+    }
+    const updated = workflowsList.filter(w => w.id !== wfId);
+    setWorkflowsList(updated);
+    const updatedCreator = { ...activeCreator, workflows: updated };
+    setActiveCreator(updatedCreator);
+    if (onUpdateCreator) {
+      onUpdateCreator(updatedCreator);
+    }
+    setInvitationNotice('Workflow removed from Creator Studio.');
+    setTimeout(() => setInvitationNotice(null), 3000);
+  };
+
+  const handleTogglePublishWorkflow = (wfId) => {
+    const updated = workflowsList.map(w => {
+      if (w.id === wfId) {
+        const isCurrentlyPub = w.visibility === 'published' || w.status === 'Published';
+        const nextVis = isCurrentlyPub ? 'draft' : 'published';
+        const nextStatus = isCurrentlyPub ? 'Draft' : 'Published';
+        return { ...w, visibility: nextVis, status: nextStatus, updatedAt: 'Just now' };
+      }
+      return w;
+    });
+    setWorkflowsList(updated);
+    const updatedCreator = { ...activeCreator, workflows: updated };
+    setActiveCreator(updatedCreator);
+    if (onUpdateCreator) {
+      onUpdateCreator(updatedCreator);
+    }
+    const target = updated.find(w => w.id === wfId);
+    setInvitationNotice(`Workflow ${target?.visibility === 'published' ? 'published to brand profile' : 'moved to private drafts'}!`);
+    setTimeout(() => setInvitationNotice(null), 3500);
+  };
+
   // --- Handlers: Portfolio Project ---
   const handleOpenAddProject = (existing = null) => {
     if (existing) {
@@ -180,7 +280,8 @@ export default function CreatorWorkspaceView({
         visibility: existing.visibility || 'published',
         featured: !!existing.featured,
         role: existing.role || 'Lead Visual Artist',
-        clientType: existing.clientType || 'Commercial Campaign'
+        clientType: existing.clientType || 'Commercial Campaign',
+        workflowId: existing.workflowId || ''
       });
     } else {
       setEditingProject(null);
@@ -196,7 +297,8 @@ export default function CreatorWorkspaceView({
         visibility: 'published',
         featured: false,
         role: 'Lead Visual Artist',
-        clientType: 'Commercial Campaign'
+        clientType: 'Commercial Campaign',
+        workflowId: ''
       });
     }
     setProjectFormErrors({});
@@ -539,6 +641,17 @@ export default function CreatorWorkspaceView({
           >
             <span>My Portfolio</span>
             <span className="tab-count-pill">{projectsList.length}</span>
+          </button>
+
+          <button 
+            type="button" 
+            role="tab" 
+            aria-selected={activeTab === 'workflows'}
+            className={`studio-tab-btn ${activeTab === 'workflows' ? 'active' : ''}`}
+            onClick={() => setActiveTab('workflows')}
+          >
+            <span>Creative Workflow</span>
+            <span className="tab-count-pill highlight">{workflowsList.length}</span>
           </button>
 
           <button 
@@ -1088,6 +1201,373 @@ export default function CreatorWorkspaceView({
                   <Plus size={16} />
                   <span>Create Your First Project</span>
                 </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB: CREATIVE WORKFLOW MANAGEMENT
+            ======================================================== */}
+        {activeTab === 'workflows' && (
+          <div className="studio-workflows-view">
+            {/* Header / Intro Strip */}
+            <div className="portfolio-subnav-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <span className="section-label-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <Workflow size={13} />
+                  <span>Production Pipelines</span>
+                </span>
+                <h2 className="section-title-sm" style={{ margin: '4px 0 6px 0', fontSize: '1.45rem' }}>
+                  Creative Workflow & Methodology
+                </h2>
+                <p className="section-desc-sm" style={{ maxWidth: '640px', margin: 0 }}>
+                  Standardize, manage, and publish your production pipelines. Document tools, AI models, and human artistry so brands understand your craft before commissioning work.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary btn-sm"
+                  onClick={onViewPublicProfile}
+                  title="View how brands see your published workflows"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Eye size={14} />
+                  <span>View Public Profile</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  className="btn btn-primary btn-sm studio-add-work-btn"
+                  onClick={() => handleOpenCreateWorkflow()}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Plus size={15} />
+                  <span>Create Workflow</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick-Starter Demonstration Templates Bar */}
+            <div style={{ 
+              marginTop: '16px', 
+              padding: '16px 20px', 
+              background: 'linear-gradient(135deg, rgba(253, 247, 237, 0.8) 0%, rgba(246, 240, 232, 0.6) 100%)', 
+              border: '1px solid rgba(235, 110, 75, 0.2)', 
+              borderRadius: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={16} style={{ color: 'var(--accent-primary, #EB6E4B)' }} />
+                <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Start from a proven production template:
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs"
+                  onClick={() => handleOpenCreateWorkflow("Beauty & Skincare")}
+                  style={{ fontSize: '0.78rem', background: '#FFFFFF' }}
+                >
+                  + Skincare Campaign Process
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs"
+                  onClick={() => handleOpenCreateWorkflow("Product Visualization")}
+                  style={{ fontSize: '0.78rem', background: '#FFFFFF' }}
+                >
+                  + Product Viz Pipeline
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs"
+                  onClick={() => handleOpenCreateWorkflow("Motion Design")}
+                  style={{ fontSize: '0.78rem', background: '#FFFFFF' }}
+                >
+                  + Motion Teaser Process
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs"
+                  onClick={() => handleOpenCreateWorkflow("Fashion Campaigns")}
+                  style={{ fontSize: '0.78rem', background: '#FFFFFF' }}
+                >
+                  + Haute Couture Lookbook
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Pills */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+              <div className="portfolio-filters-group">
+                <button
+                  type="button"
+                  className={`portfolio-filter-pill ${workflowFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setWorkflowFilter('all')}
+                >
+                  All Workflows ({workflowsList.length})
+                </button>
+                <button
+                  type="button"
+                  className={`portfolio-filter-pill ${workflowFilter === 'published' ? 'active' : ''}`}
+                  onClick={() => setWorkflowFilter('published')}
+                >
+                  Published ({workflowsList.filter(w => w.visibility === 'published' || w.status === 'Published').length})
+                </button>
+                <button
+                  type="button"
+                  className={`portfolio-filter-pill ${workflowFilter === 'draft' ? 'active' : ''}`}
+                  onClick={() => setWorkflowFilter('draft')}
+                >
+                  Drafts ({workflowsList.filter(w => w.visibility !== 'published' && w.status !== 'Published').length})
+                </button>
+              </div>
+
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+                Only published workflows are visible to brands in your public profile.
+              </span>
+            </div>
+
+            {/* Workflows Cards Grid */}
+            {workflowsList.filter(w => {
+              if (workflowFilter === 'published') return w.visibility === 'published' || w.status === 'Published';
+              if (workflowFilter === 'draft') return w.visibility !== 'published' && w.status !== 'Published';
+              return true;
+            }).length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {workflowsList
+                  .filter(w => {
+                    if (workflowFilter === 'published') return w.visibility === 'published' || w.status === 'Published';
+                    if (workflowFilter === 'draft') return w.visibility !== 'published' && w.status !== 'Published';
+                    return true;
+                  })
+                  .map((wf) => {
+                    const isPub = wf.visibility === 'published' || wf.status === 'Published';
+                    const stepCount = (wf.steps || []).length;
+                    const toolsSummary = Array.from(new Set(
+                      (wf.steps || []).flatMap(s => Array.isArray(s.tools) ? s.tools : String(s.tools || '').split(',').map(t => t.trim()))
+                    )).filter(Boolean).slice(0, 5);
+
+                    return (
+                      <div 
+                        key={wf.id}
+                        className="studio-card workflow-manage-card"
+                        style={{
+                          background: 'var(--bg-card, #FFFFFF)',
+                          border: '1px solid var(--border-light, #E2E8F0)',
+                          borderRadius: '18px',
+                          padding: '24px 28px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '16px',
+                          transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                        }}
+                      >
+                        {/* Top Metadata Strip */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                            <span style={{
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.07em',
+                              color: 'var(--accent-primary, #EB6E4B)',
+                              background: 'rgba(235, 110, 75, 0.08)',
+                              padding: '3px 10px',
+                              borderRadius: '100px'
+                            }}>
+                              {wf.specialization || 'Creative Specialization'}
+                            </span>
+
+                            {/* Status indicator button / badge */}
+                            <span style={{
+                              fontSize: '0.74rem',
+                              padding: '3px 10px',
+                              borderRadius: '100px',
+                              fontWeight: 600,
+                              background: isPub ? 'rgba(16, 185, 129, 0.12)' : 'rgba(234, 179, 8, 0.12)',
+                              color: isPub ? '#059669' : '#B45309',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isPub ? '#10B981' : '#F59E0B' }} />
+                              <span>{isPub ? 'Published (Brand-Visible)' : 'Draft (Private to You)'}</span>
+                            </span>
+
+                            {wf.isDemo && (
+                              <span style={{ fontSize: '0.7rem', color: '#64748B', background: 'rgba(100, 116, 139, 0.1)', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>
+                                Demo Sample
+                              </span>
+                            )}
+                          </div>
+
+                          <span style={{ fontSize: '0.76rem', color: 'var(--text-tertiary)' }}>
+                            Updated {wf.updatedAt || 'Recently'}
+                          </span>
+                        </div>
+
+                        {/* Workflow Headline & Synopsis */}
+                        <div>
+                          <h3 style={{ margin: '0 0 6px 0', fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {wf.title}
+                          </h3>
+                          <p style={{ margin: 0, fontSize: '0.92rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '820px' }}>
+                            {wf.description}
+                          </p>
+                        </div>
+
+                        {/* Linked Portfolio Item Banner (if linked) */}
+                        {wf.linkedProjectId && (
+                          <div style={{
+                            padding: '10px 16px',
+                            borderRadius: '10px',
+                            background: 'var(--bg-card-subtle, #FAF9F6)',
+                            border: '1px solid var(--border-light, #E2E8F0)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '8px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem' }}>
+                              <Layers size={15} style={{ color: 'var(--accent-primary, #EB6E4B)' }} />
+                              <span>
+                                Associated Portfolio Case Study: <strong style={{ color: 'var(--text-primary)' }}>{wf.linkedProjectTitle || 'Case Study Project'}</strong>
+                              </span>
+                            </div>
+
+                            {projectsList.find(p => p.id === wf.linkedProjectId) && (
+                              <button
+                                type="button"
+                                className="link-subtle"
+                                onClick={() => handleOpenProject(projectsList.find(p => p.id === wf.linkedProjectId))}
+                                style={{ fontSize: '0.8rem', cursor: 'pointer', background: 'none', border: 'none', color: 'var(--accent-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Eye size={13} />
+                                <span>Inspect Work</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Pipeline Specs Summary */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', background: 'var(--bg-secondary, #FDF7ED)', padding: '14px 18px', borderRadius: '12px', border: '1px solid rgba(235, 110, 75, 0.15)' }}>
+                          <div>
+                            <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', fontWeight: 700, display: 'block', marginBottom: '2px' }}>
+                              Pipeline Stages
+                            </span>
+                            <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {stepCount} Ordered Production Steps
+                            </span>
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', fontWeight: 700, display: 'block', marginBottom: '2px' }}>
+                              AI Tools & Models
+                            </span>
+                            <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {toolsSummary.length > 0 ? toolsSummary.join(', ') : 'Custom AI Latent Stack'}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', fontWeight: 700, display: 'block', marginBottom: '2px' }}>
+                              Human Role
+                            </span>
+                            <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                              {wf.humanInvolvementNotes ? 'Documented Artistry & Direction' : 'Stated Generative Execution'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Action Control Buttons Bar (All Functional) */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border-light, #E2E8F0)', flexWrap: 'wrap', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => setPreviewingWorkflow(wf)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <Eye size={14} />
+                              <span>Preview Timeline</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleEditWorkflow(wf)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <Edit3 size={14} />
+                              <span>Edit Workflow</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className={`btn ${isPub ? 'btn-secondary' : 'btn-primary'} btn-sm`}
+                              onClick={() => handleTogglePublishWorkflow(wf.id)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              {isPub ? <Lock size={14} /> : <Globe size={14} />}
+                              <span>{isPub ? 'Unpublish (Make Draft)' : 'Publish to Brands'}</span>
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn-icon-subtle"
+                            onClick={() => handleDeleteWorkflow(wf.id)}
+                            title="Delete this workflow"
+                            style={{ color: '#EF4444', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.82rem', padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)', cursor: 'pointer' }}
+                          >
+                            <Trash2 size={14} />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              /* Empty State */
+              <div className="portfolio-empty-state" style={{ padding: '48px 24px', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: '18px', border: '1px dashed var(--border-subtle)' }}>
+                <Workflow size={48} className="empty-state-icon" style={{ color: 'var(--accent-primary, #EB6E4B)', margin: '0 auto 14px' }} />
+                <h3 className="empty-state-title" style={{ fontSize: '1.45rem', marginBottom: '8px' }}>
+                  Demystify your creative process.
+                </h3>
+                <p className="empty-state-desc" style={{ maxWidth: '540px', margin: '0 auto 20px', fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
+                  Documenting your creative workflows proves your craft to brands, demonstrates your human-in-the-loop artistry, and speeds up commercial commissions.
+                </p>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button 
+                    type="button" 
+                    className="btn btn-primary btn-md"
+                    onClick={() => handleOpenCreateWorkflow("Beauty & Skincare")}
+                  >
+                    <Sparkles size={16} />
+                    <span>Use Skincare Campaign Template</span>
+                  </button>
+
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-md"
+                    onClick={() => handleOpenCreateWorkflow()}
+                  >
+                    <Plus size={16} />
+                    <span>Start from Scratch</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1761,6 +2241,25 @@ export default function CreatorWorkspaceView({
               </div>
 
               <div className="form-group">
+                <label className="form-label">Link Creative Workflow (Optional)</label>
+                <select 
+                  className="form-input"
+                  value={projectForm.workflowId || ''}
+                  onChange={(e) => setProjectForm(prev => ({ ...prev, workflowId: e.target.value }))}
+                >
+                  <option value="">No linked workflow</option>
+                  {workflowsList.map(w => (
+                    <option key={w.id} value={w.id}>
+                      {w.title} ({w.specialization})
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-tertiary)', marginTop: '4px', display: 'block' }}>
+                  Attaches a verified production timeline to this case study.
+                </span>
+              </div>
+
+              <div className="form-group">
                 <label className="form-label">Media Preview URL *</label>
                 <input 
                   type="url" 
@@ -1999,6 +2498,54 @@ export default function CreatorWorkspaceView({
                 <ArrowRight size={14} />
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Workflow Editor Modal */}
+      {isWorkflowEditorOpen && (
+        <WorkflowEditorModal
+          workflow={editingWorkflow}
+          creatorId={activeCreator?.id || 'maya-chen'}
+          portfolioProjects={projectsList}
+          onSave={handleSaveWorkflow}
+          onClose={() => {
+            setIsWorkflowEditorOpen(false);
+            setEditingWorkflow(null);
+          }}
+        />
+      )}
+
+      {/* Workflow Preview Modal */}
+      {previewingWorkflow && (
+        <div className="modal-overlay" onClick={() => setPreviewingWorkflow(null)} role="dialog" aria-modal="true">
+          <div 
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '860px', maxHeight: '90vh', overflowY: 'auto', borderRadius: '20px', padding: '24px 32px', background: 'var(--bg-card, #FFFFFF)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--accent-primary, #EB6E4B)', fontWeight: 700 }}>
+                Workflow Preview • Brand View
+              </span>
+              <button 
+                type="button" 
+                className="modal-close-btn"
+                onClick={() => setPreviewingWorkflow(null)}
+                style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-light)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <WorkflowTimeline 
+              workflow={previewingWorkflow} 
+              isReadOnly={true}
+              onSelectProject={(projId) => {
+                const p = projectsList.find(item => item.id === projId);
+                if (p) handleOpenProject(p);
+              }}
+            />
           </div>
         </div>
       )}

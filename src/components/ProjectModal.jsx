@@ -4,7 +4,9 @@
 // Strictly excludes any 'Invite this Creator' button.
 
 import React, { useState } from 'react';
-import { X, ArrowRight, Sparkles, Layers, Maximize2, Minimize2, Play, Volume2, VolumeX, Eye, CheckCircle2, Sliders, Palette, Cpu, Film } from 'lucide-react';
+import { X, ArrowRight, Sparkles, Layers, Maximize2, Minimize2, Play, Volume2, VolumeX, Eye, CheckCircle2, Sliders, Palette, Cpu, Film, GitCommit } from 'lucide-react';
+import WorkflowTimeline from './WorkflowTimeline';
+import { DEMO_WORKFLOWS } from '../data/workflowsData';
 
 export default function ProjectModal({ 
   project, 
@@ -36,6 +38,15 @@ export default function ProjectModal({
   const formatText = project.format || (project.category === 'AI Video' ? '4K Video Master Loop' : 'High-Resolution 4K Key Art Stills');
   const platformText = project.platform || "Campaign OOH, Social & Digital";
   const tagsList = project.capabilities || resolvedCreator.capabilities || ['Generative Cinema', 'Visual Direction'];
+
+  // Resolve associated creative workflow if linked
+  const allWorkflows = (resolvedCreator.workflows && resolvedCreator.workflows.length > 0)
+    ? resolvedCreator.workflows
+    : DEMO_WORKFLOWS.filter(w => w.creatorId === resolvedCreator.id);
+  const associatedWorkflow = allWorkflows.find(w => 
+    (w.linkedProjectId && w.linkedProjectId === project.id) ||
+    (project.workflowId && w.id === project.workflowId)
+  );
 
   return (
     <div className={`modal-overlay ${isExpanded ? 'modal-expanded-overlay' : ''}`} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="project-modal-headline">
@@ -288,6 +299,23 @@ export default function ProjectModal({
               </div>
             </div>
           </div>
+
+          {/* Associated Creative Workflow (if linked) */}
+          {associatedWorkflow && (
+            <div style={{ marginTop: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                <span className="live-pulse-dot" />
+                <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--accent-primary, #EB6E4B)', fontWeight: 700 }}>
+                  Associated Production Workflow • How This Work Was Created
+                </span>
+              </div>
+              <WorkflowTimeline 
+                workflow={associatedWorkflow} 
+                isReadOnly={true}
+                compact={false}
+              />
+            </div>
+          )}
 
           {/* 6. Verified Capabilities & Craft Tags */}
           {tagsList && tagsList.length > 0 && (

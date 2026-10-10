@@ -17018,6 +17018,103 @@ img, video {
 }
 
 /* ==========================================================================
+   MODAL: INVITATION ACCEPTANCE — INFORMED CONSENT
+   ========================================================================== */
+
+.invitation-consent-modal .modal-header-block {
+  margin-bottom: 18px;
+}
+
+.invitation-consent-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.consent-counterparty-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.consent-brand-name {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-lavender-deep);
+}
+
+.consent-campaign-title {
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.consent-terms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.consent-term-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.consent-term-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.consent-term-value {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.consent-review-notice {
+  margin: 0;
+  padding: 12px 14px;
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .invitation-consent-modal {
+    padding: 24px 18px;
+  }
+
+  .invitation-consent-modal .modal-actions-row {
+    flex-direction: column;
+  }
+
+  .invitation-consent-modal .modal-actions-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
    ALLOY CREATIVE WORKFLOW — EDITORIAL TIMELINES & PIPELINE STYLES
    ========================================================================== */
 

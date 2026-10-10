@@ -1,57 +1,136 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowRight, ArrowLeft, Check, Sparkles, Plus, Trash2, 
   Eye, Globe, ExternalLink, Image as ImageIcon, Dna, 
   CheckCircle2, ShieldCheck, AlertCircle, RefreshCw, Layers, Sliders 
 } from 'lucide-react';
 import { generateCreatorDNA as groqGenerateCreatorDNA } from '../ai/groqClient';
+import { loadCreatorOnboardingDraft, saveCreatorOnboardingDraft, clearCreatorOnboardingDraft } from '../data/marketplaceStore';
+
+const TOTAL_ONBOARDING_STEPS = 8;
+
+const createDefaultProfileData = () => ({
+  name: '',
+  handle: '',
+  creativeIdentity: '',
+  location: 'London / New York',
+  bio: '',
+  experience: '3+ years AI-native cinema',
+  turnaround: '48h concept boards',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+  disciplines: ['AI Fashion', 'AI Photography', 'AI Product Visuals'],
+  styles: ['Editorial', 'Cinematic', 'Luxury', 'Minimal'],
+  availability: 'Available for projects',
+  socials: {
+    instagram: '',
+    tiktok: '',
+    youtube: '',
+    portfolioUrl: ''
+  },
+  portfolio: [
+    {
+      id: 'work-1',
+      title: 'Aura Privée — Neoclassical Silk & Light',
+      category: 'Fashion & Editorial',
+      aspect: 'portrait',
+      format: '4K Stills Suite',
+      image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1000&q=85',
+      description: 'Synthetic haute couture campaign exploring luminous chiffon, micro-pleating, and chiaroscuro studio lighting.',
+      role: 'Creative Director & AI Artist'
+    },
+    {
+      id: 'work-2',
+      title: 'Chronos Titanium — Kinetic Micro-Machining',
+      category: 'Product Advertising',
+      aspect: 'landscape',
+      format: '3D CGI Motion Reel',
+      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=85',
+      description: 'Ultra-crisp macro close-ups of brushed titanium watch gears floating in magnetic zero-gravity suspension.',
+      role: '3D Spatial Technologist'
+    }
+  ]
+});
+
+/**
+ * Builds onboarding form state from a stored draft.
+ * Falls back to defaults for any missing or malformed field.
+ */
+const buildInitialProfileData = (draftProfileData) => {
+  const defaults = createDefaultProfileData();
+  if (!draftProfileData || typeof draftProfileData !== 'object' || Array.isArray(draftProfileData)) {
+    return defaults;
+  }
+  const asString = (value, fallback) => (typeof value === 'string' ? value : fallback);
+  const asStringArray = (value, fallback) => (
+    Array.isArray(value) && value.every(item => typeof item === 'string') ? value : fallback
+  );
+  const socials = (draftProfileData.socials && typeof draftProfileData.socials === 'object' && !Array.isArray(draftProfileData.socials))
+    ? draftProfileData.socials
+    : {};
+  const portfolio = Array.isArray(draftProfileData.portfolio)
+    ? draftProfileData.portfolio
+        .filter(item => item && typeof item === 'object' && typeof item.image === 'string' && item.image.trim())
+        .map((item, index) => ({
+          id: asString(item.id, `work-${index + 1}`),
+          title: asString(item.title, 'Untitled Work'),
+          category: asString(item.category, 'Product Visuals'),
+          aspect: asString(item.aspect, 'portrait'),
+          format: asString(item.format, '4K Stills Suite'),
+          image: item.image,
+          description: asString(item.description, ''),
+          role: asString(item.role, 'Lead AI Creator')
+        }))
+    : null;
+  return {
+    ...defaults,
+    name: asString(draftProfileData.name, defaults.name),
+    handle: asString(draftProfileData.handle, defaults.handle),
+    creativeIdentity: asString(draftProfileData.creativeIdentity, defaults.creativeIdentity),
+    location: asString(draftProfileData.location, defaults.location),
+    bio: asString(draftProfileData.bio, defaults.bio),
+    experience: asString(draftProfileData.experience, defaults.experience),
+    turnaround: asString(draftProfileData.turnaround, defaults.turnaround),
+    avatar: asString(draftProfileData.avatar, defaults.avatar),
+    availability: asString(draftProfileData.availability, defaults.availability),
+    disciplines: asStringArray(draftProfileData.disciplines, defaults.disciplines),
+    styles: asStringArray(draftProfileData.styles, defaults.styles),
+    socials: {
+      instagram: asString(socials.instagram, defaults.socials.instagram),
+      tiktok: asString(socials.tiktok, defaults.socials.tiktok),
+      youtube: asString(socials.youtube, defaults.socials.youtube),
+      portfolioUrl: asString(socials.portfolioUrl, defaults.socials.portfolioUrl)
+    },
+    portfolio: portfolio || defaults.portfolio
+  };
+};
+
+/**
+ * Clamps a resumed step so a draft can never bypass the existing validation gates.
+ */
+const resolveResumeStep = (step, data) => {
+  let resolved = Number.isFinite(step) ? Math.min(TOTAL_ONBOARDING_STEPS, Math.max(1, Math.round(step))) : 1;
+  if (resolved >= 5 && data.portfolio.length < 2) resolved = 4;
+  if (resolved >= 4 && data.disciplines.length === 0) resolved = 3;
+  if (resolved >= 3 && !data.name.trim()) resolved = 2;
+  return resolved;
+};
 
 export default function CreatorOnboardingView({ onPublishCreator, onExploreMarketplace }) {
-  const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 8;
-
-  // Form State
-  const [profileData, setProfileData] = useState({
-    name: '',
-    handle: '',
-    creativeIdentity: '',
-    location: 'London / New York',
-    bio: '',
-    experience: '3+ years AI-native cinema',
-    turnaround: '48h concept boards',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    disciplines: ['AI Fashion', 'AI Photography', 'AI Product Visuals'],
-    styles: ['Editorial', 'Cinematic', 'Luxury', 'Minimal'],
-    availability: 'Available for projects',
-    socials: {
-      instagram: '',
-      tiktok: '',
-      youtube: '',
-      portfolioUrl: ''
-    },
-    portfolio: [
-      {
-        id: 'work-1',
-        title: 'Aura Privée — Neoclassical Silk & Light',
-        category: 'Fashion & Editorial',
-        aspect: 'portrait',
-        format: '4K Stills Suite',
-        image: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1000&q=85',
-        description: 'Synthetic haute couture campaign exploring luminous chiffon, micro-pleating, and chiaroscuro studio lighting.',
-        role: 'Creative Director & AI Artist'
-      },
-      {
-        id: 'work-2',
-        title: 'Chronos Titanium — Kinetic Micro-Machining',
-        category: 'Product Advertising',
-        aspect: 'landscape',
-        format: '3D CGI Motion Reel',
-        image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=85',
-        description: 'Ultra-crisp macro close-ups of brushed titanium watch gears floating in magnetic zero-gravity suspension.',
-        role: '3D Spatial Technologist'
-      }
-    ]
+  // Restore an unfinished onboarding draft once (local-only scratch data; never credentials)
+  const [resumeState] = useState(() => {
+    const draft = loadCreatorOnboardingDraft();
+    const restoredData = buildInitialProfileData(draft?.profileData);
+    return {
+      profileData: restoredData,
+      currentStep: resolveResumeStep(draft?.currentStep, restoredData),
+      dnaResult: draft?.dnaResult || null
+    };
   });
+  const [currentStep, setCurrentStep] = useState(resumeState.currentStep);
+  const totalSteps = TOTAL_ONBOARDING_STEPS;
+
+  // Form State (initialized from the restored draft when resuming)
+  const [profileData, setProfileData] = useState(resumeState.profileData);
 
   // Step 4: New portfolio item buffer
   const [newProject, setNewProject] = useState({
@@ -66,9 +145,22 @@ export default function CreatorOnboardingView({ onPublishCreator, onExploreMarke
   const [showAddProject, setShowAddProject] = useState(false);
   const [uploadFeedback, setUploadFeedback] = useState('');
 
-  // Step 6: Creative DNA generation state
-  const [dnaResult, setDnaResult] = useState(null);
+  // Step 6: Creative DNA generation state (restored DNA resumes with the draft)
+  const [dnaResult, setDnaResult] = useState(resumeState.dnaResult);
   const [isGeneratingDNA, setIsGeneratingDNA] = useState(false);
+
+  // Persist unfinished onboarding progress locally so it can be resumed after leaving or reloading.
+  // Cleared after successful publication; never stores credentials or tokens.
+  useEffect(() => {
+    const isPristine = currentStep === 1
+      && !dnaResult
+      && JSON.stringify(profileData) === JSON.stringify(createDefaultProfileData());
+    if (isPristine) {
+      clearCreatorOnboardingDraft();
+      return;
+    }
+    saveCreatorOnboardingDraft({ currentStep, profileData, dnaResult });
+  }, [currentStep, profileData, dnaResult]);
 
   // Available Specialties
   const disciplineOptions = [
@@ -251,6 +343,8 @@ export default function CreatorOnboardingView({ onPublishCreator, onExploreMarke
       dna: dnaResult
     };
 
+    // Draft is finalized once the creator profile is published
+    clearCreatorOnboardingDraft();
     onPublishCreator(finalCreator);
   };
 
@@ -647,7 +741,7 @@ export default function CreatorOnboardingView({ onPublishCreator, onExploreMarke
                 type="button" 
                 className="btn btn-primary"
                 onClick={() => setCurrentStep(5)}
-                disabled={profileData.portfolio.length === 0}
+                disabled={profileData.portfolio.length < 2}
               >
                 <span>Continue to Social Links</span>
                 <ArrowRight size={16} />

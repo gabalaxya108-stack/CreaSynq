@@ -31,39 +31,246 @@ export function getBackendStatus() {
 // 1. AUTHENTICATION & USER SESSIONS
 // ============================================================================
 
+/**
+ * Safely synchronizes an authenticated user's metadata to public.profiles table.
+ * Preserves existing database roles to prevent unverified client metadata from
+ * overwriting authorized user roles. Never silently overwrites an existing user's
+ * stored role with a default role, and handles missing roles explicitly.
+ */
+export async function syncUserProfileSafely(user, preferredRole = null) {
+  if (!isSupabaseConfigured() || !supabase || !user) return null;
+  try {
+    // 1. Fetch existing profile to preserve existing server-authorized role
+    let existingProfile = null;
+    try {
+      const { data: fetchedProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+      existingProfile = fetchedProfile;
+    } catch (fetchErr) {
+      // Table may not exist yet or query blocked by RLS
+    }
+
+    // 2. Identify explicit role chosen for this authentication flow (if any)
+    let explicitIntent = null;
+    if (preferredRole === 'creator' || preferredRole === 'brand') {
+      explicitIntent = preferredRole;
+    } else if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('creasync_intended_role') 
+        || localStorage.getItem('creasync_intended_role');
+      if (stored === 'creator' || stored === 'brand') {
+        explicitIntent = stored;
+      }
+    }
+
+    // 3. Resolve role with strict priority:
+    // - CRITICAL: If user has an existing verified database profile role ('creator' or 'brand'), PRESERVE it!
+    //   Do NOT overwrite an existing user's stored role with a newly selected client role or default role.
+    // - Otherwise, if the user explicitly selected a role for this registration/login flow (explicitIntent), honor that selection.
+    // - Otherwise, check auth metadata (role or intended_role).
+    // - Otherwise, check active role stored from a previous verified workspace session.
+    let resolvedRole = null;
+    if (existingProfile?.role === 'creator' || existingProfile?.role === 'brand') {
+      resolvedRole = existingProfile.role;
+    } else if (explicitIntent === 'creator' || explicitIntent === 'brand') {
+      resolvedRole = explicitIntent;
+    } else if (user.user_metadata?.role === 'creator' || user.user_metadata?.role === 'brand') {
+      resolvedRole = user.user_metadata.role;
+    } else if (user.user_metadata?.intended_role === 'creator' || user.user_metadata?.intended_role === 'brand') {
+      resolvedRole = user.user_metadata.intended_role;
+    } else if (typeof window !== 'undefined') {
+      const storedActive = localStorage.getItem('creasync_active_role');
+      if (storedActive === 'creator' || storedActive === 'brand') {
+        resolvedRole = storedActive;
+      }
+    }
+
+    // Handle missing roles explicitly instead of silently assigning 'brand'
+    if (!resolvedRole) {
+      console.info('[CreaSync Auth] No explicit or stored role found; handling missing role explicitly without default.');
+      return existingProfile || null;
+    }
+
+    const displayName = existingProfile?.display_name 
+      || user.user_metadata?.full_name 
+      || user.user_metadata?.name 
+      || user.email?.split('@')[0] 
+      || '';
+
+    const avatarUrl = existingProfile?.avatar_url 
+      || user.user_metadata?.avatar_url 
+      || '';
+
+    const { data, error } = await supabase.from('profiles').upsert({
+      id: user.id,
+      email: user.email,
+      role: resolvedRole,
+      display_name: displayName,
+      avatar_url: avatarUrl,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'id' }).select().maybeSingle();
+
+    if (error) {
+      console.warn('[CreaSync Auth] Optional profiles sync note:', error.message);
+      return existingProfile || { ...user, role: resolvedRole };
+    }
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('creasync_active_role', resolvedRole);
+    }
+
+    return data || existingProfile || null;
+  } catch (err) {
+    console.warn('[CreaSync Auth] Optional profiles sync bypassed:', err?.message || err);
+    return null;
+  }
+}
+
+/**
+ * Explicitly updates the user's profile role when requested deliberately by the user
+ * (e.g. through the role conflict resolution dialog or explicit settings).
+ * Never called automatically during session restoration or OAuth return.
+ */
+export async function updateUserRoleExplicitly(user, newRole) {
+  if (!user || (newRole !== 'creator' && newRole !== 'brand')) return null;
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('creasync_active_role', newRole);
+    try {
+      const activeUser = localStorage.getItem('creasync_active_user');
+      if (activeUser) {
+        const parsed = JSON.parse(activeUser);
+        parsed.role = newRole;
+        localStorage.setItem('creasync_active_user', JSON.stringify(parsed));
+      }
+    } catch (e) {}
+  }
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data, error } = await supabase.from('profiles').upsert({
+        id: user.id,
+        email: user.email,
+        role: newRole,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' }).select().maybeSingle();
+
+      if (error) {
+        console.warn('[CreaSync Auth] Profile role update note:', error.message);
+      }
+      return data || { ...user, role: newRole };
+    } catch (err) {
+      console.warn('[CreaSync Auth] Profile role update deferred:', err);
+    }
+  }
+
+  return { ...user, role: newRole };
+}
+
+/**
+ * Initiates Google OAuth authentication via Supabase Auth
+ * Requires active Supabase configuration in .env. Does NOT mock authentication.
+ */
+export async function signInWithGoogle({ role = 'brand', redirectTo } = {}) {
+  if (!isSupabaseConfigured() || !supabase) {
+    throw new Error('Google Authentication requires Supabase to be configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
+  }
+
+  // Validate target role
+  const targetRole = role === 'creator' ? 'creator' : 'brand';
+
+  // Preserve intended role across browser redirect in both sessionStorage and localStorage
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.setItem('creasync_intended_role', targetRole);
+      localStorage.setItem('creasync_intended_role', targetRole);
+      localStorage.setItem('creasync_active_role', targetRole);
+    } catch (e) {}
+  }
+
+  const callbackUrl = redirectTo || (typeof window !== 'undefined' ? window.location.origin : '');
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: callbackUrl,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent'
+      },
+      data: {
+        intended_role: targetRole,
+        role: targetRole
+      }
+    }
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 export async function signUp(email, password, role = 'creator', displayName = '') {
   if (isSupabaseConfigured() && supabase) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { role, display_name: displayName }
+        data: { role, display_name: displayName, intended_role: role }
       }
     });
     if (error) throw error;
 
-    // Create user profile in profiles table
-    if (data.user) {
-      await supabase.from('profiles').upsert({
+    // Defensively create or update profile record if session exists
+    if (data.user && data.session) {
+      try {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email: data.user.email,
+          role: role,
+          display_name: displayName || email.split('@')[0],
+          updated_at: new Date().toISOString()
+        });
+      } catch (profileErr) {
+        console.warn('[CreaSync Auth] Profiles upsert bypassed:', profileErr?.message || profileErr);
+      }
+    }
+    const userWithProfile = data.user ? {
+      ...data.user,
+      role,
+      profile: {
         id: data.user.id,
         email: data.user.email,
-        role: role,
-        display_name: displayName || email.split('@')[0],
-        updated_at: new Date().toISOString()
-      });
+        role,
+        display_name: displayName || email.split('@')[0]
+      }
+    } : null;
+
+    if (typeof window !== 'undefined' && userWithProfile) {
+      localStorage.setItem('creasync_active_user', JSON.stringify(userWithProfile));
+      localStorage.setItem('creasync_active_role', role);
     }
-    return { user: data.user, session: data.session };
+
+    return { user: userWithProfile, session: data.session };
   }
 
-  // Local fallback: Simulated session
+  // Local fallback: Simulated session for demo/offline evaluation
   const mockUser = {
     id: `user-${Date.now()}`,
     email,
     role,
-    display_name: displayName || email.split('@')[0]
+    display_name: displayName || email.split('@')[0],
+    profile: {
+      id: `user-${Date.now()}`,
+      email,
+      role,
+      display_name: displayName || email.split('@')[0]
+    }
   };
   if (typeof window !== 'undefined') {
     localStorage.setItem('creasync_active_user', JSON.stringify(mockUser));
+    localStorage.setItem('creasync_active_role', role);
   }
   return { user: mockUser, session: { access_token: 'mock-token' } };
 }
@@ -75,18 +282,62 @@ export async function signIn(email, password) {
       password
     });
     if (error) throw error;
-    return { user: data.user, session: data.session };
+
+    // Safely resolve user profile or synthesize role
+    let profile = null;
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .maybeSingle();
+      profile = profileData || null;
+    } catch (e) {}
+
+    const resolvedRole = profile?.role 
+      || data.user.user_metadata?.role 
+      || data.user.user_metadata?.intended_role 
+      || (typeof window !== 'undefined' ? localStorage.getItem('creasync_active_role') : null)
+      || (email.toLowerCase().includes('creator') ? 'creator' : 'brand');
+
+    const synthesizedProfile = profile || {
+      id: data.user.id,
+      email: data.user.email,
+      role: resolvedRole,
+      display_name: data.user.user_metadata?.full_name || email.split('@')[0]
+    };
+
+    const userWithProfile = {
+      ...data.user,
+      role: resolvedRole,
+      profile: synthesizedProfile
+    };
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('creasync_active_user', JSON.stringify(userWithProfile));
+      localStorage.setItem('creasync_active_role', resolvedRole);
+    }
+
+    return { user: userWithProfile, session: data.session };
   }
 
-  // Local fallback: Simulated user
+  // Local fallback: Simulated user for demo/offline evaluation
+  const mockRole = email.toLowerCase().includes('creator') ? 'creator' : 'brand';
   const mockUser = {
     id: `user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`,
     email,
-    role: email.toLowerCase().includes('brand') ? 'brand' : 'creator',
-    display_name: email.split('@')[0]
+    role: mockRole,
+    display_name: email.split('@')[0],
+    profile: {
+      id: `user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`,
+      email,
+      role: mockRole,
+      display_name: email.split('@')[0]
+    }
   };
   if (typeof window !== 'undefined') {
     localStorage.setItem('creasync_active_user', JSON.stringify(mockUser));
+    localStorage.setItem('creasync_active_role', mockRole);
   }
   return { user: mockUser, session: { access_token: 'mock-token' } };
 }
@@ -94,10 +345,16 @@ export async function signIn(email, password) {
 export async function signOut() {
   if (isSupabaseConfigured() && supabase) {
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (error) console.warn('[CreaSync Auth] Supabase signOut notice:', error.message);
   }
   if (typeof window !== 'undefined') {
     localStorage.removeItem('creasync_active_user');
+    localStorage.removeItem('creasync_intended_role');
+    localStorage.removeItem('creasync_active_role');
+    try {
+      sessionStorage.removeItem('creasync_pending_action');
+      sessionStorage.removeItem('creasync_intended_role');
+    } catch (e) {}
   }
   return { ok: true };
 }
@@ -105,20 +362,61 @@ export async function signOut() {
 export async function getCurrentUser() {
   if (isSupabaseConfigured() && supabase) {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      // Get role from profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      return { ...user, profile };
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (!userError && user) {
+        // Safely attempt to fetch profile without failing authentication if table is absent
+        let profile = null;
+        try {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+          profile = profileData || null;
+        } catch (profileErr) {
+          // Table may not exist or RLS may restrict query
+        }
+
+        // If database profile query didn't return a record, synthesize profile from verified session state
+        if (!profile) {
+          const fallbackRole = (user.user_metadata?.intended_role === 'creator' || user.user_metadata?.intended_role === 'brand')
+            ? user.user_metadata.intended_role
+            : (user.user_metadata?.role === 'creator' || user.user_metadata?.role === 'brand')
+              ? user.user_metadata.role
+              : (typeof window !== 'undefined' && (localStorage.getItem('creasync_active_role') === 'creator' || localStorage.getItem('creasync_active_role') === 'brand'))
+                ? localStorage.getItem('creasync_active_role')
+                : null;
+
+          if (fallbackRole) {
+            profile = {
+              id: user.id,
+              email: user.email,
+              role: fallbackRole,
+              display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+              avatar_url: user.user_metadata?.avatar_url || ''
+            };
+          }
+        }
+
+        const fullUser = { 
+          ...user, 
+          role: profile?.role || (user.role !== 'authenticated' ? user.role : null) || 'brand',
+          profile 
+        };
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('creasync_active_user', JSON.stringify(fullUser));
+          if (profile?.role) {
+            localStorage.setItem('creasync_active_role', profile.role);
+          }
+        }
+        return fullUser;
+      }
     } catch (e) {
-      return null;
+      // Fall through to local session check
     }
   }
 
+  // Fallback to local stored session if no live cloud session
   if (typeof window !== 'undefined') {
     try {
       const saved = localStorage.getItem('creasync_active_user');

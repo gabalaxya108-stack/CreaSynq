@@ -61,6 +61,8 @@ import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 export default function App() {
   const [currentView, setCurrentView] = useState('home'); // 'home' | 'discover' | 'creator-profile' | 'creator-not-found' | 'brand-workspace' | 'creator-join' | 'creator-workspace'
   const [activeCreatorId, setActiveCreatorId] = useState(null);
+  const [initialBrandTab, setInitialBrandTab] = useState('overview');
+  const [initialCreatorTab, setInitialCreatorTab] = useState('overview');
 
   // Centralized persistent state (synced with localStorage & reactive cross-tab events)
   const [marketplaceData, setMarketplaceData] = useState(() => getInitialMarketplaceState());
@@ -602,6 +604,36 @@ export default function App() {
         setIsConversationOpen(true);
       }
     );
+  };
+
+  // --- Context-Aware Direct Messages Navigation ---
+  const handleOpenMessages = () => {
+    const activeUser = currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
+
+    if (!activeUser) {
+      requireAuth({
+        type: 'NAVIGATE',
+        view: 'brand-workspace',
+        role: 'brand',
+        notice: 'Please sign in to access direct messaging'
+      }, () => {
+        setInitialBrandTab('messages');
+        navigateTo('brand-workspace');
+      });
+      return;
+    }
+
+    const role = (currentView === 'creator-workspace') ? 'creator' :
+                 (currentView === 'brand-workspace') ? 'brand' :
+                 resolveUserRole(activeUser);
+
+    if (role === 'creator') {
+      setInitialCreatorTab('messages');
+      navigateTo('creator-workspace', null, activeUser);
+    } else {
+      setInitialBrandTab('messages');
+      navigateTo('brand-workspace', null, activeUser);
+    }
   };
 
   // --- Messaging Action ---
@@ -1219,6 +1251,7 @@ export default function App() {
         }}
         onOpenForBrandsModal={() => setIsForBrandsOpen(true)}
         onOpenForCreatorsModal={() => setIsForCreatorsOpen(true)}
+        onOpenMessages={handleOpenMessages}
         activeCampaign={activeCampaign}
         createdCreatorProfile={myCreator}
         currentUser={currentUser}
@@ -1315,6 +1348,7 @@ export default function App() {
             connections={brandConnections}
             onSendMessage={handleSendMessage}
             onSelectCreator={handleOpenCreatorProfile}
+            initialTab={initialBrandTab}
           />
         )}
 
@@ -1364,6 +1398,7 @@ export default function App() {
             projects={projects}
             onSubmitDeliverables={handleSubmitDeliverables}
             onSendMessage={handleSendMessage}
+            initialTab={initialCreatorTab}
           />
         )}
 

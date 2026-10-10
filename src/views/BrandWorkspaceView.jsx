@@ -64,11 +64,18 @@ export default function BrandWorkspaceView({
   onApproveDeliverables,
   connections = [],
   onSendMessage,
-  onSelectCreator
+  onSelectCreator,
+  initialTab = 'overview'
 }) {
   // Navigation Tabs:
   // 'overview' | 'campaigns' | 'discover' | 'shortlists' | 'invitations' | 'collaborations' | 'deliverables' | 'messages' | 'brand-settings'
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Currently inspected campaign
   const inspectedCampaign = activeCampaign || campaigns[0] || null;
@@ -898,6 +905,10 @@ export default function BrandWorkspaceView({
                             </div>
                           </div>
 
+                          <p className="creator-bio-preview">
+                            {creator.bio || creator.introduction || creator.summary || creator.tagline || 'No introduction provided yet.'}
+                          </p>
+
                           <p className="creator-match-reason">
                             “{explanation.topReason || explanation.headline}”
                           </p>
@@ -1223,6 +1234,10 @@ export default function BrandWorkspaceView({
                         className="market-preview-img" 
                       />
                     </div>
+
+                    <p className="market-creator-bio">
+                      {creator.bio || creator.introduction || creator.summary || creator.tagline || 'No introduction provided yet.'}
+                    </p>
 
                     <div className="market-card-tags">
                       {(creator.styles || []).slice(0, 3).map((st, i) => (

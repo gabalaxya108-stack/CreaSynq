@@ -3,7 +3,7 @@
 // Minimal, elevated, typography-first header supporting both authenticated users & guests
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, LogIn, LogOut, ChevronRight } from 'lucide-react';
+import { Menu, X, ArrowRight, LogIn, LogOut, ChevronRight, MessageSquare } from 'lucide-react';
 
 export default function Header({ 
   currentView, 
@@ -14,6 +14,7 @@ export default function Header({
   onOpenLogin,
   onOpenForBrandsModal,
   onOpenForCreatorsModal,
+  onOpenMessages,
   activeCampaign,
   createdCreatorProfile,
   currentUser = null,
@@ -196,6 +197,20 @@ export default function Header({
                 </span>
               </button>
 
+              {/* Messages Entry-Point Button */}
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm alloy-nav-btn header-messages-btn"
+                onClick={() => handleLinkClick(onOpenMessages)}
+                aria-label="Direct Messages"
+                id="header-messages-btn"
+                title="Direct Messages"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <MessageSquare size={13} />
+                <span>Messages</span>
+              </button>
+
               {/* Workspace Action Button */}
               <button 
                 type="button" 
@@ -281,6 +296,15 @@ export default function Header({
           <div className="mobile-drawer-footer">
             {currentUser ? (
               <>
+                <button
+                  type="button"
+                  className="btn btn-secondary w-full"
+                  onClick={() => handleLinkClick(onOpenMessages)}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '8px' }}
+                >
+                  <MessageSquare size={14} />
+                  <span>Direct Messages</span>
+                </button>
                 <button
                   type="button"
                   className="btn btn-primary w-full"

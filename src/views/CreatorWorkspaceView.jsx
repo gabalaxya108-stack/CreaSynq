@@ -24,10 +24,17 @@ export default function CreatorWorkspaceView({
   onDeclineInvitation: propOnDeclineInvitation,
   projects: propProjects,
   onSubmitDeliverables: propOnSubmitDeliverables,
-  onSendMessage: propOnSendMessage
+  onSendMessage: propOnSendMessage,
+  initialTab = 'overview'
 }) {
   const [activeCreator, setActiveCreator] = useState(creator || {});
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'portfolio' | 'opportunities' | 'invitations' | 'projects' | 'messages' | 'profile'
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview'); // 'overview' | 'portfolio' | 'opportunities' | 'invitations' | 'projects' | 'messages' | 'profile'
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   
   // Portfolio state
   const [projectsList, setProjectsList] = useState(creator?.projects || []);
@@ -70,10 +77,20 @@ export default function CreatorWorkspaceView({
   const [applyModalOpp, setApplyModalOpp] = useState(null);
   const [applyNoteText, setApplyNoteText] = useState('');
 
-  // Synchronize opportunities when published by brands
+  // Synchronize opportunities when published by brands,
+  // preserving any locally-applied statuses that are not in the parent prop.
   useEffect(() => {
     if (opportunities) {
-      setOpportunitiesList(opportunities);
+      setOpportunitiesList(prev => {
+        // Build a set of IDs that have been locally marked as 'applied'
+        const appliedIds = new Set(
+          prev.filter(o => o.status === 'applied').map(o => o.id)
+        );
+        // Merge parent opportunities while preserving applied status
+        return opportunities.map(o =>
+          appliedIds.has(o.id) ? { ...o, status: 'applied' } : o
+        );
+      });
     }
   }, [opportunities]);
 
@@ -850,10 +867,11 @@ export default function CreatorWorkspaceView({
                       </div>
                       <button 
                         type="button" 
-                        className="btn btn-secondary btn-xs"
+                        className={`btn ${opp.status === 'applied' ? 'btn-secondary' : 'btn-primary'} btn-xs`}
                         onClick={() => handleOpenApplyModal(opp)}
+                        disabled={opp.status === 'applied'}
                       >
-                        Apply
+                        {opp.status === 'applied' ? 'Interest Expressed' : 'Apply'}
                       </button>
                     </div>
                   ))}

@@ -182,7 +182,8 @@ function stageSkillsFilter(mandatorySkills, candidatePool) {
         code: 'MISSING_MANDATORY_SKILLS',
         reason: `Missing required mandatory skill(s): ${missingSkills.join(', ')}. Demonstrated skills: ${(creator.capabilities || []).slice(0, 3).join(', ') || 'None recorded'}.`,
         missingFields: missingSkills,
-        availableData: creator.capabilities || []
+        availableData: creator.capabilities || [],
+        requiredFields: mandatorySkills
       });
     }
   }
@@ -251,7 +252,8 @@ function stageSpecializationFilter(mandatorySpecialization, candidatePool) {
         code: 'SPECIALIZATION_MISMATCH',
         reason: `Creator specialty (${creator.specialty || 'Unspecified'}) does not match required specialization (${mandatorySpecialization.join(' or ')}).`,
         missingFields: mandatorySpecialization,
-        availableData: { specialty: creator.specialty, tags: creator.categoryTags }
+        availableData: { specialty: creator.specialty, tags: creator.categoryTags },
+        requiredFields: mandatorySpecialization
       });
     }
   }
@@ -323,7 +325,8 @@ function stageAiToolsFilter(mandatoryTools, candidatePool) {
         code: 'TOOL_CHAIN_INCOMPATIBLE',
         reason: `Lacks verified production experience in requested tool(s): ${missingTools.join(', ')}. Verified tools: ${(creator.tools || []).join(', ') || 'None recorded'}.`,
         missingFields: missingTools,
-        availableData: creator.tools || []
+        availableData: creator.tools || [],
+        requiredFields: mandatoryTools
       });
     }
   }
@@ -419,7 +422,8 @@ function stageFormatFilter(mandatoryFormats, candidatePool) {
         code: 'FORMAT_UNSUPPORTED',
         reason: `Deliverable format requirement not satisfied: ${missingFormats.join(', ')}. Creator specializes in ${creator.specialty || 'other formats'}.`,
         missingFields: missingFormats,
-        availableData: { specialty: creator.specialty, tags: creator.categoryTags }
+        availableData: { specialty: creator.specialty, tags: creator.categoryTags },
+        requiredFields: mandatoryFormats
       });
     }
   }
@@ -502,7 +506,8 @@ function stageLicensingVerificationFilter(mandatoryConfig, candidatePool) {
         code: isLicensingVerified ? 'PORTFOLIO_THRESHOLD_UNMET' : 'COMMERCIAL_LICENSING_UNVERIFIED',
         reason: failedReasons.join('. '),
         missingFields: commercialLicensing && !isLicensingVerified ? ['commercial_licensing_verification'] : ['verified_portfolio_projects'],
-        availableData: { projectCount: projects.length, hasCommercialClientWork, isLicensingVerified }
+        availableData: { projectCount: projects.length, hasCommercialClientWork, isLicensingVerified },
+        requiredFields: { commercialLicensing, minProjects }
       });
     }
   }
@@ -516,7 +521,8 @@ function stageLicensingVerificationFilter(mandatoryConfig, candidatePool) {
     rejectedCount: rejections.length,
     unknownCount,
     rejections,
-    passedCandidates
+    passedCandidates,
+    requiredLicensing: { commercialLicensing, minProjects }
   };
 }
 
@@ -688,7 +694,28 @@ export function executeFilteringPipeline({ campaign = {}, creators = null, optio
       rejectedCount: s.rejectedCount,
       unknownCount: s.unknownCount || 0,
       bypassed: !!s.bypassed,
-      rejections: s.rejections || []
+      rejections: s.rejections || [],
+      // Stage-specific criteria & metadata for the frontend inspector
+      ...(s.requiredSkills ? { requiredSkills: s.requiredSkills } : {}),
+      ...(s.requiredSpecialization ? { requiredSpecialization: s.requiredSpecialization } : {}),
+      ...(s.requiredTools ? { requiredTools: s.requiredTools } : {}),
+      ...(s.requiredFormats ? { requiredFormats: s.requiredFormats } : {}),
+      ...(s.requiredLicensing ? { requiredLicensing: s.requiredLicensing } : {}),
+      ...(s.extractedMandatory ? { extractedMandatory: s.extractedMandatory } : {}),
+      ...(s.extractedPreferred ? { extractedPreferred: s.extractedPreferred } : {}),
+      ...(s.warnings ? { warnings: s.warnings } : {}),
+      // Summaries of creators who passed this stage with stage-relevant evidence
+      passedCreatorSummaries: (s.passedCandidates || []).slice(0, 10).map(c => ({
+        id: c.id,
+        name: c.name,
+        specialty: c.specialty,
+        avatar: c.avatar,
+        capabilities: (c.capabilities || []).slice(0, 3),
+        tools: (c.tools || []).slice(0, 3),
+        categoryTags: (c.categoryTags || []).slice(0, 3),
+        projectCount: (c.projects || []).length,
+        isLicensingVerified: Boolean(c.trustVerification?.commercialLicensingEligible || c.commercialLicensingVerified)
+      }))
     })),
     eligibleCreatorIds: eligibleCandidates.map(c => c.id),
     rankedCreators: s7.rankedResults,

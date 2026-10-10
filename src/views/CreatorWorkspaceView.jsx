@@ -35,7 +35,12 @@ export default function CreatorWorkspaceView({
   const [portfolioCategoryFilter, setPortfolioCategoryFilter] = useState('all');
   const [isAddProjectModalOpen, setIsAddProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [viewingProject, setViewingProject] = useState(null);
+
+  const handleOpenProject = (proj) => {
+    if (propOnSelectProject) {
+      propOnSelectProject(proj, activeCreator || creator);
+    }
+  };
 
   // Sync state when creator prop updates
   useEffect(() => {
@@ -727,13 +732,13 @@ export default function CreatorWorkspaceView({
                   <div 
                     key={proj.id} 
                     className="overview-project-card"
-                    onClick={() => setViewingProject(proj)}
+                    onClick={() => handleOpenProject(proj)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        setViewingProject(proj);
+                        handleOpenProject(proj);
                       }
                     }}
                     title={`Click to view project brief & details for ${proj.title}`}
@@ -909,16 +914,13 @@ export default function CreatorWorkspaceView({
                   <div 
                     key={proj.id} 
                     className="portfolio-card-item"
-                    onClick={() => {
-                      setViewingProject(proj);
-                      if (propOnSelectProject) propOnSelectProject(proj, activeCreator);
-                    }}
+                    onClick={() => handleOpenProject(proj)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        setViewingProject(proj);
+                        handleOpenProject(proj);
                       }
                     }}
                     title={`Click to view brief description & details for ${proj.title}`}
@@ -1996,238 +1998,6 @@ export default function CreatorWorkspaceView({
                 <span>Apply to Campaign</span>
                 <ArrowRight size={14} />
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================
-          MODAL: CREATOR PROJECT CASE STUDY & BRIEF DESCRIPTION
-          ======================================================== */}
-      {viewingProject && (
-        <div className="modal-backdrop" onClick={() => setViewingProject(null)} style={{ zIndex: 3100 }}>
-          <div 
-            className="project-detail-modal-card" 
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="project-detail-title"
-          >
-            {/* Hero Visual Wrap */}
-            <div className="project-detail-hero-wrap">
-              <img 
-                src={viewingProject.image} 
-                alt={viewingProject.title}
-                className="project-detail-hero-img"
-                onError={(e) => {
-                  e.currentTarget.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=85";
-                }}
-              />
-
-              {/* Floating Top Badges */}
-              <div style={{ position: 'absolute', top: '16px', left: '16px', display: 'flex', gap: '8px', zIndex: 5, flexWrap: 'wrap' }}>
-                <span style={{ 
-                  fontSize: '0.78rem', 
-                  padding: '5px 12px', 
-                  borderRadius: '100px', 
-                  background: 'rgba(20, 19, 18, 0.82)', 
-                  backdropFilter: 'blur(8px)',
-                  color: '#FFFFFF', 
-                  fontWeight: 600,
-                  border: '1px solid rgba(255, 255, 255, 0.2)'
-                }}>
-                  {viewingProject.category || 'Visual Art'}
-                </span>
-                {viewingProject.featured && (
-                  <span style={{ 
-                    fontSize: '0.78rem', 
-                    padding: '5px 12px', 
-                    borderRadius: '100px', 
-                    background: 'rgba(245, 158, 11, 0.95)', 
-                    color: '#FFFFFF', 
-                    fontWeight: 600, 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '4px' 
-                  }}>
-                    ★ Featured Work
-                  </span>
-                )}
-                <span style={{ 
-                  fontSize: '0.78rem', 
-                  padding: '5px 12px', 
-                  borderRadius: '100px', 
-                  background: viewingProject.visibility === 'private' ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.9)', 
-                  color: '#FFFFFF', 
-                  fontWeight: 600 
-                }}>
-                  {viewingProject.visibility === 'private' ? 'Private Draft (Hidden)' : 'Published (Visible to Brands)'}
-                </span>
-              </div>
-
-              {/* Close Button */}
-              <button 
-                type="button" 
-                className="project-detail-close-btn"
-                onClick={() => setViewingProject(null)}
-                title="Close details"
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="project-detail-body">
-              {/* Title & Creator Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
-                <div>
-                  <span style={{ fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent-primary, #EB6E4B)', fontWeight: 700 }}>
-                    Portfolio Case Study
-                  </span>
-                  <h2 id="project-detail-title" className="project-detail-title font-editorial">
-                    {viewingProject.title}
-                  </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
-                    <span>Creator: <strong>{activeCreator?.name || 'Creator'}</strong></span>
-                    {activeCreator?.creativeIdentity && <span>• {activeCreator.creativeIdentity}</span>}
-                  </div>
-                </div>
-
-                {/* Quick Creator Control Actions */}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => {
-                      const target = viewingProject;
-                      setViewingProject(null);
-                      handleOpenAddProject(target);
-                    }}
-                    title="Edit project metadata and assets"
-                  >
-                    <Edit3 size={14} />
-                    <span>Edit Project</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => {
-                      handleToggleVisibility(viewingProject.id);
-                      setViewingProject(prev => prev ? ({ ...prev, visibility: prev.visibility === 'private' ? 'published' : 'private' }) : null);
-                    }}
-                    title={viewingProject.visibility === 'private' ? "Publish to Brands" : "Make Private"}
-                  >
-                    {viewingProject.visibility === 'private' ? <Eye size={14} /> : <EyeOff size={14} />}
-                    <span>{viewingProject.visibility === 'private' ? 'Publish' : 'Make Private'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Highlighted Brief Description & Concept Section */}
-              <div className="project-detail-synopsis-box">
-                <div className="project-detail-synopsis-label">
-                  <Sparkles size={16} />
-                  <span>Brief Description & Creative Concept</span>
-                </div>
-                <p className="project-detail-desc-paragraph">
-                  {viewingProject.description}
-                </p>
-              </div>
-
-              {/* Creative Direction & Artistry (if present) */}
-              {viewingProject.creativeDirection && (
-                <div style={{ padding: '18px 22px', background: 'var(--bg-card-subtle, #F8F9FA)', border: '1px solid var(--border-light, #E2E8F0)', borderRadius: '14px' }}>
-                  <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
-                    Creative Direction & Lighting Choreography
-                  </span>
-                  <p style={{ margin: 0, fontSize: '0.94rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-                    {viewingProject.creativeDirection}
-                  </p>
-                </div>
-              )}
-
-              {/* Specifications & Capabilities Grid */}
-              <div>
-                <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', fontWeight: 700, display: 'block', marginBottom: '10px' }}>
-                  Production Details & Specifications
-                </span>
-                <div className="project-specs-grid">
-                  <div className="spec-tile">
-                    <span className="spec-tile-label">Role / Craft</span>
-                    <span className="spec-tile-value">{viewingProject.role || 'Lead Visual Artist'}</span>
-                  </div>
-                  <div className="spec-tile">
-                    <span className="spec-tile-label">Client / Scope</span>
-                    <span className="spec-tile-value">{viewingProject.clientType || 'Commercial & Editorial'}</span>
-                  </div>
-                  <div className="spec-tile">
-                    <span className="spec-tile-label">Creative Style</span>
-                    <span className="spec-tile-value">{viewingProject.creativeStyle || viewingProject.style || 'Cinematic & Editorial'}</span>
-                  </div>
-                  <div className="spec-tile">
-                    <span className="spec-tile-label">Tools & Generation Pipeline</span>
-                    <span className="spec-tile-value">{viewingProject.tools || 'Midjourney v6, Runway Gen-3, Adobe Premiere'}</span>
-                  </div>
-                  {viewingProject.format && (
-                    <div className="spec-tile">
-                      <span className="spec-tile-label">Asset Format</span>
-                      <span className="spec-tile-value">{viewingProject.format}</span>
-                    </div>
-                  )}
-                  {viewingProject.platform && (
-                    <div className="spec-tile">
-                      <span className="spec-tile-label">Target Platform</span>
-                      <span className="spec-tile-value">{viewingProject.platform}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Capabilities Tag Cloud */}
-              {((viewingProject.capabilities && viewingProject.capabilities.length > 0) || viewingProject.tools) && (
-                <div>
-                  <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', fontWeight: 700, display: 'block', marginBottom: '8px' }}>
-                    Verified Craft Tags
-                  </span>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {(viewingProject.capabilities || [viewingProject.category, viewingProject.creativeStyle, 'Photorealistic']).filter(Boolean).map((cap, i) => (
-                      <span key={i} className="skill-chip" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>
-                        {cap}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Modal Footer Actions */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '18px', borderTop: '1px solid var(--border-light, #E2E8F0)', marginTop: '8px' }}>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>
-                  Status: <strong>{viewingProject.visibility === 'private' ? 'Private Draft' : 'Public to Brands'}</strong>
-                </span>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-md"
-                    onClick={() => setViewingProject(null)}
-                  >
-                    Close
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-primary btn-md"
-                    onClick={() => {
-                      const target = viewingProject;
-                      setViewingProject(null);
-                      handleOpenAddProject(target);
-                    }}
-                  >
-                    <Edit3 size={15} />
-                    <span>Edit this Project</span>
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>

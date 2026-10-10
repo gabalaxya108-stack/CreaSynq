@@ -1602,7 +1602,6 @@ export default function App() {
           setSelectedProjectCreator(null);
         }}
         onViewCreatorProfile={handleOpenCreatorProfile}
-        onInviteCreator={handleOpenInviteModal}
       />
     </div>
   );

@@ -1,238 +1,187 @@
 // src/components/CreativeShowcase.jsx
-// SECTION D: Creative Portfolio Showcase
-// Headline: "Meet creativity in every direction."
-// Curated selection of creator work across product campaigns, fashion, food/beverage, editorial, social, and brand storytelling.
+// SECTION 3 — Showcase Creative Work
+// Curated editorial showcase of commercial work across visual categories:
+// - Fashion & Lifestyle
+// - Beauty & Skincare
+// - Product Campaigns
+// - Interiors & Architecture
+// - Experimental AI Art
+// Directly integrated with real creators and profiles in the marketplace!
 
 import React, { useState } from 'react';
-import { ArrowRight, Eye, Sparkles, Filter, ExternalLink, Play } from 'lucide-react';
+import { ArrowRight, Sparkles, Filter, ExternalLink } from 'lucide-react';
 
-export default function CreativeShowcase({ creators = [], onSelectProject, onExploreAll }) {
-  const [activeFilter, setActiveFilter] = useState('all');
+export default function CreativeShowcase({ creators = [], onSelectCreator, onExploreAll }) {
+  const [activeCategory, setActiveCategory] = useState('all');
 
-  const showcaseItems = [
+  const categories = [
+    { id: 'all', label: 'All Works' },
+    { id: 'fashion', label: 'Fashion & Lifestyle' },
+    { id: 'beauty', label: 'Beauty & Skincare' },
+    { id: 'product', label: 'Product Campaigns' },
+    { id: 'interior', label: 'Interiors & Architecture' },
+    { id: 'ai-art', label: 'Experimental AI Art' },
+  ];
+
+  const galleryItems = [
     {
-      id: "work-maya-solarium",
-      title: "Echoes of the Solarium",
-      category: "Brand Storytelling",
-      categoryTag: "storytelling",
-      aspectRatio: "aspect-16-9",
-      aspectLabel: "16:9 Cinema",
-      image: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=1200&q=85",
-      creator: creators.find(c => c.id === 'maya-chen') || creators[0],
-      description: "Atmospheric narrative commercial exploring mid-century architecture under dusk rain, filmed with 35mm generative lenses.",
-      discipline: "Generative Cinema",
-      isDemo: true
+      id: 'gallery-1',
+      title: 'Aura Privée Haute Couture',
+      category: 'fashion',
+      categoryLabel: 'Fashion & Lifestyle',
+      creatorId: 'elena-rostova',
+      creatorName: 'Elena Rostova',
+      discipline: 'AI Fashion Direction',
+      image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=85',
+      span: 'tall'
     },
     {
-      id: "work-elena-aura",
-      title: "Aura Privée Haute Couture",
-      category: "Fashion & Lifestyle",
-      categoryTag: "fashion",
-      aspectRatio: "aspect-4-5",
-      aspectLabel: "4:5 Editorial",
-      image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=85",
-      creator: creators.find(c => c.id === 'elena-rostova') || creators[1],
-      description: "Generative silk organza draping in weightless zero-gravity dynamics against Parisian neoclassical stonework.",
-      discipline: "AI Fashion Direction",
-      isDemo: true
-    },
-    {
-      id: "work-alex-chronos",
-      title: "Chronos Titanium Horizon",
-      category: "Product Campaigns",
-      categoryTag: "product",
-      aspectRatio: "aspect-1-1",
-      aspectLabel: "1:1 Macro",
-      image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85",
-      creator: creators.find(c => c.id === 'alex-rivera') || creators[2],
-      description: "Exploded micro-mechanical watch movement with floating titanium gears and sapphire crystal refractions.",
-      discipline: "3D Spatial CGI",
-      isDemo: true
-    },
-    {
-      id: "work-zora-hydra",
+      id: 'gallery-2',
       title: "L'Hydratation Pure",
-      category: "Editorial Visuals",
-      categoryTag: "editorial",
-      aspectRatio: "aspect-4-5",
-      aspectLabel: "4:5 Portrait",
-      image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1000&q=85",
-      creator: creators.find(c => c.id === 'zora-vance') || creators[3],
-      description: "Macro droplet surface tension and pore-level skin hydration capture illuminated by soft morning sunlight.",
-      discipline: "Macro Beauty",
-      isDemo: true
+      category: 'beauty',
+      categoryLabel: 'Beauty & Skincare',
+      creatorId: 'zora-vance',
+      creatorName: 'Zora Vance',
+      discipline: 'Macro Beauty & Light',
+      image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1000&q=85',
+      span: 'normal'
     },
     {
-      id: "work-alex-beverage",
-      title: "Nordic Mist Botanical Spirits",
-      category: "Food & Beverage",
-      categoryTag: "food-bev",
-      aspectRatio: "aspect-1-1",
-      aspectLabel: "1:1 Studio",
-      image: "https://images.unsplash.com/photo-1527061011665-3652c757a4d4?auto=format&fit=crop&w=1000&q=85",
-      creator: creators.find(c => c.id === 'alex-rivera') || creators[2],
-      description: "Slow-motion crystalline ice shards forming organically around a frosted botanical spirit bottle with amber caustics.",
-      discipline: "Fluid Dynamics",
-      isDemo: true
+      id: 'gallery-3',
+      title: 'Titanium Chronos Precision',
+      category: 'product',
+      categoryLabel: 'Product Campaigns',
+      creatorId: 'alex-rivera',
+      creatorName: 'Alex Rivera',
+      discipline: '3D Spatial CGI',
+      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85',
+      span: 'normal'
     },
     {
-      id: "work-nina-kinetic",
-      title: "Pop Kinetic 9:16 Velocity",
-      category: "Social Content",
-      categoryTag: "social",
-      aspectRatio: "aspect-4-5",
-      aspectLabel: "9:16 Social Reel",
-      image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1000&q=85",
-      creator: creators.find(c => c.id === 'nina-novak') || creators[4],
-      description: "High-converting kinetic motion loops, 3D pop graphics, and sound-reactive type for mobile social feeds.",
-      discipline: "Social Video",
-      isDemo: true
+      id: 'gallery-4',
+      title: 'Solarium Atrium Sanctuary',
+      category: 'interior',
+      categoryLabel: 'Interiors & Architecture',
+      creatorId: 'sofia-rossi',
+      creatorName: 'Sofia Rossi',
+      discipline: 'Architectural Renders',
+      image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1000&q=85',
+      span: 'normal'
+    },
+    {
+      id: 'gallery-5',
+      title: 'Echoes of the Solarium',
+      category: 'ai-art',
+      categoryLabel: 'Experimental AI Art',
+      creatorId: 'maya-chen',
+      creatorName: 'Maya Chen',
+      discipline: 'Generative Cinema',
+      image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=1200&q=85',
+      span: 'wide'
+    },
+    {
+      id: 'gallery-6',
+      title: 'Organic Botanical Caustics',
+      category: 'product',
+      categoryLabel: 'Product Campaigns',
+      creatorId: 'kai-sorenson',
+      creatorName: 'Kai Sorenson',
+      discipline: 'Synthetic Physics & VFX',
+      image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1000&q=85',
+      span: 'normal'
     }
   ];
 
-  const filterTabs = [
-    { id: 'all', label: 'All Work' },
-    { id: 'product', label: 'Product Campaigns' },
-    { id: 'fashion', label: 'Fashion & Lifestyle' },
-    { id: 'food-bev', label: 'Food & Beverage' },
-    { id: 'editorial', label: 'Editorial Visuals' },
-    { id: 'social', label: 'Social Content' },
-    { id: 'storytelling', label: 'Brand Storytelling' }
-  ];
-
-  const filteredItems = activeFilter === 'all' 
-    ? showcaseItems 
-    : showcaseItems.filter(item => item.categoryTag === activeFilter);
+  const filteredItems = activeCategory === 'all' 
+    ? galleryItems 
+    : galleryItems.filter(item => item.category === activeCategory);
 
   return (
-    <section className="section-creative-showcase" id="explore-work">
-      <div className="page-container">
-        {/* Apple-grade Editorial Section Header */}
-        <div className="showcase-header-row">
-          <div className="showcase-header-text">
-            <div className="section-pill-tag">
-              <span className="pill-dot-sm" />
-              <span>Curated Portfolio Works</span>
-            </div>
-            <h2 className="section-headline-lg font-editorial">
-              Meet creativity in every direction.
-            </h2>
-            <p className="section-subtitle-max">
-              From cinematic brand films to tactile product physics and generative fashion, 
-              explore work created by AI artists who define new aesthetic standards.
-            </p>
+    <section className="alloy-showcase-section" id="showcase">
+      <div className="page-container alloy-showcase-container">
+        
+        {/* Section Header */}
+        <div className="alloy-showcase-header">
+          <div className="section-pill-badge">
+            <span className="pill-dot" />
+            <span>PORTFOLIO SHOWCASE</span>
           </div>
 
-          <button 
-            type="button" 
-            className="btn btn-secondary btn-sm showcase-browse-all-btn"
-            onClick={onExploreAll}
-            aria-label="Explore All Creators"
-          >
-            <span>Explore All Talent</span>
-            <ArrowRight size={14} />
-          </button>
-        </div>
+          <h2 className="showcase-headline font-editorial">
+            Meet creativity in every direction.
+          </h2>
 
-        {/* Filter Navigation Bar */}
-        <div className="showcase-filter-bar">
-          <div className="showcase-filter-list" role="tablist" aria-label="Portfolio Disciplines">
-            {filterTabs.map((tab) => (
+          <p className="showcase-subtext">
+            Explore commercial campaigns, editorial visuals, and 3D spatial renders published by AI creators on Alloy.
+          </p>
+
+          {/* Category Filter Pills */}
+          <div className="showcase-category-nav" role="tablist">
+            {categories.map((cat) => (
               <button
-                key={tab.id}
+                key={cat.id}
                 type="button"
+                className={`category-nav-pill ${activeCategory === cat.id ? 'active' : ''}`}
+                onClick={() => setActiveCategory(cat.id)}
                 role="tab"
-                aria-selected={activeFilter === tab.id}
-                className={`showcase-filter-btn ${activeFilter === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveFilter(tab.id)}
+                aria-selected={activeCategory === cat.id}
               >
-                {tab.label}
+                <span>{cat.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Editorial Masonry/Grid with Deliberate Aspect Ratios */}
-        <div className="showcase-grid-deliberate">
-          {filteredItems.map((item) => (
-            <div 
-              key={item.id}
-              className={`showcase-card ${item.aspectRatio}`}
-              onClick={() => onSelectProject && onSelectProject({
-                id: item.id,
-                title: item.title,
-                image: item.image,
-                category: item.category,
-                description: item.description,
-                creativeDirection: item.discipline,
-                creator: item.creator
-              }, item.creator)}
-              tabIndex={0}
-              role="button"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  onSelectProject && onSelectProject({
-                    id: item.id,
-                    title: item.title,
-                    image: item.image,
-                    category: item.category,
-                    description: item.description,
-                    creativeDirection: item.discipline,
-                    creator: item.creator
-                  }, item.creator);
-                }
-              }}
-            >
-              {/* Media Frame with precise aspect ratio */}
-              <div className="showcase-media-frame">
-                <img 
-                  src={item.image} 
-                  alt={item.title}
-                  className="showcase-img"
-                  loading="lazy"
-                />
-                <div className="showcase-overlay-gradient" />
-                
-                {/* Demonstration Notice */}
-                <span className="showcase-aspect-badge">
-                  {item.aspectLabel}
-                </span>
-
-                <div className="showcase-hover-action">
-                  <span className="showcase-action-btn">
-                    <Eye size={13} />
-                    <span>View Direction</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Editorial Card Footer */}
-              <div className="showcase-card-body">
-                <div className="showcase-meta-row">
-                  <span className="showcase-cat-pill">{item.category}</span>
-                  <span className="showcase-demo-indicator">Demonstration Work</span>
+        {/* Asymmetrical Editorial Grid */}
+        <div className="showcase-editorial-grid">
+          {filteredItems.map((item) => {
+            const creator = creators.find(c => c.id === item.creatorId);
+            return (
+              <div 
+                key={item.id}
+                className={`showcase-grid-card card-span-${item.span}`}
+                onClick={() => onSelectCreator && onSelectCreator(item.creatorId)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && onSelectCreator && onSelectCreator(item.creatorId)}
+                title={`View ${item.creatorName}'s profile and portfolio`}
+              >
+                <div className="card-image-wrap">
+                  <img 
+                    src={item.image} 
+                    alt={item.title} 
+                    className="card-work-img"
+                    loading="lazy"
+                  />
+                  <div className="card-gradient-scrim" />
                 </div>
 
-                <h3 className="showcase-project-title font-editorial">{item.title}</h3>
-                <p className="showcase-project-desc">{item.description}</p>
-
-                {item.creator && (
-                  <div className="showcase-creator-strip">
-                    <img 
-                      src={item.creator.avatar} 
-                      alt={item.creator.name}
-                      className="showcase-avatar-sm"
-                    />
-                    <div className="showcase-creator-col">
-                      <span className="showcase-creator-name">{item.creator.name}</span>
-                      <span className="showcase-creator-role">{item.discipline}</span>
-                    </div>
+                <div className="card-overlay-content">
+                  <span className="card-category-tag">{item.categoryLabel}</span>
+                  <h3 className="card-work-title font-editorial">{item.title}</h3>
+                  <div className="card-creator-row">
+                    <span className="card-creator-by">by {item.creatorName}</span>
+                    <span className="card-discipline-pill">{item.discipline}</span>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        {/* View All Action */}
+        <div className="showcase-action-footer">
+          <button
+            type="button"
+            className="btn-editorial-outline"
+            onClick={onExploreAll}
+            id="showcase-explore-all-btn"
+          >
+            <span>Browse all creators & work</span>
+            <ArrowRight size={14} />
+          </button>
+        </div>
+
       </div>
     </section>
   );

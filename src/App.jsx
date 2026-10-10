@@ -651,26 +651,46 @@ export default function App() {
 
       {/* Main Views */}
       <main>
-        {/* VIEW 1: ALLOY LANDING — Compact 3-Section Cinematic Marketplace */}
+        {/* VIEW 1: ALLOY LANDING — Complete Redesigned Editorial Marketplace */}
         {currentView === 'home' && (
           <>
-            {/* SECTION 1: The Cinematic Hero with 3D ALLOY Sculpture & Orbiting Assets */}
+            {/* SECTION 1: Editorial Hero with Original Campaign Artwork */}
             <Hero
-              onFindCreator={() => navigateTo('brand-onboard')}
+              onFindCreator={() => navigateTo('discover')}
               onJoinCreator={() => navigateTo('creator-join')}
               onExploreWork={() => navigateTo('discover')}
               onSelectCreator={handleOpenCreatorProfile}
             />
 
-            {/* SECTION 2: How ALLOY Works (3 Connected Steps + Dual Paths) */}
+            {/* SECTION 2: Explain What Alloy Does (3-Part Clean Editorial Layout) */}
             <HowItWorks
-              onFindCreators={() => navigateTo('brand-onboard')}
+              onFindCreators={() => navigateTo('discover')}
               onBuildPortfolio={() => navigateTo('creator-join')}
             />
 
-            {/* SECTION 3: Compact Closing Banner & Actions */}
+            {/* SECTION 3: Showcase Creative Work (Curated Editorial Gallery) */}
+            <CreativeShowcase
+              creators={creatorsList}
+              onSelectCreator={handleOpenCreatorProfile}
+              onExploreAll={() => navigateTo('discover')}
+            />
+
+            {/* SECTION 4: Two Clear User Journeys (For Brands & For Creators) */}
+            <TwoJourneysSection
+              onFindCreators={() => navigateTo('brand-onboard')}
+              onJoinAlloy={() => navigateTo('creator-join')}
+            />
+
+            {/* SECTION 5: Show How Matching Works (Explainable Style Alignment) */}
+            <CreaMatchSection
+              creators={creatorsList}
+              onExploreDiscover={() => navigateTo('discover')}
+              onEnterBrandStudio={() => navigateTo('brand-workspace')}
+            />
+
+            {/* SECTION 6: Final Call To Action */}
             <FinalCTA
-              onFindCreator={() => navigateTo('brand-onboard')}
+              onFindCreator={() => navigateTo('discover')}
               onJoinCreator={() => navigateTo('creator-join')}
             />
           </>

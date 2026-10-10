@@ -1,5 +1,9 @@
+// src/components/Header.jsx
+// ALLOY — Clean Editorial Navigation Bar
+// Minimal, elevated, typography-first header with responsive drawer
+
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, UserCheck, Sparkles, LogIn, ChevronRight } from 'lucide-react';
+import { Menu, X, ArrowRight } from 'lucide-react';
 
 export default function Header({ 
   currentView, 
@@ -48,7 +52,8 @@ export default function Header({
   return (
     <header className={`header-nav ${scrolled ? 'header-scrolled' : ''}`}>
       <div className="header-container">
-        {/* Brand Logo / Wordmark */}
+        
+        {/* Brand Wordmark */}
         <a 
           href="#home" 
           className="logo-link alloy-logo-link"
@@ -56,9 +61,9 @@ export default function Header({
             e.preventDefault();
             handleLinkClick(() => onNavigate('home'));
           }}
-          aria-label="ALLOY Home"
+          aria-label="Alloy Home"
         >
-          <span className="logo-wordmark alloy-wordmark">A L L O Y</span>
+          <span className="alloy-wordmark font-editorial">Alloy</span>
         </a>
 
         {/* Desktop Navigation Links */}
@@ -66,15 +71,6 @@ export default function Header({
           <ul className="nav-links">
             <li 
               className={`nav-item ${currentView === 'discover' ? 'active' : ''}`}
-              onClick={() => handleLinkClick(() => onNavigate('discover'))}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => onNavigate('discover'))}
-            >
-              Discover
-            </li>
-            <li 
-              className="nav-item"
               onClick={() => handleLinkClick(() => onNavigate('discover'))}
               role="button"
               tabIndex={0}
@@ -93,26 +89,26 @@ export default function Header({
             </li>
             <li 
               className="nav-item"
-              onClick={() => handleLinkClick(() => scrollToSection('for-creators'))}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => scrollToSection('for-creators'))}
-            >
-              For Creators
-            </li>
-            <li 
-              className="nav-item"
               onClick={() => handleLinkClick(() => scrollToSection('how-it-works'))}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => scrollToSection('how-it-works'))}
             >
-              How it works
+              How It Works
+            </li>
+            <li 
+              className="nav-item"
+              onClick={() => handleLinkClick(() => onNavigate('discover'))}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => onNavigate('discover'))}
+            >
+              Explore
             </li>
           </ul>
         </nav>
 
-        {/* Right CTA Actions */}
+        {/* Right Nav: Actions */}
         <div className="nav-actions">
           <button 
             type="button" 
@@ -122,13 +118,14 @@ export default function Header({
           >
             <span>Log in</span>
           </button>
+          
           <button 
             type="button" 
             className="btn btn-primary btn-sm alloy-nav-btn"
             onClick={onOpenRoleSelect}
             aria-label="Get started"
           >
-            <span>Get started</span>
+            <span>Get Started</span>
             <ArrowRight size={13} />
           </button>
 
@@ -138,110 +135,46 @@ export default function Header({
             className="mobile-menu-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? 'Close Menu' : 'Open Menu'}
-            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
+
       </div>
 
-      {/* Mobile Drawer Navigation */}
+      {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
-          <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-drawer-header">
-              <span className="logo-wordmark alloy-wordmark">ALLOY</span>
-              <button 
-                type="button" 
-                className="btn-icon" 
-                onClick={() => setMobileMenuOpen(false)}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            
-            <ul className="mobile-nav-list">
-              <li>
-                <button 
-                  type="button" 
-                  className={`mobile-nav-link ${currentView === 'home' ? 'active' : ''}`}
-                  onClick={() => handleLinkClick(() => onNavigate('home'))}
-                >
-                  <span>Home</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  className={`mobile-nav-link ${currentView === 'discover' ? 'active' : ''}`}
-                  onClick={() => handleLinkClick(() => onNavigate('discover'))}
-                >
-                  <span>Discover Creators</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  className="mobile-nav-link"
-                  onClick={() => handleLinkClick(() => scrollToSection('for-brands'))}
-                >
-                  <span>For Brands</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  className="mobile-nav-link"
-                  onClick={() => handleLinkClick(() => scrollToSection('for-creators'))}
-                >
-                  <span>For Creators</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  className="mobile-nav-link"
-                  onClick={() => handleLinkClick(() => scrollToSection('how-it-works'))}
-                >
-                  <span>How It Works</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  className="mobile-nav-link"
-                  onClick={() => handleLinkClick(() => scrollToSection('creative-connection'))}
-                >
-                  <span>Platform Differentiators</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-            </ul>
+        <div className="mobile-menu-drawer">
+          <ul className="mobile-nav-links">
+            <li onClick={() => handleLinkClick(() => onNavigate('discover'))}>
+              <span>Creators</span>
+            </li>
+            <li onClick={() => handleLinkClick(() => scrollToSection('for-brands'))}>
+              <span>For Brands</span>
+            </li>
+            <li onClick={() => handleLinkClick(() => scrollToSection('how-it-works'))}>
+              <span>How It Works</span>
+            </li>
+            <li onClick={() => handleLinkClick(() => onNavigate('discover'))}>
+              <span>Explore</span>
+            </li>
+          </ul>
 
-            <div className="mobile-drawer-actions">
-              <button 
-                type="button" 
-                className="btn btn-secondary btn-block"
-                onClick={() => handleLinkClick(onOpenLogin)}
-              >
-                <LogIn size={16} />
-                <span>Log In</span>
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-primary btn-block"
-                onClick={() => handleLinkClick(onOpenRoleSelect)}
-              >
-                <span>Get Started</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
+          <div className="mobile-drawer-footer">
+            <button
+              type="button"
+              className="btn btn-secondary w-full"
+              onClick={() => handleLinkClick(onOpenLogin)}
+            >
+              <span>Log in</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary w-full"
+              onClick={() => handleLinkClick(onOpenRoleSelect)}
+            >
+              <span>Get Started</span>
+            </button>
           </div>
         </div>
       )}

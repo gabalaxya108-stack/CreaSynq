@@ -258,6 +258,16 @@ export default function Header({
               <button 
                 type="button" 
                 className="btn-link-login"
+                onClick={() => { window.location.hash = '/admin/login'; }}
+                aria-label="Super Admin"
+                id="header-admin-btn"
+              >
+                <span>Super Admin</span>
+              </button>
+
+              <button 
+                type="button" 
+                className="btn-link-login"
                 onClick={onOpenLogin}
                 aria-label="Log in"
                 id="header-login-btn"
@@ -341,6 +351,13 @@ export default function Header({
               </>
             ) : (
               <>
+                <button
+                  type="button"
+                  className="btn btn-secondary w-full"
+                  onClick={() => handleLinkClick(() => { window.location.hash = '/admin/login'; })}
+                >
+                  <span>Super Admin</span>
+                </button>
                 <button
                   type="button"
                   className="btn btn-secondary w-full"

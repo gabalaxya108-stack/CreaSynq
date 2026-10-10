@@ -1,0 +1,794 @@
+// server/adminMiddleware.js
+// ALLOY Super Admin API — Secure server-side middleware
+// All admin endpoints require valid Supabase JWT + verified super_admin role
+// Mounted on /api/admin/* via Vite Connect middleware
+
+import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
+
+// --- Configuration ---
+function getSupabaseUrl() {
+  return (process.env.VITE_SUPABASE_URL || '').trim();
+}
+function getSupabaseServiceKey() {
+  return (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+}
+
+function isAdminConfigured() {
+  const url = getSupabaseUrl();
+  const key = getSupabaseServiceKey();
+  return !!(
+    url &&
+    key &&
+    !url.includes('your-project') &&
+    url.startsWith('https://')
+  );
+}
+
+// Service-role client for privileged server-side operations only
+function getServiceClient() {
+  if (!isAdminConfigured()) return null;
+  return createClient(getSupabaseUrl(), getSupabaseServiceKey(), {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+
+// --- Request Helpers ---
+function parseJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > 1e6) reject(new Error('Payload too large'));
+    });
+    req.on('end', () => {
+      if (!body.trim()) return resolve({});
+      try { resolve(JSON.parse(body)); }
+      catch (err) { reject(new Error('Invalid JSON')); }
+    });
+    req.on('error', reject);
+  });
+}
+
+function sendJson(res, statusCode, data) {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.end(JSON.stringify(data));
+}
+
+// --- Auth & Authorization ---
+// Extract and verify JWT from Authorization header, then verify super_admin role
+async function authenticateAdmin(req) {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+
+  if (!token) {
+    return { error: 'Authentication required', status: 401 };
+  }
+
+  const serviceClient = getServiceClient();
+  if (!serviceClient) {
+    return { error: 'Admin services not configured', status: 503 };
+  }
+
+  // Verify the JWT and get user from Supabase Auth
+  const { data: { user }, error: userError } = await serviceClient.auth.getUser(token);
+  if (userError || !user) {
+    return { error: 'Invalid or expired session', status: 401 };
+  }
+
+  // 1. Check super_admin or judge_admin role in admin_roles table if it exists
+  let adminRole = null;
+  const { data: roleData, error: roleError } = await serviceClient
+    .from('admin_roles')
+    .select('id, role, is_active')
+    .eq('user_id', user.id)
+    .in('role', ['super_admin', 'judge_admin', 'admin'])
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (!roleError && roleData) {
+    adminRole = roleData;
+  } else {
+    // 2. Authorize via verified user metadata or designated server configuration
+    const configuredAdminEmail = (process.env.ALLOY_ADMIN_EMAIL || '').trim().toLowerCase();
+    const configuredJudgeEmail = (process.env.VITE_JUDGE_EMAIL || 'judge@alloy.market').trim().toLowerCase();
+    const userEmail = (user.email || '').trim().toLowerCase();
+    const userMetaRole = user.user_metadata?.role || user.app_metadata?.role;
+
+    const isDesignatedEmail = (configuredAdminEmail && userEmail === configuredAdminEmail) ||
+                              (configuredJudgeEmail && userEmail === configuredJudgeEmail);
+    const isAuthorizedRole = ['super_admin', 'judge_admin', 'admin'].includes(userMetaRole);
+
+    if (isDesignatedEmail || isAuthorizedRole) {
+      const assignedRole = userMetaRole === 'judge_admin' || userEmail === configuredJudgeEmail
+        ? 'judge_admin'
+        : 'super_admin';
+      adminRole = {
+        id: `verified-${user.id}`,
+        role: assignedRole,
+        is_active: true
+      };
+    }
+  }
+
+  if (!adminRole) {
+    return { error: 'Insufficient privileges: Account does not hold authorized administrative access.', status: 403 };
+  }
+
+  return { user, adminRole, serviceClient };
+}
+
+// --- Audit Logger ---
+async function logAuditEvent(serviceClient, { actorId, actorEmail, actorRole, action, targetType, targetId, targetName, reason, metadata, ipAddress }) {
+  try {
+    await serviceClient.from('audit_events').insert({
+      actor_id: actorId,
+      actor_email: actorEmail,
+      actor_role: actorRole || 'super_admin',
+      action,
+      target_type: targetType || null,
+      target_id: targetId || null,
+      target_name: targetName || null,
+      reason: reason || null,
+      metadata: metadata || {},
+      ip_address: ipAddress || null
+    });
+  } catch (err) {
+    console.error('[Admin Audit] Failed to log event:', err.message);
+  }
+}
+
+// ============================================================================
+// ROUTE HANDLERS
+// ============================================================================
+
+// --- Health / Status ---
+async function handleHealth(req, res) {
+  return sendJson(res, 200, {
+    ok: true,
+    configured: isAdminConfigured(),
+    status: isAdminConfigured() ? 'ready' : 'missing_config',
+    message: isAdminConfigured()
+      ? 'Admin API is configured and ready.'
+      : 'SUPABASE_SERVICE_ROLE_KEY or VITE_SUPABASE_URL not configured.'
+  });
+}
+
+// --- Verify Admin Session ---
+async function handleVerifySession(req, res) {
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  return sendJson(res, 200, {
+    ok: true,
+    user: {
+      id: auth.user.id,
+      email: auth.user.email,
+      role: auth.adminRole?.role || 'super_admin',
+      display_name: auth.user.user_metadata?.full_name || auth.user.email?.split('@')[0]
+    }
+  });
+}
+
+// --- Dashboard Overview Metrics ---
+async function handleOverview(req, res) {
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  const sc = auth.serviceClient;
+  const metrics = {};
+
+  try {
+    // Count brands
+    const { count: brandCount } = await sc.from('brands').select('id', { count: 'exact', head: true });
+    metrics.totalBrands = brandCount || 0;
+
+    // Count creator profiles
+    const { count: creatorCount } = await sc.from('creator_profiles').select('id', { count: 'exact', head: true });
+    metrics.totalCreators = creatorCount || 0;
+
+    // Count campaigns
+    const { count: campaignCount } = await sc.from('campaigns').select('id', { count: 'exact', head: true });
+    metrics.totalCampaigns = campaignCount || 0;
+
+    // Active collaborations
+    const { count: activeCollabs } = await sc.from('collaborations').select('id', { count: 'exact', head: true }).in('status', ['in-progress', 'submitted', 'revision-requested']);
+    metrics.activeCollaborations = activeCollabs || 0;
+
+    // Completed collaborations
+    const { count: completedCollabs } = await sc.from('collaborations').select('id', { count: 'exact', head: true }).in('status', ['approved', 'completed']);
+    metrics.completedCollaborations = completedCollabs || 0;
+
+    // Trust reports
+    const { count: newReports } = await sc.from('trust_reports').select('id', { count: 'exact', head: true }).eq('status', 'new');
+    metrics.newTrustReports = newReports || 0;
+
+    const { count: reviewReports } = await sc.from('trust_reports').select('id', { count: 'exact', head: true }).in('status', ['needs_review', 'under_investigation']);
+    metrics.reportsAwaitingReview = reviewReports || 0;
+
+    const { count: restrictedReports } = await sc.from('trust_reports').select('id', { count: 'exact', head: true }).eq('status', 'restricted');
+    metrics.activeRestrictions = restrictedReports || 0;
+
+    // Pending invitations
+    const { count: pendingInvites } = await sc.from('invitations').select('id', { count: 'exact', head: true }).eq('status', 'Pending');
+    metrics.pendingInvitations = pendingInvites || 0;
+
+    // Profiles count
+    const { count: profileCount } = await sc.from('profiles').select('id', { count: 'exact', head: true });
+    metrics.totalUsers = profileCount || 0;
+
+  } catch (err) {
+    console.warn('[Admin API] Metrics query error:', err.message);
+  }
+
+  return sendJson(res, 200, { ok: true, metrics });
+}
+
+// --- Brand Management ---
+async function handleBrands(req, res, method, body) {
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  const sc = auth.serviceClient;
+  const url = new URL(req.url, 'http://localhost');
+  const brandId = url.searchParams.get('id');
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+  const search = url.searchParams.get('search') || '';
+  const offset = (page - 1) * limit;
+
+  if (method === 'GET') {
+    if (brandId) {
+      const { data: brand, error } = await sc.from('brands').select('*').eq('id', brandId).maybeSingle();
+      if (error || !brand) return sendJson(res, 404, { ok: false, error: 'Brand not found' });
+
+      // Get associated campaigns
+      const { data: campaigns } = await sc.from('campaigns').select('id, title, status, created_at').eq('owner_brand_id', brandId).order('created_at', { ascending: false });
+
+      // Get trust reports
+      const { data: reports } = await sc.from('trust_reports').select('id, risk_score, risk_category, status, summary, created_at').eq('entity_type', 'brand').eq('entity_id', brandId);
+
+      return sendJson(res, 200, { ok: true, brand, campaigns: campaigns || [], trustReports: reports || [] });
+    }
+
+    let query = sc.from('brands').select('*', { count: 'exact' });
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,industry.ilike.%${search}%`);
+    }
+    const { data: brands, error, count } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    if (error) {
+      if (error.code === 'PGRST205') {
+        return sendJson(res, 200, { ok: true, brands: [], total: 0, page, limit, tableMissing: true });
+      }
+      return sendJson(res, 500, { ok: false, error: error.message });
+    }
+
+    return sendJson(res, 200, { ok: true, brands: brands || [], total: count || 0, page, limit });
+  }
+
+  return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+}
+
+// --- Creator Management ---
+async function handleCreators(req, res, method, body) {
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  const sc = auth.serviceClient;
+  const url = new URL(req.url, 'http://localhost');
+  const creatorId = url.searchParams.get('id');
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+  const search = url.searchParams.get('search') || '';
+  const offset = (page - 1) * limit;
+
+  if (method === 'GET') {
+    if (creatorId) {
+      const { data: creator, error } = await sc.from('creator_profiles').select('*, projects:portfolio_projects(*)').eq('id', creatorId).maybeSingle();
+      if (error || !creator) return sendJson(res, 404, { ok: false, error: 'Creator not found' });
+
+      const { data: reports } = await sc.from('trust_reports').select('id, risk_score, risk_category, status, summary, created_at').eq('entity_type', 'creator').eq('entity_id', creatorId);
+
+      return sendJson(res, 200, { ok: true, creator, trustReports: reports || [] });
+    }
+
+    let query = sc.from('creator_profiles').select('*', { count: 'exact' });
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,handle.ilike.%${search}%,specialty.ilike.%${search}%`);
+    }
+    const { data: creators, error, count } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    if (error) {
+      if (error.code === 'PGRST205') {
+        return sendJson(res, 200, { ok: true, creators: [], total: 0, page, limit, tableMissing: true });
+      }
+      return sendJson(res, 500, { ok: false, error: error.message });
+    }
+
+    return sendJson(res, 200, { ok: true, creators: creators || [], total: count || 0, page, limit });
+  }
+
+  return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+}
+
+// --- Campaign Management ---
+async function handleCampaigns(req, res, method, body) {
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  const sc = auth.serviceClient;
+  const url = new URL(req.url, 'http://localhost');
+  const campaignId = url.searchParams.get('id');
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+  const search = url.searchParams.get('search') || '';
+  const statusFilter = url.searchParams.get('status') || '';
+  const offset = (page - 1) * limit;
+
+  if (method === 'GET') {
+    if (campaignId) {
+      const { data: campaign, error } = await sc.from('campaigns').select('*').eq('id', campaignId).maybeSingle();
+      if (error || !campaign) return sendJson(res, 404, { ok: false, error: 'Campaign not found' });
+
+      const { data: collaborations } = await sc.from('collaborations').select('*').eq('campaign_id', campaignId);
+      const { data: reports } = await sc.from('trust_reports').select('id, risk_score, risk_category, status, summary, created_at').eq('entity_type', 'campaign').eq('entity_id', campaignId);
+
+      return sendJson(res, 200, { ok: true, campaign, collaborations: collaborations || [], trustReports: reports || [] });
+    }
+
+    let query = sc.from('campaigns').select('*', { count: 'exact' });
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,brand_name.ilike.%${search}%`);
+    }
+    if (statusFilter) {
+      query = query.eq('status', statusFilter);
+    }
+    const { data: campaigns, error, count } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    if (error) {
+      if (error.code === 'PGRST205') {
+        return sendJson(res, 200, { ok: true, campaigns: [], total: 0, page, limit, tableMissing: true });
+      }
+      return sendJson(res, 500, { ok: false, error: error.message });
+    }
+
+    return sendJson(res, 200, { ok: true, campaigns: campaigns || [], total: count || 0, page, limit });
+  }
+
+  return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+}
+
+// --- Collaboration Tracking ---
+async function handleCollaborations(req, res, method, body) {
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  const sc = auth.serviceClient;
+  const url = new URL(req.url, 'http://localhost');
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+  const search = url.searchParams.get('search') || '';
+  const statusFilter = url.searchParams.get('status') || '';
+  const offset = (page - 1) * limit;
+
+  if (method === 'GET') {
+    let query = sc.from('collaborations').select('*', { count: 'exact' });
+    if (search) {
+      query = query.or(`brand_name.ilike.%${search}%,creator_name.ilike.%${search}%,campaign_title.ilike.%${search}%`);
+    }
+    if (statusFilter) {
+      query = query.eq('status', statusFilter);
+    }
+    const { data: collaborations, error, count } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    if (error) {
+      if (error.code === 'PGRST205') {
+        return sendJson(res, 200, { ok: true, collaborations: [], total: 0, page, limit, tableMissing: true });
+      }
+      return sendJson(res, 500, { ok: false, error: error.message });
+    }
+
+    return sendJson(res, 200, { ok: true, collaborations: collaborations || [], total: count || 0, page, limit });
+  }
+
+  return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+}
+
+// --- AlloyTrust: Reports ---
+async function handleTrustReports(req, res, method, body) {
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  const sc = auth.serviceClient;
+  const url = new URL(req.url, 'http://localhost');
+  const reportId = url.searchParams.get('id');
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+  const statusFilter = url.searchParams.get('status') || '';
+  const entityType = url.searchParams.get('entity_type') || '';
+  const riskCategory = url.searchParams.get('risk_category') || '';
+  const offset = (page - 1) * limit;
+
+  if (method === 'GET') {
+    if (reportId) {
+      const { data: report, error } = await sc.from('trust_reports').select('*').eq('id', reportId).maybeSingle();
+      if (error || !report) return sendJson(res, 404, { ok: false, error: 'Report not found' });
+
+      const { data: signals } = await sc.from('trust_signals').select('*').eq('report_id', reportId).order('created_at', { ascending: false });
+      const { data: decisions } = await sc.from('trust_decisions').select('*').eq('report_id', reportId).order('created_at', { ascending: false });
+
+      return sendJson(res, 200, { ok: true, report, signals: signals || [], decisions: decisions || [] });
+    }
+
+    let query = sc.from('trust_reports').select('*', { count: 'exact' });
+    if (statusFilter) query = query.eq('status', statusFilter);
+    if (entityType) query = query.eq('entity_type', entityType);
+    if (riskCategory) query = query.eq('risk_category', riskCategory);
+    const { data: reports, error, count } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+    if (error) {
+      if (error.code === 'PGRST205') {
+        return sendJson(res, 200, { ok: true, reports: [], total: 0, page, limit, tableMissing: true });
+      }
+      return sendJson(res, 500, { ok: false, error: error.message });
+    }
+
+    return sendJson(res, 200, { ok: true, reports: reports || [], total: count || 0, page, limit });
+  }
+
+  if (method === 'POST') {
+    // Create a new trust report
+    const { entity_type, entity_id, entity_name, risk_score, risk_category, evidence_confidence, summary, signals } = body;
+    if (!entity_type || !entity_id) {
+      return sendJson(res, 400, { ok: false, error: 'entity_type and entity_id are required' });
+    }
+
+    const { data: report, error } = await sc.from('trust_reports').insert({
+      entity_type,
+      entity_id,
+      entity_name: entity_name || null,
+      risk_score: Math.max(0, Math.min(100, parseInt(risk_score) || 0)),
+      risk_category: risk_category || 'low',
+      evidence_confidence: evidence_confidence || 'low',
+      summary: summary || null,
+      status: 'new'
+    }).select().single();
+
+    if (error) return sendJson(res, 500, { ok: false, error: error.message });
+
+    // Insert associated signals if provided
+    if (Array.isArray(signals) && signals.length > 0) {
+      const signalRows = signals.map(s => ({
+        report_id: report.id,
+        signal_type: s.signal_type || 'manual_observation',
+        severity: s.severity || 'info',
+        title: s.title || 'Observation',
+        description: s.description || null,
+        evidence_data: s.evidence_data || {},
+        source: s.source || 'admin'
+      }));
+      await sc.from('trust_signals').insert(signalRows);
+    }
+
+    await logAuditEvent(sc, {
+      actorId: auth.user.id,
+      actorEmail: auth.user.email,
+      action: 'create_trust_report',
+      targetType: entity_type,
+      targetId: entity_id,
+      targetName: entity_name,
+      reason: summary
+    });
+
+    return sendJson(res, 201, { ok: true, report });
+  }
+
+  return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+}
+
+// --- AlloyTrust: Review Decision ---
+async function handleTrustDecision(req, res, method, body) {
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  if (method !== 'POST') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+
+  const { report_id, action, new_status, reason, internal_notes, metadata } = body;
+  if (!report_id || !action) {
+    return sendJson(res, 400, { ok: false, error: 'report_id and action are required' });
+  }
+
+  const sc = auth.serviceClient;
+
+  // Get current report status
+  const { data: report, error: fetchErr } = await sc.from('trust_reports').select('status').eq('id', report_id).maybeSingle();
+  if (fetchErr || !report) return sendJson(res, 404, { ok: false, error: 'Report not found' });
+
+  // Record the decision (append-only)
+  const { data: decision, error: decisionErr } = await sc.from('trust_decisions').insert({
+    report_id,
+    reviewer_id: auth.user.id,
+    action,
+    previous_status: report.status,
+    new_status: new_status || report.status,
+    reason: reason || null,
+    internal_notes: internal_notes || null,
+    metadata: metadata || {}
+  }).select().single();
+
+  if (decisionErr) return sendJson(res, 500, { ok: false, error: decisionErr.message });
+
+  // Update report status if changed
+  if (new_status && new_status !== report.status) {
+    const updateData = { status: new_status, updated_at: new Date().toISOString() };
+    if (new_status === 'resolved' || new_status === 'cleared') {
+      updateData.resolution_reason = reason || null;
+    }
+    if (new_status === 'under_investigation' || new_status === 'needs_review') {
+      updateData.assigned_reviewer = auth.user.id;
+    }
+    await sc.from('trust_reports').update(updateData).eq('id', report_id);
+  }
+
+  await logAuditEvent(sc, {
+    actorId: auth.user.id,
+    actorEmail: auth.user.email,
+    action: `trust_${action}`,
+    targetType: 'trust_report',
+    targetId: report_id,
+    reason
+  });
+
+  return sendJson(res, 200, { ok: true, decision });
+}
+
+// --- Audit Logs (Strictly Read-Only) ---
+async function handleAuditLogs(req, res, method) {
+  if (method !== 'GET') {
+    return sendJson(res, 405, {
+      ok: false,
+      error: 'Method not allowed. Audit logs are append-only and cannot be inserted, edited, or deleted via HTTP.'
+    });
+  }
+
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  const sc = auth.serviceClient;
+  const url = new URL(req.url, 'http://localhost');
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+  const actionFilter = url.searchParams.get('action') || '';
+  const offset = (page - 1) * limit;
+
+  let query = sc.from('audit_events').select('*', { count: 'exact' });
+  if (actionFilter) query = query.ilike('action', `%${actionFilter}%`);
+  const { data: events, error, count } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+  if (error) {
+    if (error.code === 'PGRST205') {
+      return sendJson(res, 200, { ok: true, events: [], total: 0, page, limit, tableMissing: true });
+    }
+    return sendJson(res, 500, { ok: false, error: error.message });
+  }
+
+  return sendJson(res, 200, { ok: true, events: events || [], total: count || 0, page, limit });
+}
+
+// --- Platform Config ---
+async function handlePlatformConfig(req, res, method, body) {
+  const auth = await authenticateAdmin(req);
+  if (auth.error) return sendJson(res, auth.status, { ok: false, error: auth.error });
+
+  const sc = auth.serviceClient;
+
+  if (method === 'GET') {
+    const { data: configs, error } = await sc.from('platform_config').select('*').order('config_key');
+    if (error) {
+      if (error.code === 'PGRST205') {
+        return sendJson(res, 200, { ok: true, configs: [], tableMissing: true });
+      }
+      return sendJson(res, 500, { ok: false, error: error.message });
+    }
+    return sendJson(res, 200, { ok: true, configs: configs || [] });
+  }
+
+  if (method === 'PUT' || method === 'PATCH') {
+    const { config_key, config_value, description } = body;
+    if (!config_key) return sendJson(res, 400, { ok: false, error: 'config_key is required' });
+
+    const { data: config, error } = await sc.from('platform_config').upsert({
+      config_key,
+      config_value: typeof config_value === 'string' ? JSON.parse(config_value) : config_value,
+      description: description || null,
+      updated_by: auth.user.id,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'config_key' }).select().single();
+
+    if (error) return sendJson(res, 500, { ok: false, error: error.message });
+
+    await logAuditEvent(sc, {
+      actorId: auth.user.id,
+      actorEmail: auth.user.email,
+      action: 'update_platform_config',
+      targetType: 'config',
+      targetId: config_key,
+      reason: `Updated to ${JSON.stringify(config_value)}`
+    });
+
+    return sendJson(res, 200, { ok: true, config });
+  }
+
+  return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+}
+
+// --- Super Admin Provisioning (One-time initial bootstrap) ---
+async function handleProvision(req, res, method, body) {
+  if (method !== 'POST') return sendJson(res, 405, { ok: false, error: 'Method not allowed' });
+
+  // This endpoint requires the ALLOY_ADMIN_PROVISION_SECRET from .env
+  const provisionSecret = process.env.ALLOY_ADMIN_PROVISION_SECRET || '';
+  if (!provisionSecret || provisionSecret.length < 16) {
+    return sendJson(res, 503, {
+      ok: false,
+      error: 'Provisioning is disabled. Set ALLOY_ADMIN_PROVISION_SECRET in .env (min 16 chars).'
+    });
+  }
+
+  const { secret, email } = body;
+  if (!secret || typeof secret !== 'string' || !email || typeof email !== 'string') {
+    return sendJson(res, 400, { ok: false, error: 'Invalid provisioning payload' });
+  }
+
+  // Constant-time comparison to prevent timing attacks
+  const secretBuf = Buffer.from(secret);
+  const provBuf = Buffer.from(provisionSecret);
+  if (secretBuf.length !== provBuf.length || !crypto.timingSafeEqual(secretBuf, provBuf)) {
+    return sendJson(res, 403, { ok: false, error: 'Invalid provisioning secret' });
+  }
+
+  // Enforce designated admin email if configured in environment
+  const configuredAdminEmail = (process.env.ALLOY_ADMIN_EMAIL || '').trim().toLowerCase();
+  if (configuredAdminEmail && email.trim().toLowerCase() !== configuredAdminEmail) {
+    return sendJson(res, 403, {
+      ok: false,
+      error: 'Provisioning restricted: target email does not match configured ALLOY_ADMIN_EMAIL'
+    });
+  }
+
+  const sc = getServiceClient();
+  if (!sc) return sendJson(res, 503, { ok: false, error: 'Service client not configured' });
+
+  // Single-admin lockout: verify if any super_admin is already provisioned
+  const { data: existingSuperAdmins, error: countErr } = await sc
+    .from('admin_roles')
+    .select('id')
+    .eq('role', 'super_admin')
+    .eq('is_active', true)
+    .limit(1);
+
+  if (!countErr && existingSuperAdmins && existingSuperAdmins.length > 0) {
+    return sendJson(res, 403, {
+      ok: false,
+      error: 'A Super Admin is already established. Bootstrapping endpoint is permanently locked.'
+    });
+  }
+
+  // Find the user by email in auth.users
+  const { data: { users }, error: listError } = await sc.auth.admin.listUsers();
+  if (listError) return sendJson(res, 500, { ok: false, error: 'Failed to query user directory' });
+
+  const targetUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+  if (!targetUser) {
+    return sendJson(res, 404, {
+      ok: false,
+      error: 'No authenticated user found with this email. Please sign up first via ALLOY login.'
+    });
+  }
+
+  // Check if target user already provisioned
+  const { data: existingRole } = await sc.from('admin_roles').select('id').eq('user_id', targetUser.id).maybeSingle();
+  if (existingRole) {
+    return sendJson(res, 409, { ok: false, error: 'This user is already provisioned as Super Admin.' });
+  }
+
+  // Provision: insert admin_role + update profiles.role
+  const { error: insertErr } = await sc.from('admin_roles').insert({
+    user_id: targetUser.id,
+    role: 'super_admin',
+    granted_by: null,
+    is_active: true,
+    notes: 'Initial Super Admin provisioning via secure endpoint'
+  });
+
+  if (insertErr) return sendJson(res, 500, { ok: false, error: 'Failed to assign administrator role' });
+
+  // Update profiles table role to 'admin'
+  await sc.from('profiles').upsert({
+    id: targetUser.id,
+    email: targetUser.email,
+    role: 'admin',
+    display_name: targetUser.user_metadata?.full_name || targetUser.email?.split('@')[0],
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'id' });
+
+  // Log the provisioning event
+  await logAuditEvent(sc, {
+    actorId: targetUser.id,
+    actorEmail: targetUser.email,
+    actorRole: 'system_provisioner',
+    action: 'super_admin_provisioned',
+    targetType: 'user',
+    targetId: targetUser.id,
+    targetName: targetUser.email,
+    reason: 'Initial Super Admin provisioning via authenticated bootstrap'
+  });
+
+  console.log('\n============================================================');
+  console.log('  ALLOY: Super Admin provisioned successfully!');
+  console.log(`  Email: ${targetUser.email}`);
+  console.log(`  User ID: ${targetUser.id}`);
+  console.log('  ');
+  console.log('  IMPORTANT: Remove ALLOY_ADMIN_PROVISION_SECRET from .env');
+  console.log('  to prevent unauthorized reuse of the provisioning endpoint.');
+  console.log('============================================================\n');
+
+  return sendJson(res, 200, {
+    ok: true,
+    message: 'Super Admin provisioned successfully. Remove ALLOY_ADMIN_PROVISION_SECRET from .env to secure the endpoint.',
+    user_id: targetUser.id,
+    email: targetUser.email
+  });
+}
+
+// ============================================================================
+// MIDDLEWARE EXPORT
+// ============================================================================
+export function createAdminMiddleware() {
+  return async function adminMiddleware(req, res, next) {
+    const rawUrl = req.url || '';
+    const url = rawUrl.split('?')[0];
+
+    // Handle CORS preflight for admin API
+    if (req.method === 'OPTIONS' && url.startsWith('/api/admin')) {
+      res.statusCode = 204;
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return res.end();
+    }
+
+    if (!url.startsWith('/api/admin')) {
+      return next ? next() : res.end();
+    }
+
+    try {
+      const method = req.method || 'GET';
+      let body = {};
+      if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+        body = await parseJsonBody(req);
+      }
+
+      // Routing
+      if (url === '/api/admin/health') return handleHealth(req, res);
+      if (url === '/api/admin/verify') return handleVerifySession(req, res);
+      if (url === '/api/admin/overview') return handleOverview(req, res);
+      if (url === '/api/admin/brands') return handleBrands(req, res, method, body);
+      if (url === '/api/admin/creators') return handleCreators(req, res, method, body);
+      if (url === '/api/admin/campaigns') return handleCampaigns(req, res, method, body);
+      if (url === '/api/admin/collaborations') return handleCollaborations(req, res, method, body);
+      if (url === '/api/admin/trust/reports') return handleTrustReports(req, res, method, body);
+      if (url === '/api/admin/trust/decide') return handleTrustDecision(req, res, method, body);
+      if (url === '/api/admin/audit') return handleAuditLogs(req, res, method);
+      if (url === '/api/admin/config') return handlePlatformConfig(req, res, method, body);
+      if (url === '/api/admin/provision') return handleProvision(req, res, method, body);
+
+      return sendJson(res, 404, { ok: false, error: `Admin endpoint ${url} not found.` });
+    } catch (err) {
+      console.error('[Admin Middleware Error]:', err.message);
+      return sendJson(res, err.status || 500, {
+        ok: false,
+        error: 'An internal error occurred.'
+      });
+    }
+  };
+}

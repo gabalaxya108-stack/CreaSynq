@@ -18,6 +18,9 @@ import BrandWorkspaceView from './views/BrandWorkspaceView';
 import BrandOnboardingView from './views/BrandOnboardingView';
 import CreatorOnboardingView from './views/CreatorOnboardingView';
 import CreatorWorkspaceView from './views/CreatorWorkspaceView';
+import AdminLoginView from './views/AdminLoginView';
+import AdminDashboardView from './views/AdminDashboardView';
+import { verifyAdminSession, getAdminActiveSession } from './services/adminApi';
 
 import ProjectModal from './components/ProjectModal';
 import CampaignModal from './components/CampaignModal';
@@ -121,8 +124,15 @@ export default function App() {
     setCurrentUser(user);
   };
 
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'discover' | 'creator-profile' | 'creator-not-found' | 'brand-workspace' | 'creator-join' | 'creator-workspace'
+  const [currentView, setCurrentView] = useState('home'); // includes admin-login and admin-dashboard
   const [activeCreatorId, setActiveCreatorId] = useState(null);
+  const [currentAdmin, setCurrentAdmin] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('alloy_super_admin_session') || 'null');
+    } catch {
+      return null;
+    }
+  });
   const [initialBrandTab, setInitialBrandTab] = useState('overview');
   const [initialCreatorTab, setInitialCreatorTab] = useState('overview');
 
@@ -222,7 +232,7 @@ export default function App() {
           if (isMounted && freshInvs?.length) {
             setMarketplaceData(prev => ({ ...prev, invitations: freshInvs }));
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     });
 
@@ -232,7 +242,7 @@ export default function App() {
           if (isMounted && freshCollabs?.length) {
             setMarketplaceData(prev => ({ ...prev, projects: freshCollabs }));
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     });
 
@@ -242,7 +252,7 @@ export default function App() {
           if (isMounted && freshCamps?.length) {
             setMarketplaceData(prev => ({ ...prev, campaigns: freshCamps }));
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     });
 
@@ -749,8 +759,8 @@ export default function App() {
     }
 
     const role = (currentView === 'creator-workspace') ? 'creator' :
-                 (currentView === 'brand-workspace') ? 'brand' :
-                 resolveUserRole(activeUser);
+      (currentView === 'brand-workspace') ? 'brand' :
+        resolveUserRole(activeUser);
 
     if (role === 'creator') {
       setInitialCreatorTab('messages');
@@ -866,6 +876,28 @@ export default function App() {
           setIsRoleSelectOpen(true);
           setCurrentView('home');
           window.location.hash = '';
+        }
+      } else if (hash === '/admin/login' || hash === 'admin/login') {
+        setCurrentView('admin-login');
+      } else if (hash === '/admin/dashboard' || hash === 'admin/dashboard' || hash === '/admin' || hash === 'admin') {
+        // Super Admin Guard
+        const storedAdmin = getAdminActiveSession();
+        if (storedAdmin && (storedAdmin.role === 'super_admin' || storedAdmin.role === 'admin' || storedAdmin.role === 'judge_admin')) {
+          setCurrentAdmin(storedAdmin);
+          setCurrentView('admin-dashboard');
+        } else {
+          verifyAdminSession().then(res => {
+            if (res.ok && res.user) {
+              setCurrentAdmin(res.user);
+              setCurrentView('admin-dashboard');
+            } else {
+              setCurrentView('admin-login');
+              window.location.hash = '/admin/login';
+            }
+          }).catch(() => {
+            setCurrentView('admin-login');
+            window.location.hash = '/admin/login';
+          });
         }
       } else {
         setCurrentView('home');
@@ -1600,25 +1632,27 @@ export default function App() {
 
   return (
     <div className="creasynq-app">
-      {/* Navigation Header */}
-      <Header
-        currentView={currentView}
-        onNavigate={(v) => navigateTo(v)}
-        onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
-        onOpenCreatorModal={() => navigateTo('creator-join')}
-        onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
-        onOpenLogin={() => {
-          setLoginNotice(null);
-          setIsLoginOpen(true);
-        }}
-        onOpenForBrandsModal={() => setIsForBrandsOpen(true)}
-        onOpenForCreatorsModal={() => setIsForCreatorsOpen(true)}
-        onOpenMessages={handleOpenMessages}
-        activeCampaign={activeCampaign}
-        createdCreatorProfile={myCreator}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-      />
+      {/* Keep public navigation out of the dedicated admin screens. */}
+      {currentView !== 'admin-login' && currentView !== 'admin-dashboard' && (
+        <Header
+          currentView={currentView}
+          onNavigate={(v) => navigateTo(v)}
+          onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
+          onOpenCreatorModal={() => navigateTo('creator-join')}
+          onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
+          onOpenLogin={() => {
+            setLoginNotice(null);
+            setIsLoginOpen(true);
+          }}
+          onOpenForBrandsModal={() => setIsForBrandsOpen(true)}
+          onOpenForCreatorsModal={() => setIsForCreatorsOpen(true)}
+          onOpenMessages={handleOpenMessages}
+          activeCampaign={activeCampaign}
+          createdCreatorProfile={myCreator}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+      )}
 
       {/* Main Views */}
       <main>
@@ -1863,32 +1897,54 @@ export default function App() {
               We couldn't find a creator matching this link on this device. The profile may have been unpublished, or the link may be incorrect.
             </p>
             <div className="step-footer-actions justify-center">
-              <button
-                type="button"
-                className="btn btn-primary btn-lg"
-                onClick={() => navigateTo('discover')}
-              >
+              <button type="button" className="btn btn-primary btn-lg" onClick={() => navigateTo('discover')}>
                 <span>Back to Marketplace</span>
               </button>
             </div>
           </div>
         )}
+
+        {/* VIEW 7: SUPER ADMIN SECURITY LOGIN */}
+        {currentView === 'admin-login' && (
+          <AdminLoginView
+            onAdminAuthenticated={(user) => {
+              setCurrentAdmin(user);
+              setCurrentView('admin-dashboard');
+              window.location.hash = '/admin/dashboard';
+            }}
+          />
+        )}
+
+        {/* VIEW 8: SUPER ADMIN & ALLOYTRUST DASHBOARD */}
+        {currentView === 'admin-dashboard' && (
+          <AdminDashboardView
+            adminUser={currentAdmin}
+            onLogout={() => {
+              setCurrentAdmin(null);
+              try { localStorage.removeItem('alloy_super_admin_session'); } catch { /* ignore storage errors */ }
+              setCurrentView('home');
+              window.location.hash = '';
+            }}
+          />
+        )}
       </main>
 
-      {/* SECTION K: Clean Footer */}
-      <Footer
-        onNavigate={(v) => navigateTo(v)}
-        onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
-        onOpenCreatorModal={handleCreatorAction}
-        onEnterBrandStudio={handleHireAction}
-        onEnterCreatorStudio={handleCreatorAction}
-        onOpenLogin={() => {
-          setLoginNotice(null);
-          setLoginInitialRole('brand');
-          setIsLoginOpen(true);
-        }}
-        onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
-      />
+      {/* SECTION K: Clean Footer (Preserved exactly for all public views) */}
+      {currentView !== 'admin-login' && currentView !== 'admin-dashboard' && (
+        <Footer
+          onNavigate={(v) => navigateTo(v)}
+          onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
+          onOpenCreatorModal={handleCreatorAction}
+          onEnterBrandStudio={handleHireAction}
+          onEnterCreatorStudio={handleCreatorAction}
+          onOpenLogin={() => {
+            setLoginNotice(null);
+            setLoginInitialRole('brand');
+            setIsLoginOpen(true);
+          }}
+          onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
+        />
+      )}
 
       {/* Role Selection Modal */}
       <RoleSelectModal

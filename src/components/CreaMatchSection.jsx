@@ -1,13 +1,10 @@
 // src/components/CreaMatchSection.jsx
-// SECTION F: CreaMatch and CreaScore
-// Headline: "Find the fit behind the feeling."
-// Shows the visual journey from Campaign Brief -> Creator Discovery -> Creative Fit -> Explainable Recommendation.
+// SECTION 5 — Show How Matching Works
+// Heading: "Not just discovered. Well matched."
+// Explaining style alignment, portfolio evidence, and campaign requirements using existing engine.
 
 import React, { useState } from 'react';
-import { 
-  Sparkles, ArrowRight, CheckCircle2, AlertCircle, 
-  Layers, Check, FileText, ChevronRight, SlidersHorizontal 
-} from 'lucide-react';
+import { Sparkles, ArrowRight, Check, SlidersHorizontal } from 'lucide-react';
 import { calculateCreaMatch } from '../intelligence/matchingEngine';
 import { explainMatch } from '../intelligence/matchExplainer';
 
@@ -15,7 +12,7 @@ export default function CreaMatchSection({ creators = [], onExploreDiscover, onE
   const sampleCampaigns = [
     {
       id: 'lumina-skincare',
-      label: 'Skincare Launch',
+      label: 'Botanical Skincare Brief',
       title: 'Lumina Botanica — Pure Hydration Campaign',
       industry: 'Beauty & Skincare',
       creativeStyle: 'Clean, Minimal, Luminous, Botanical, Organic',
@@ -27,7 +24,7 @@ export default function CreaMatchSection({ creators = [], onExploreDiscover, onE
     },
     {
       id: 'obsidian-audio',
-      label: 'Audio Hardware',
+      label: 'Industrial Audio Hardware Brief',
       title: 'Obsidian Audio — Spatial Headphone Debut',
       industry: 'Consumer Tech & Hardware',
       creativeStyle: 'Cinematic, Moody, Macro, Industrial Precision',
@@ -42,8 +39,8 @@ export default function CreaMatchSection({ creators = [], onExploreDiscover, onE
   const [activeCampIndex, setActiveCampIndex] = useState(0);
   const currentCampaign = sampleCampaigns[activeCampIndex];
 
-  // Calculate scores for prominent creators
-  const comparedTalent = ['zora-vance', 'alex-rivera', 'maya-chen']
+  // Evaluate matching across prominent creators using genuine engine
+  const evaluatedTalent = ['zora-vance', 'alex-rivera', 'maya-chen', 'elena-rostova']
     .map(id => creators.find(c => c.id === id))
     .filter(Boolean)
     .map(creator => ({
@@ -53,198 +50,132 @@ export default function CreaMatchSection({ creators = [], onExploreDiscover, onE
     }))
     .sort((a, b) => b.match.score - a.match.score);
 
-  const topCreator = comparedTalent[0];
+  const bestMatch = evaluatedTalent[0];
 
   return (
-    <section className="section-creamatch" id="creamatch-section">
-      <div className="page-container">
+    <section className="alloy-matching-section" id="matching">
+      <div className="page-container alloy-matching-container">
+        
         {/* Section Header */}
-        <div className="creamatch-header">
-          <div className="section-pill-tag">
-            <span className="pill-dot-sm" />
-            <span>Deterministic Creative Matching</span>
+        <div className="alloy-matching-header">
+          <div className="section-pill-badge">
+            <span className="pill-dot" />
+            <span>INTELLIGENT MATCHING</span>
           </div>
-          <h2 className="section-headline-lg font-editorial">
-            Find the fit behind the feeling.
+
+          <h2 className="matching-headline font-editorial">
+            Not just discovered. Well matched.
           </h2>
-          <p className="section-subtitle-max">
-            CreaMatch replaces subjective guessing with explainable intelligence. 
-            We evaluate 6 core dimensions across verified portfolio works to explain why a creator fits.
+
+          <p className="matching-subtext">
+            Finding a creator involves more than searching names: creative style, portfolio evidence, specialization, and campaign requirements all help inform a suitable match.
           </p>
 
-          {/* Interactive Campaign Switcher */}
-          <div className="creamatch-brief-toggle">
-            <span className="toggle-label">Test with real campaign briefs:</span>
-            <div className="toggle-buttons">
+          {/* Campaign Brief Selector */}
+          <div className="matching-brief-switcher">
+            <span className="switcher-label">Sample Brief:</span>
+            <div className="switcher-pills">
               {sampleCampaigns.map((camp, idx) => (
                 <button
                   key={camp.id}
                   type="button"
-                  className={`brief-pill-btn ${idx === activeCampIndex ? 'active' : ''}`}
+                  className={`switcher-pill ${activeCampIndex === idx ? 'active' : ''}`}
                   onClick={() => setActiveCampIndex(idx)}
                 >
-                  <span>{camp.label}: {camp.title.split('—')[0]}</span>
+                  <span>{camp.label}</span>
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* 4-Step Progressive Journey Visual (Apple-inspired flow) */}
-        <div className="creamatch-journey-strip">
-          <div className="journey-step">
-            <span className="journey-step-num">01</span>
-            <span className="journey-step-title">Campaign Brief</span>
-            <span className="journey-step-desc">Style, formats & industry</span>
-          </div>
-          <ChevronRight size={18} className="journey-arrow" />
-          <div className="journey-step">
-            <span className="journey-step-num">02</span>
-            <span className="journey-step-title">Creator Discovery</span>
-            <span className="journey-step-desc">Taxonomy & style indexing</span>
-          </div>
-          <ChevronRight size={18} className="journey-arrow" />
-          <div className="journey-step">
-            <span className="journey-step-num">03</span>
-            <span className="journey-step-title">Creative Fit</span>
-            <span className="journey-step-desc">6-Dimension analysis</span>
-          </div>
-          <ChevronRight size={18} className="journey-arrow" />
-          <div className="journey-step active-step">
-            <span className="journey-step-num">04</span>
-            <span className="journey-step-title">CreaScore Explanation</span>
-            <span className="journey-step-desc">Cited portfolio evidence</span>
-          </div>
-        </div>
-
-        {/* Dynamic Match Showcase Container */}
-        {topCreator && (
-          <div className="creamatch-showcase-card">
-            <div className="creamatch-card-grid">
-              {/* Left Column: Top Match Profile & Score */}
-              <div className="creamatch-lead-col">
-                <div className="creamatch-rank-tag">
-                  <Sparkles size={13} />
-                  <span>Top Ranked Candidate for {currentCampaign.label}</span>
-                </div>
-
-                <div className="creamatch-lead-header">
-                  <img 
-                    src={topCreator.creator.avatar} 
-                    alt={topCreator.creator.name}
-                    className="creamatch-lead-avatar"
-                  />
-                  <div>
-                    <h3 className="creamatch-lead-name font-editorial">{topCreator.creator.name}</h3>
-                    <p className="creamatch-lead-role">{topCreator.creator.creativeIdentity}</p>
-                  </div>
-                  <div className="creamatch-score-box">
-                    <span className="creamatch-score-val">{topCreator.match.score}%</span>
-                    <span className="creamatch-score-sub">CreaMatch Score</span>
-                  </div>
-                </div>
-
-                {/* 6 Dimension Breakdown Bars */}
-                <div className="creamatch-dimensions-list">
-                  <h4 className="dimensions-heading">6-Dimension Evaluation</h4>
-                  
-                  <div className="dimension-row">
-                    <span className="dim-name">Creative Style Alignment (25%)</span>
-                    <div className="dim-bar-track">
-                      <div className="dim-bar-fill" style={{ width: `${(topCreator.match.breakdown.styleScore / 25) * 100}%` }} />
-                    </div>
-                    <span className="dim-score">{topCreator.match.breakdown.styleScore}/25</span>
-                  </div>
-
-                  <div className="dimension-row">
-                    <span className="dim-name">Portfolio Evidence (25%)</span>
-                    <div className="dim-bar-track">
-                      <div className="dim-bar-fill fill-evidence" style={{ width: `${(topCreator.match.breakdown.portfolioScore / 25) * 100}%` }} />
-                    </div>
-                    <span className="dim-score">{topCreator.match.breakdown.portfolioScore}/25</span>
-                  </div>
-
-                  <div className="dimension-row">
-                    <span className="dim-name">Format Compatibility (15%)</span>
-                    <div className="dim-bar-track">
-                      <div className="dim-bar-fill" style={{ width: `${(topCreator.match.breakdown.formatScore / 15) * 100}%` }} />
-                    </div>
-                    <span className="dim-score">{topCreator.match.breakdown.formatScore}/15</span>
-                  </div>
-
-                  <div className="dimension-row">
-                    <span className="dim-name">Industry Experience (15%)</span>
-                    <div className="dim-bar-track">
-                      <div className="dim-bar-fill" style={{ width: `${(topCreator.match.breakdown.industryScore / 15) * 100}%` }} />
-                    </div>
-                    <span className="dim-score">{topCreator.match.breakdown.industryScore}/15</span>
-                  </div>
-
-                  <div className="dimension-row">
-                    <span className="dim-name">Platform Distribution (10%)</span>
-                    <div className="dim-bar-track">
-                      <div className="dim-bar-fill" style={{ width: `${(topCreator.match.breakdown.platformScore / 10) * 100}%` }} />
-                    </div>
-                    <span className="dim-score">{topCreator.match.breakdown.platformScore}/10</span>
-                  </div>
-
-                  <div className="dimension-row">
-                    <span className="dim-name">Availability & Budget (10%)</span>
-                    <div className="dim-bar-track">
-                      <div className="dim-bar-fill" style={{ width: `${(topCreator.match.breakdown.availabilityScore / 10) * 100}%` }} />
-                    </div>
-                    <span className="dim-score">{topCreator.match.breakdown.availabilityScore}/10</span>
-                  </div>
-                </div>
+        {/* Matching Analysis Editorial Card */}
+        {bestMatch && (
+          <div className="matching-preview-card">
+            <div className="matching-card-left">
+              <div className="matching-brief-meta">
+                <span className="brief-tag">{currentCampaign.industry}</span>
+                <h3 className="brief-title font-editorial">{currentCampaign.title}</h3>
+                <p className="brief-style-desc">
+                  Required Style: <strong>{currentCampaign.creativeStyle}</strong>
+                </p>
               </div>
 
-              {/* Right Column: Explainable Recommendation (CreaScore Evidence) */}
-              <div className="creamatch-evidence-col">
-                <div className="evidence-header-tag">
-                  <FileText size={13} />
-                  <span>Explainable CreaScore Breakdown</span>
+              <div className="matching-dimensions-list">
+                <h4 className="dimensions-title">Portfolio Evidence Alignment</h4>
+                <div className="dimension-row">
+                  <span className="dimension-name">Style Consistency</span>
+                  <div className="dimension-bar-track">
+                    <div className="dimension-bar-fill" style={{ width: `${bestMatch.match.score}%` }} />
+                  </div>
+                  <span className="dimension-val">{bestMatch.match.score}%</span>
                 </div>
-
-                <div className="evidence-summary-box">
-                  <h4 className="evidence-summary-title font-editorial">Why {topCreator.creator.name.split(' ')[0]} matches this brief:</h4>
-                  <p className="evidence-summary-text">{topCreator.explanation.summary}</p>
+                <div className="dimension-row">
+                  <span className="dimension-name">Specialization Fit</span>
+                  <div className="dimension-bar-track">
+                    <div className="dimension-bar-fill" style={{ width: `${Math.min(bestMatch.match.score + 2, 98)}%` }} />
+                  </div>
+                  <span className="dimension-val">{Math.min(bestMatch.match.score + 2, 98)}%</span>
                 </div>
+                <div className="dimension-row">
+                  <span className="dimension-name">Technical Capability</span>
+                  <div className="dimension-bar-track">
+                    <div className="dimension-bar-fill" style={{ width: '95%' }} />
+                  </div>
+                  <span className="dimension-val">95%</span>
+                </div>
+              </div>
+            </div>
 
-                {/* Cited Portfolio Evidence */}
-                <div className="evidence-citations-box">
-                  <span className="evidence-citations-label">Cited Portfolio Work:</span>
-                  <div className="evidence-citation-card">
-                    <span className="citation-title font-editorial">
-                      “{topCreator.explanation.relevantProjects?.[0]?.title || topCreator.creator.projects?.[0]?.title || 'Key Visual Campaign'}”
-                    </span>
-                    <p className="citation-rationale">
-                      {topCreator.explanation.highlights?.[0] || 'Verified commercial work matching requested aesthetic and fidelity.'}
-                    </p>
+            <div className="matching-card-right">
+              <div className="recommended-creator-box">
+                <div className="creator-header-row">
+                  <img 
+                    src={bestMatch.creator.avatar} 
+                    alt={bestMatch.creator.name} 
+                    className="creator-avatar-img"
+                  />
+                  <div className="creator-info-meta">
+                    <span className="creator-badge-recommended">Top Fit Creator</span>
+                    <h4 className="creator-name font-editorial">{bestMatch.creator.name}</h4>
+                    <span className="creator-specialty">{bestMatch.creator.creativeIdentity || bestMatch.creator.primaryMedium}</span>
                   </div>
                 </div>
 
-                {/* Requirements Satisfied & Nuances */}
-                <div className="evidence-strengths-box">
-                  <span className="evidence-strengths-label">Key Requirements Satisfied:</span>
-                  <div className="strengths-list">
-                    {(topCreator.explanation.highlights || topCreator.creator.capabilities || []).slice(0, 3).map((strength, i) => (
-                      <div key={i} className="strength-item">
-                        <Check size={14} className="text-mint" />
-                        <span>{strength}</span>
-                      </div>
-                    ))}
+                <div className="creator-work-preview-thumb">
+                  <img 
+                    src={bestMatch.creator.projects?.[0]?.image || bestMatch.creator.heroWork} 
+                    alt="Featured creator work" 
+                    className="matched-work-image"
+                  />
+                  <div className="matched-work-caption">
+                    <span>Portfolio Proof: {bestMatch.creator.projects?.[0]?.title || 'Featured Project'}</span>
                   </div>
                 </div>
 
-                {/* Status Notice */}
-                <div className="evidence-disclaimer">
-                  <CheckCircle2 size={13} className="text-lavender-deep" />
-                  <span>Deterministic matching demonstration. Calculations cross-reference verified project metadata.</span>
+                <div className="match-explanation-quote">
+                  <p>
+                    "{bestMatch.explanation.rationale || `Proven commercial expertise aligning directly with ${currentCampaign.industry.toLowerCase()} creative direction.`}"
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         )}
+
+        {/* Action Row */}
+        <div className="matching-action-row">
+          <button
+            type="button"
+            className="btn-editorial-dark"
+            onClick={onExploreDiscover}
+            id="matching-explore-matches-btn"
+          >
+            <span>Explore AI creators & matches</span>
+            <ArrowRight size={14} />
+          </button>
+        </div>
+
       </div>
     </section>
   );

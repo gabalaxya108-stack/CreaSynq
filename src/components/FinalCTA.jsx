@@ -1,52 +1,61 @@
 // src/components/FinalCTA.jsx
-// SECTION J: Closing Statement
-// Headline: "Great things happen when creativity connects."
-// Supporting text: "Bring the right people and ideas together."
-// Actions: "Start a campaign", "Join as a creator"
+// SECTION 6 — Final Call To Action
+// Heading: "Your next great collaboration starts here."
+// Supporting copy: "Discover the creators, perspectives, and creative possibilities that bring your next idea to life."
+// Primary CTA: Explore Creators
+// Secondary CTA: I'm a Creator
 
 import React from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export default function FinalCTA({ onFindCreator, onJoinCreator }) {
   return (
-    <section className="section-final-cta" id="closing-cta">
-      <div className="page-container">
-        <div className="final-cta-card-editorial">
-          <div className="final-cta-content">
-            <div className="section-pill-tag">
-              <span className="pill-dot-sm" />
-              <span>CreaSync Creative Ecosystem</span>
-            </div>
-
-            <h2 className="final-cta-headline font-editorial">
-              Let's make something worth creating.
-            </h2>
-
-            <p className="final-cta-desc">
-              Discover talent, craft campaign briefs, and collaborate with AI creators who understand your aesthetic.
-            </p>
-
-            <div className="final-cta-buttons">
-              <button 
-                type="button" 
-                className="btn btn-primary btn-lg"
-                onClick={onFindCreator}
-                id="final-cta-start-campaign"
-              >
-                <span>Start a Campaign</span>
-                <ArrowRight size={16} />
-              </button>
-
-              <button 
-                type="button" 
-                className="btn btn-secondary btn-lg"
-                onClick={onJoinCreator}
-                id="final-cta-join-creator"
-              >
-                <span>Join as a Creator</span>
-              </button>
-            </div>
+    <section className="alloy-closing-section" id="closing-cta">
+      <div className="page-container alloy-closing-container">
+        <div className="alloy-closing-card">
+          
+          <div className="alloy-closing-sculpture-bg" aria-hidden="true">
+            <img 
+              src="/assets/alloy-emblem-transparent.png" 
+              alt="" 
+              className="closing-sculpture-img" 
+            />
           </div>
+
+          <div className="section-pill-badge closing-badge">
+            <span className="pill-dot" />
+            <span>READY TO COLLABORATE?</span>
+          </div>
+
+          <h2 className="closing-headline font-editorial">
+            Your next great collaboration starts here.
+          </h2>
+
+          <p className="closing-subtext">
+            Discover the creators, perspectives, and creative possibilities that bring your next idea to life.
+          </p>
+
+          <div className="closing-editorial-actions">
+            <button 
+              type="button" 
+              className="btn-editorial-dark"
+              onClick={onFindCreator}
+              id="final-explore-creators-btn"
+            >
+              <span>Explore Creators</span>
+              <ArrowRight size={14} />
+            </button>
+
+            <button 
+              type="button" 
+              className="btn-editorial-outline"
+              onClick={onJoinCreator}
+              id="final-join-creator-btn"
+            >
+              <span>I'm a Creator</span>
+            </button>
+          </div>
+
         </div>
       </div>
     </section>

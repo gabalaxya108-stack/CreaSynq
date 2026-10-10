@@ -39,6 +39,7 @@ export default function RoleSelectModal({
           {/* Option 1: Brand / Agency */}
           <div 
             className="role-option-card brand-option"
+            id="role-select-brand-card"
             tabIndex={0}
             role="button"
             onClick={() => {
@@ -56,7 +57,7 @@ export default function RoleSelectModal({
               <Briefcase size={24} />
             </div>
             <div className="role-badge-pill">For Brands & Agencies</div>
-            <h3 className="role-title">I want to hire AI creators</h3>
+            <h3 className="role-title">I want to hire</h3>
             <p className="role-explanation">
               Describe your campaign, discover matched creators, review creative concept directions, 
               and manage collaborations from brief to final delivery.
@@ -77,6 +78,7 @@ export default function RoleSelectModal({
           {/* Option 2: AI Creator */}
           <div 
             className="role-option-card creator-option"
+            id="role-select-creator-card"
             tabIndex={0}
             role="button"
             onClick={() => {
@@ -94,7 +96,7 @@ export default function RoleSelectModal({
               <Palette size={24} />
             </div>
             <div className="role-badge-pill">For AI Artists & Directors</div>
-            <h3 className="role-title">I am an AI Creator</h3>
+            <h3 className="role-title">I'm a creator</h3>
             <p className="role-explanation">
               Build your public portfolio, generate your Creator DNA, discover tailored campaign opportunities, 
               and work directly with forward-thinking brands.

@@ -28,10 +28,11 @@ import WhyThisCreatorModal from './components/WhyThisCreatorModal';
 import ConversationModal from './components/ConversationModal';
 import RoleSelectModal from './components/RoleSelectModal';
 import LoginModal from './components/LoginModal';
+import RoleConflictModal from './components/RoleConflictModal';
 
 import { CREATORS } from './data/creatorsData';
-import { 
-  getInitialMarketplaceState, 
+import {
+  getInitialMarketplaceState,
   saveMarketplaceState,
   subscribeToMarketplace,
   getBrandScopedData,
@@ -43,14 +44,19 @@ import {
   getPublicCreatorProfile,
   INITIAL_CAMPAIGNS
 } from './data/marketplaceStore';
-import { 
-  fetchCreators as fetchBackendCreators, 
-  fetchCampaigns as fetchBackendCampaigns, 
+import {
+  fetchCreators as fetchBackendCreators,
+  fetchCampaigns as fetchBackendCampaigns,
   saveCreator as saveBackendCreator,
   saveCampaign as saveBackendCampaign,
   savePortfolioProject as saveBackendProject,
-  getBackendStatus
+  getBackendStatus,
+  getCurrentUser,
+  signOut as backendSignOut,
+  syncUserProfileSafely,
+  updateUserRoleExplicitly
 } from './services/marketplaceBackend';
+import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('home'); // 'home' | 'discover' | 'creator-profile' | 'creator-not-found' | 'brand-workspace' | 'creator-join' | 'creator-workspace'
@@ -149,15 +155,453 @@ export default function App() {
   const [activeConversationConnection, setActiveConversationConnection] = useState(null);
   const [conversationUserRole, setConversationUserRole] = useState('brand');
 
+  // Active Authenticated User & Protected Action Queue
+  const [currentUser, setCurrentUser] = useState(null);
+  const currentUserRef = useRef(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [loginInitialRole, setLoginInitialRole] = useState('brand');
+  const [loginNotice, setLoginNotice] = useState(null);
+
+  // Synchronously update both the ref and the React state
+  const updateActiveUser = (user) => {
+    currentUserRef.current = user;
+    setCurrentUser(user);
+  };
+
+  // Safely resolve the active role without letting Supabase default 'authenticated' confuse role logic
+  const resolveUserRole = (user) => {
+    if (!user) {
+      if (typeof window !== 'undefined') {
+        const active = localStorage.getItem('creasync_active_role');
+        if (active === 'brand' || active === 'creator') return active;
+      }
+      return null;
+    }
+    if (user.profile?.role === 'brand' || user.profile?.role === 'creator') {
+      return user.profile.role;
+    }
+    if (user.user_metadata?.intended_role === 'brand' || user.user_metadata?.intended_role === 'creator') {
+      return user.user_metadata.intended_role;
+    }
+    if (user.user_metadata?.role === 'brand' || user.user_metadata?.role === 'creator') {
+      return user.user_metadata.role;
+    }
+    if (user.role === 'brand' || user.role === 'creator') {
+      return user.role;
+    }
+    if (typeof window !== 'undefined') {
+      const active = localStorage.getItem('creasync_active_role');
+      if (active === 'brand' || active === 'creator') return active;
+      const intended = sessionStorage.getItem('creasync_intended_role') || localStorage.getItem('creasync_intended_role');
+      if (intended === 'brand' || intended === 'creator') return intended;
+    }
+    return null;
+  };
+
+  // Role Conflict Resolution State
+  const [isRoleConflictOpen, setIsRoleConflictOpen] = useState(false);
+  const [conflictAttemptedRole, setConflictAttemptedRole] = useState('brand');
+
+  // Authentication & OAuth session synchronization
+  useEffect(() => {
+    let isMounted = true;
+    let authListener = null;
+
+    if (isSupabaseConfigured() && supabase) {
+      // 1. Validate session against Supabase Auth server on mount
+      getCurrentUser().then(user => {
+        if (!isMounted) return;
+        if (user) {
+          updateActiveUser(user);
+          syncUserProfileSafely(user, null);
+        } else {
+          const localUser = typeof window !== 'undefined'
+            ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null')
+            : null;
+          if (localUser) {
+            updateActiveUser(localUser);
+          } else {
+            updateActiveUser(null);
+          }
+        }
+        setAuthLoading(false);
+      }).catch(err => {
+        console.warn('[CreaSync Auth] Session validation note:', err);
+        const localUser = typeof window !== 'undefined'
+          ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null')
+          : null;
+        if (localUser) {
+          updateActiveUser(localUser);
+        } else {
+          updateActiveUser(null);
+        }
+        if (isMounted) setAuthLoading(false);
+      });
+
+      // 2. Reactively handle OAuth callbacks & auth transitions without races
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!isMounted) return;
+
+        if (event === 'SIGNED_IN') {
+          if (session?.user) {
+            // Retrieve intended role preserved across OAuth redirect
+            let intendedRole = null;
+            if (typeof window !== 'undefined') {
+              try {
+                intendedRole = sessionStorage.getItem('creasync_intended_role')
+                  || localStorage.getItem('creasync_intended_role');
+              } catch (e) { }
+            }
+
+            // Sync user profile (preserves existing verified profile roles!)
+            const syncedProfile = await syncUserProfileSafely(session.user, intendedRole);
+
+            // Validate user and load verified database profile
+            const verifiedUser = await getCurrentUser();
+            const active = verifiedUser || { ...session.user, profile: syncedProfile };
+            if (syncedProfile && active) {
+              active.profile = syncedProfile;
+            }
+            const activeRole = active?.profile?.role
+              || (active?.role !== 'authenticated' ? active?.role : null)
+              || intendedRole
+              || (typeof window !== 'undefined' ? localStorage.getItem('creasync_active_role') : null)
+              || 'brand';
+
+            active.role = activeRole;
+            if (!active.profile) {
+              active.profile = { role: activeRole };
+            } else {
+              active.profile.role = activeRole;
+            }
+
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('creasync_active_user', JSON.stringify(active));
+              localStorage.setItem('creasync_active_role', activeRole);
+            }
+
+            updateActiveUser(active);
+            setAuthLoading(false);
+
+            // Detect if this event is an active OAuth return, pending action, or fresh login
+            const hasPendingAction = typeof window !== 'undefined' && !!sessionStorage.getItem('creasync_pending_action');
+            const isOAuthReturn = !!intendedRole || (typeof window !== 'undefined' && (
+              window.location.hash.includes('access_token=') ||
+              window.location.search.includes('code=')
+            ));
+
+            if (isOAuthReturn || hasPendingAction) {
+              executePendingActionOrRoute(active, intendedRole);
+            }
+          }
+        } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          if (session?.user) {
+            const verifiedUser = await getCurrentUser();
+            updateActiveUser(verifiedUser || session.user);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          updateActiveUser(null);
+          setAuthLoading(false);
+        }
+      });
+
+      authListener = subscription;
+    } else {
+      // Fallback for offline/local simulation
+      getCurrentUser().then(user => {
+        if (isMounted) {
+          if (user) {
+            updateActiveUser(user);
+          }
+          setAuthLoading(false);
+        }
+      }).catch(() => {
+        if (isMounted) setAuthLoading(false);
+      });
+    }
+
+    return () => {
+      isMounted = false;
+      if (authListener) {
+        authListener.unsubscribe();
+      }
+    };
+  }, []);
+
+  // Executes pending action queued before login/OAuth redirect, or routes to appropriate workspace
+  const executePendingActionOrRoute = (user, explicitRole = null) => {
+    if (user) {
+      updateActiveUser(user);
+    }
+    const activeUser = user || currentUserRef.current || currentUser;
+
+    let action = pendingAction;
+    if (!action) {
+      try {
+        const stored = sessionStorage.getItem('creasync_pending_action');
+        if (stored) {
+          action = JSON.parse(stored);
+        }
+      } catch (e) { }
+    }
+
+    try {
+      sessionStorage.removeItem('creasync_pending_action');
+    } catch (e) { }
+    setPendingAction(null);
+    setLoginNotice(null);
+    setIsLoginOpen(false); // Close login modal on successful authentication
+
+    // Role-based routing hierarchy:
+    // 1. Database-verified profile role (Preserve existing persisted role!)
+    // 2. Explicit role passed to this execution (if user had no existing profile role)
+    // 3. Stored intent from current login flow (if user had no existing profile role)
+    // 4. User metadata (role or intended_role)
+    // 5. Active role stored in localStorage
+    const storedIntent = typeof window !== 'undefined'
+      ? (sessionStorage.getItem('creasync_intended_role') || localStorage.getItem('creasync_intended_role'))
+      : null;
+    const storedActive = typeof window !== 'undefined'
+      ? localStorage.getItem('creasync_active_role')
+      : null;
+
+    const existingProfileRole = (activeUser?.profile?.role === 'creator' || activeUser?.profile?.role === 'brand')
+      ? activeUser.profile.role
+      : null;
+
+    const resolvedRole = existingProfileRole
+      || (explicitRole === 'creator' || explicitRole === 'brand' ? explicitRole : null)
+      || (storedIntent === 'creator' || storedIntent === 'brand' ? storedIntent : null)
+      || resolveUserRole(activeUser)
+      || (storedActive === 'creator' || storedActive === 'brand' ? storedActive : null);
+
+    if (resolvedRole === 'brand' || resolvedRole === 'creator') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('creasync_active_role', resolvedRole);
+      }
+      if (activeUser) {
+        if (!activeUser.profile || !activeUser.profile.role) {
+          activeUser.profile = { ...(activeUser.profile || {}), role: resolvedRole };
+        }
+        activeUser.role = resolvedRole;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('creasync_active_user', JSON.stringify(activeUser));
+        }
+      }
+    }
+
+    // Consume one-time OAuth intent after routing
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('creasync_intended_role');
+        localStorage.removeItem('creasync_intended_role');
+      } catch (e) { }
+    }
+
+    if (action) {
+      switch (action.type) {
+        case 'CREATE_CAMPAIGN':
+          setIsCampaignModalOpen(true);
+          return;
+        case 'INVITE_CREATOR':
+          if (action.creator) {
+            setInviteTargetCreator(action.creator);
+            setIsInviteModalOpen(true);
+          }
+          return;
+        case 'TOGGLE_SAVE':
+          if (action.creatorId) {
+            setSavedCreatorIds(prev =>
+              prev.includes(action.creatorId)
+                ? prev.filter(id => id !== action.creatorId)
+                : [...prev, action.creatorId]
+            );
+          }
+          return;
+        case 'OPEN_CONVERSATION':
+          if (action.connection) {
+            setActiveConversationConnection(action.connection);
+            setConversationUserRole(action.userRole || 'brand');
+            setIsConversationOpen(true);
+          }
+          return;
+        case 'PUBLISH_CREATOR':
+          if (action.creator) {
+            // Same persistence path as handlePublishCreator — ownership pointer must land
+            // in localStorage before backend sync to avoid stale shared-store snapshots
+            saveMarketplaceState({
+              ...updateCreatorRecord(getInitialMarketplaceState(), action.creator),
+              myCreatorId: action.creator.id
+            });
+            setMarketplaceData(prev => ({
+              ...updateCreatorRecord(prev, action.creator),
+              myCreatorId: action.creator.id
+            }));
+            setActiveCreatorId(action.creator.id);
+            saveBackendCreator(action.creator).catch(err => {
+              console.warn('[CreaSync] Background creator sync deferred:', err);
+            });
+            navigateTo('creator-workspace', null, activeUser);
+          }
+          return;
+        case 'NAVIGATE':
+          if (action.view === 'brand-workspace') {
+            if (resolvedRole === 'brand') {
+              navigateTo('brand-workspace', null, activeUser);
+            } else if (resolvedRole === 'creator') {
+              setConflictAttemptedRole('brand');
+              setIsRoleConflictOpen(true);
+            } else {
+              setIsRoleSelectOpen(true);
+            }
+            return;
+          } else if (action.view === 'creator-workspace') {
+            if (resolvedRole === 'creator') {
+              navigateTo('creator-workspace', null, activeUser);
+            } else if (resolvedRole === 'brand') {
+              setConflictAttemptedRole('creator');
+              setIsRoleConflictOpen(true);
+            } else {
+              setIsRoleSelectOpen(true);
+            }
+            return;
+          } else if (action.view) {
+            navigateTo(action.view, null, activeUser);
+            return;
+          }
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (resolvedRole === 'creator') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('creasync_active_role', 'creator');
+      }
+      navigateTo('creator-workspace', null, activeUser);
+    } else if (resolvedRole === 'brand') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('creasync_active_role', 'brand');
+      }
+      navigateTo('brand-workspace', null, activeUser);
+    } else {
+      // Missing role: prompt explicitly
+      console.warn('[CreaSync Auth] Missing role for authenticated user; opening role selection');
+      setIsRoleSelectOpen(true);
+    }
+  };
+
+  // Guard wrapper for actions that require authentication
+  const requireAuth = (actionConfig, onAuthorized) => {
+    const activeUser = currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
+    if (activeUser) {
+      if (typeof onAuthorized === 'function') {
+        onAuthorized();
+      }
+      return true;
+    }
+
+    setPendingAction(actionConfig);
+    const targetRole = actionConfig.role || 'brand';
+    try {
+      sessionStorage.setItem('creasync_pending_action', JSON.stringify(actionConfig));
+      sessionStorage.setItem('creasync_intended_role', targetRole);
+      localStorage.setItem('creasync_intended_role', targetRole);
+    } catch (e) { }
+
+    setLoginInitialRole(targetRole);
+    setLoginNotice(actionConfig.notice || 'Authentication required to proceed');
+    setIsLoginOpen(true);
+    return false;
+  };
+
+  // Contextual authentication for "I want to hire"
+  const handleHireAction = () => {
+    const activeUser = currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
+    if (!activeUser) {
+      requireAuth({
+        type: 'NAVIGATE',
+        view: 'brand-workspace',
+        role: 'brand',
+        notice: 'Please sign in to access Brand Studio and hire creators'
+      }, () => {
+        navigateTo('brand-workspace');
+      });
+      return;
+    }
+
+    const currentRole = resolveUserRole(activeUser);
+
+    if (currentRole === 'brand') {
+      navigateTo('brand-workspace', null, activeUser);
+    } else if (currentRole === 'creator') {
+      // Explicit role conflict handling without silent overwrite
+      setConflictAttemptedRole('brand');
+      setIsRoleConflictOpen(true);
+    } else {
+      // Missing role: prompt explicitly
+      setIsRoleSelectOpen(true);
+    }
+  };
+
+  // Contextual authentication for "I'm a creator"
+  const handleCreatorAction = () => {
+    const activeUser = currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
+    if (!activeUser) {
+      requireAuth({
+        type: 'NAVIGATE',
+        view: 'creator-workspace',
+        role: 'creator',
+        notice: 'Please sign in to access Creator Studio and build your portfolio'
+      }, () => {
+        navigateTo('creator-workspace');
+      });
+      return;
+    }
+
+    const currentRole = resolveUserRole(activeUser);
+
+    if (currentRole === 'creator') {
+      navigateTo('creator-workspace', null, activeUser);
+    } else if (currentRole === 'brand') {
+      // Explicit role conflict handling without silent overwrite
+      setConflictAttemptedRole('creator');
+      setIsRoleConflictOpen(true);
+    } else {
+      // Missing role: prompt explicitly
+      setIsRoleSelectOpen(true);
+    }
+  };
+
+  const handleLogout = async () => {
+    await backendSignOut();
+    updateActiveUser(null);
+    setPendingAction(null);
+    setLoginNotice(null);
+    setIsLoginOpen(false);
+    try {
+      sessionStorage.removeItem('creasync_pending_action');
+      sessionStorage.removeItem('creasync_intended_role');
+    } catch (e) { }
+    navigateTo('home', null, null);
+  };
+
   const handleOpenWhyModal = (creator) => {
     setWhyModalCreator(creator);
     setIsWhyModalOpen(true);
   };
 
   const handleOpenConversation = (conn, userRole = 'brand') => {
-    setActiveConversationConnection(conn);
-    setConversationUserRole(userRole);
-    setIsConversationOpen(true);
+    requireAuth(
+      { type: 'OPEN_CONVERSATION', connection: conn, userRole, role: userRole, notice: 'Please sign in to access collaboration discussions' },
+      () => {
+        setActiveConversationConnection(conn);
+        setConversationUserRole(userRole);
+        setIsConversationOpen(true);
+      }
+    );
   };
 
   // --- Messaging Action ---
@@ -182,19 +626,49 @@ export default function App() {
     }));
   };
 
-  // Hash & URL Synchronization — Stabilized with ref so creator state updates do not re-trigger scroll
+  // Hash & URL Synchronization with Protected Route Guards
+  // Stabilized with ref so creator state updates do not re-trigger scroll or auth-dependent effects
   const creatorsListRef = useRef(creatorsList);
   useEffect(() => {
     creatorsListRef.current = creatorsList;
   }, [creatorsList]);
 
   useEffect(() => {
+    if (authLoading) return; // Prevent race conditions during initial session restoration
+
     const handleLocationChange = () => {
       const hash = window.location.hash.replace('#', '');
+      const activeUser = currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
+      const currentRole = resolveUserRole(activeUser);
+
       if (hash.startsWith('/creator/join')) {
         setCurrentView('creator-join');
       } else if (hash === '/creator') {
-        setCurrentView('creator-workspace');
+        // Protected Route Guard: Creator Studio
+        if (!activeUser) {
+          requireAuth({
+            type: 'NAVIGATE',
+            view: 'creator-workspace',
+            role: 'creator',
+            notice: 'Please sign in to access Creator Studio'
+          });
+          setCurrentView('home');
+          window.location.hash = '';
+          return;
+        }
+
+        if (currentRole === 'creator') {
+          setCurrentView('creator-workspace');
+        } else if (currentRole === 'brand') {
+          setConflictAttemptedRole('creator');
+          setIsRoleConflictOpen(true);
+          setCurrentView('home');
+          window.location.hash = '';
+        } else {
+          setIsRoleSelectOpen(true);
+          setCurrentView('home');
+          window.location.hash = '';
+        }
       } else if (hash.startsWith('/creator/')) {
         const id = hash.replace('/creator/', '');
         const found = creatorsListRef.current.find(c => c.id === id);
@@ -211,7 +685,31 @@ export default function App() {
       } else if (hash === '/brand/onboard') {
         setCurrentView('brand-onboard');
       } else if (hash === '/brand') {
-        setCurrentView('brand-workspace');
+        // Protected Route Guard: Brand Studio
+        if (!activeUser) {
+          requireAuth({
+            type: 'NAVIGATE',
+            view: 'brand-workspace',
+            role: 'brand',
+            notice: 'Please sign in to access Brand Studio'
+          });
+          setCurrentView('home');
+          window.location.hash = '';
+          return;
+        }
+
+        if (currentRole === 'brand') {
+          setCurrentView('brand-workspace');
+        } else if (currentRole === 'creator') {
+          setConflictAttemptedRole('brand');
+          setIsRoleConflictOpen(true);
+          setCurrentView('home');
+          window.location.hash = '';
+        } else {
+          setIsRoleSelectOpen(true);
+          setCurrentView('home');
+          window.location.hash = '';
+        }
       } else {
         setCurrentView('home');
       }
@@ -219,13 +717,57 @@ export default function App() {
     };
 
     window.addEventListener('hashchange', handleLocationChange);
-    if (window.location.hash) {
-      handleLocationChange();
-    }
+    handleLocationChange();
     return () => window.removeEventListener('hashchange', handleLocationChange);
-  }, []);
+  }, [authLoading, currentUser]);
 
-  const navigateTo = (view, extraId = null) => {
+  const navigateTo = (view, extraId = null, overrideUser = null) => {
+    const activeUser = overrideUser || currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
+    const currentRole = resolveUserRole(activeUser);
+
+    if (view === 'brand-workspace') {
+      if (!activeUser) {
+        requireAuth({
+          type: 'NAVIGATE',
+          view: 'brand-workspace',
+          role: 'brand',
+          notice: 'Please sign in to access Brand Studio'
+        });
+        return;
+      }
+      if (currentRole === 'creator') {
+        setConflictAttemptedRole('brand');
+        setIsRoleConflictOpen(true);
+        return;
+      }
+      setCurrentView('brand-workspace');
+      window.location.hash = '/brand';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (view === 'creator-workspace') {
+      if (!activeUser) {
+        requireAuth({
+          type: 'NAVIGATE',
+          view: 'creator-workspace',
+          role: 'creator',
+          notice: 'Please sign in to access Creator Studio'
+        });
+        return;
+      }
+      if (currentRole === 'brand') {
+        setConflictAttemptedRole('creator');
+        setIsRoleConflictOpen(true);
+        return;
+      }
+      setCurrentView('creator-workspace');
+      window.location.hash = '/creator';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+
     setCurrentView(view);
     if (view === 'creator-profile' && extraId) {
       setActiveCreatorId(extraId);
@@ -234,24 +776,25 @@ export default function App() {
       window.location.hash = 'discover';
     } else if (view === 'brand-onboard') {
       window.location.hash = '/brand/onboard';
-    } else if (view === 'brand-workspace') {
-      window.location.hash = '/brand';
     } else if (view === 'creator-join') {
       window.location.hash = '/creator/join';
-    } else if (view === 'creator-workspace') {
-      window.location.hash = '/creator';
     } else {
       window.location.hash = '';
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Toggle Save Creator (Favorites)
+  // Toggle Save Creator (Favorites) - Protected Action
   const handleToggleSaveCreator = (creatorId) => {
-    setSavedCreatorIds((prev) => 
-      prev.includes(creatorId) 
-        ? prev.filter(id => id !== creatorId) 
-        : [...prev, creatorId]
+    requireAuth(
+      { type: 'TOGGLE_SAVE', creatorId, role: 'brand', notice: 'Please sign in to save creators to your shortlist' },
+      () => {
+        setSavedCreatorIds((prev) =>
+          prev.includes(creatorId)
+            ? prev.filter(id => id !== creatorId)
+            : [...prev, creatorId]
+        );
+      }
     );
   };
 
@@ -328,10 +871,10 @@ export default function App() {
   const handleUpdateCampaign = (campaignId, updates) => {
     setMarketplaceData(prev => ({
       ...prev,
-      campaigns: (prev.campaigns || []).map(c => c.id === campaignId ? { 
-        ...c, 
-        ...updates, 
-        updatedAt: 'Just now' 
+      campaigns: (prev.campaigns || []).map(c => c.id === campaignId ? {
+        ...c,
+        ...updates,
+        updatedAt: 'Just now'
       } : c)
     }));
   };
@@ -483,7 +1026,7 @@ export default function App() {
     setMarketplaceData(prev => ({
       ...prev,
       invitations: prev.invitations.map(inv => inv.id === invitation.id ? { ...inv, status: 'accepted' } : inv),
-      projects: existingProject 
+      projects: existingProject
         ? prev.projects.map(p => p.id === existingProject.id ? newProject : p)
         : [newProject, ...prev.projects]
     }));
@@ -582,24 +1125,27 @@ export default function App() {
     });
   };
 
-  // Creator Onboarding Completed
+  // Creator Onboarding Completed - Protected Action
   const handlePublishCreator = (newCreator) => {
-    // Persist through the shared store first: saveBackendCreator does load-modify-save
-    // against localStorage and broadcasts the snapshot it loaded, so the ownership
-    // pointer must already be on disk before that call runs.
-    saveMarketplaceState({
-      ...updateCreatorRecord(getInitialMarketplaceState(), newCreator),
-      myCreatorId: newCreator.id
-    });
-    setMarketplaceData(prev => ({
-      ...updateCreatorRecord(prev, newCreator),
-      myCreatorId: newCreator.id
-    }));
-    setActiveCreatorId(newCreator.id);
-    saveBackendCreator(newCreator).catch(err => {
-      console.warn('[CreaSync] Background creator sync deferred:', err);
-    });
-    navigateTo('creator-workspace');
+    requireAuth(
+      { type: 'PUBLISH_CREATOR', creator: newCreator, role: 'creator', notice: 'Please sign in to publish your creator profile to the marketplace' },
+      () => {
+        // Persist ownership pointer to localStorage before backend sync to avoid stale snapshots
+        saveMarketplaceState({
+          ...updateCreatorRecord(getInitialMarketplaceState(), newCreator),
+          myCreatorId: newCreator.id
+        });
+        setMarketplaceData(prev => ({
+          ...updateCreatorRecord(prev, newCreator),
+          myCreatorId: newCreator.id
+        }));
+        setActiveCreatorId(newCreator.id);
+        saveBackendCreator(newCreator).catch(err => {
+          console.warn('[CreaSync] Background creator sync deferred:', err);
+        });
+        navigateTo('creator-workspace');
+      }
+    );
   };
 
   const handleOpenCreatorProfile = (creatorId) => {
@@ -613,8 +1159,13 @@ export default function App() {
   };
 
   const handleOpenInviteModal = (creator) => {
-    setInviteTargetCreator(creator);
-    setIsInviteModalOpen(true);
+    requireAuth(
+      { type: 'INVITE_CREATOR', creator, role: 'brand', notice: `Please sign in to invite ${creator?.name || 'this creator'}` },
+      () => {
+        setInviteTargetCreator(creator);
+        setIsInviteModalOpen(true);
+      }
+    );
   };
 
   const handleOpportunityResponse = (opportunity, message) => {
@@ -659,69 +1210,64 @@ export default function App() {
       <Header
         currentView={currentView}
         onNavigate={(v) => navigateTo(v)}
-        onOpenCampaignModal={() => setIsCampaignModalOpen(true)}
+        onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
         onOpenCreatorModal={() => navigateTo('creator-join')}
         onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
-        onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenLogin={() => {
+          setLoginNotice(null);
+          setIsLoginOpen(true);
+        }}
         onOpenForBrandsModal={() => setIsForBrandsOpen(true)}
         onOpenForCreatorsModal={() => setIsForCreatorsOpen(true)}
         activeCampaign={activeCampaign}
         createdCreatorProfile={myCreator}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Main Views */}
       <main>
-        {/* VIEW 1: HOME LANDING — Apple-inspired progressive storytelling */}
+        {/* VIEW 1: ALLOY LANDING — Complete Redesigned Editorial Marketplace */}
         {currentView === 'home' && (
           <>
-            {/* SECTION B: Signature Hero ("The right creator. The right idea. In sync.") */}
+            {/* SECTION 1: Editorial Hero with Original Campaign Artwork */}
             <Hero
-              onFindCreator={() => navigateTo('brand-onboard')}
-              onJoinCreator={() => navigateTo('creator-join')}
+              onFindCreator={handleHireAction}
+              onJoinCreator={handleCreatorAction}
               onExploreWork={() => navigateTo('discover')}
-            />
-
-            {/* SECTION C: Make the Two Journeys Obvious (Directly after Hero) */}
-            <TwoJourneysSection
-              onExploreBrandStudio={() => navigateTo('brand-workspace')}
-              onBuildCreatorProfile={() => navigateTo('creator-join')}
-            />
-
-            {/* SECTION D: Visual Marketplace ("Meet creativity in every direction.") */}
-            <CreativeShowcase
-              creators={creatorsList}
-              onSelectProject={handleSelectProject}
-              onExploreAll={() => navigateTo('discover')}
-            />
-
-            {/* SECTION E: Creator DNA ("Every creator has a signature.") */}
-            <CreatorDNASection
-              creators={creatorsList}
               onSelectCreator={handleOpenCreatorProfile}
             />
 
-            {/* SECTION E: The Intelligence Behind the Match (CreaMatch & CreaScore) */}
+            {/* SECTION 2: Explain What Alloy Does (3-Part Clean Editorial Layout) */}
+            <HowItWorks
+              onFindCreators={handleHireAction}
+              onBuildPortfolio={handleCreatorAction}
+            />
+
+            {/* SECTION 3: Showcase Creative Work (Curated Editorial Gallery) */}
+            <CreativeShowcase
+              creators={creatorsList}
+              onSelectCreator={handleOpenCreatorProfile}
+              onExploreAll={() => navigateTo('discover')}
+            />
+
+            {/* SECTION 4: Two Clear User Journeys (For Brands & For Creators) */}
+            <TwoJourneysSection
+              onFindCreators={handleHireAction}
+              onJoinAlloy={handleCreatorAction}
+            />
+
+            {/* SECTION 5: Show How Matching Works (Explainable Style Alignment) */}
             <CreaMatchSection
               creators={creatorsList}
               onExploreDiscover={() => navigateTo('discover')}
               onEnterBrandStudio={() => navigateTo('brand-workspace')}
             />
 
-            {/* SECTION: CreaSim: From Brief to Creative Concept */}
-            <ProductPreview
-              onSelectCreator={handleOpenCreatorProfile}
-              onExploreMarketplace={() => navigateTo('discover')}
-            />
-
-            {/* SECTION: The Collaboration Journey ("From first idea to final delivery.") */}
-            <HowItWorks
-              onGetStarted={() => setIsRoleSelectOpen(true)}
-            />
-
-            {/* SECTION F: Closing Statement ("Let's make something worth creating.") */}
+            {/* SECTION 6: Final Call To Action */}
             <FinalCTA
-              onFindCreator={() => navigateTo('brand-onboard')}
-              onJoinCreator={() => navigateTo('creator-join')}
+              onFindCreator={handleHireAction}
+              onJoinCreator={handleCreatorAction}
             />
           </>
         )}
@@ -892,11 +1438,15 @@ export default function App() {
       {/* SECTION K: Clean Footer */}
       <Footer
         onNavigate={(v) => navigateTo(v)}
-        onOpenCampaignModal={() => setIsCampaignModalOpen(true)}
-        onOpenCreatorModal={() => navigateTo('creator-join')}
-        onEnterBrandStudio={() => navigateTo('brand-workspace')}
-        onEnterCreatorStudio={() => navigateTo('creator-workspace')}
-        onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
+        onOpenCreatorModal={handleCreatorAction}
+        onEnterBrandStudio={handleHireAction}
+        onEnterCreatorStudio={handleCreatorAction}
+        onOpenLogin={() => {
+          setLoginNotice(null);
+          setLoginInitialRole('brand');
+          setIsLoginOpen(true);
+        }}
         onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
       />
 
@@ -906,25 +1456,134 @@ export default function App() {
         onClose={() => setIsRoleSelectOpen(false)}
         onSelectBrand={() => {
           setIsRoleSelectOpen(false);
-          navigateTo('brand-onboard');
+          if (currentUser) {
+            updateUserRoleExplicitly(currentUser, 'brand').then(() => {
+              setCurrentUser(prev => ({ ...prev, role: 'brand', profile: { ...prev?.profile, role: 'brand' } }));
+              navigateTo('brand-workspace');
+            });
+          } else {
+            handleHireAction();
+          }
         }}
         onSelectCreator={() => {
           setIsRoleSelectOpen(false);
-          navigateTo('creator-join');
+          if (currentUser) {
+            updateUserRoleExplicitly(currentUser, 'creator').then(() => {
+              setCurrentUser(prev => ({ ...prev, role: 'creator', profile: { ...prev?.profile, role: 'creator' } }));
+              navigateTo('creator-workspace');
+            });
+          } else {
+            handleCreatorAction();
+          }
         }}
+      />
+
+      {/* Role Conflict Resolution Modal */}
+      <RoleConflictModal
+        isOpen={isRoleConflictOpen}
+        onClose={() => setIsRoleConflictOpen(false)}
+        currentRole={currentUser?.profile?.role || currentUser?.role || (typeof window !== 'undefined' ? localStorage.getItem('creasync_active_role') : null) || 'brand'}
+        attemptedRole={conflictAttemptedRole}
+        userName={currentUser?.user_metadata?.full_name || currentUser?.profile?.display_name || currentUser?.email?.split('@')[0] || 'User'}
+        onGoToAuthorizedWorkspace={() => {
+          const activeRole = currentUser?.profile?.role || currentUser?.role || localStorage.getItem('creasync_active_role');
+          if (activeRole === 'creator') {
+            navigateTo('creator-workspace');
+          } else {
+            navigateTo('brand-workspace');
+          }
+        }}
+        onLogout={handleLogout}
       />
 
       {/* Login Authentication Modal */}
       <LoginModal
         isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-        onLoginBrand={() => {
+        onClose={() => {
           setIsLoginOpen(false);
-          navigateTo('brand-workspace');
+          setLoginNotice(null);
+          setPendingAction(null);
+          try {
+            sessionStorage.removeItem('creasync_pending_action');
+          } catch (e) { }
         }}
-        onLoginCreator={() => {
+        initialRole={loginInitialRole}
+        pendingActionNotice={loginNotice}
+        onLoginSuccess={(user, role) => {
           setIsLoginOpen(false);
-          navigateTo('creator-workspace');
+          setLoginNotice(null);
+          const targetRole = role || user?.profile?.role || (user?.role !== 'authenticated' ? user?.role : null) || 'brand';
+          const activeUser = {
+            ...user,
+            role: targetRole,
+            profile: {
+              ...(user?.profile || {}),
+              role: targetRole,
+              display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || user?.email?.split('@')[0] || 'User'
+            }
+          };
+          localStorage.setItem('creasync_active_user', JSON.stringify(activeUser));
+          localStorage.setItem('creasync_active_role', targetRole);
+          updateActiveUser(activeUser);
+          executePendingActionOrRoute(activeUser, targetRole);
+        }}
+        onLoginBrand={(user) => {
+          setIsLoginOpen(false);
+          setLoginNotice(null);
+          const brandUser = user ? {
+            ...user,
+            role: 'brand',
+            profile: {
+              ...(user?.profile || {}),
+              role: 'brand',
+              display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || 'Lumina Botanica'
+            }
+          } : {
+            id: 'brand-demo-lumina',
+            email: 'lumina@botanica.com',
+            role: 'brand',
+            display_name: 'Lumina Botanica',
+            profile: {
+              id: 'brand-demo-lumina',
+              email: 'lumina@botanica.com',
+              role: 'brand',
+              display_name: 'Lumina Botanica'
+            }
+          };
+          localStorage.setItem('creasync_active_user', JSON.stringify(brandUser));
+          localStorage.setItem('creasync_active_role', 'brand');
+          updateActiveUser(brandUser);
+          handleSwitchBrand('brand-demo-lumina');
+          handleToggleDemoMode(true);
+          executePendingActionOrRoute(brandUser, 'brand');
+        }}
+        onLoginCreator={(user) => {
+          setIsLoginOpen(false);
+          setLoginNotice(null);
+          const creatorUser = user ? {
+            ...user,
+            role: 'creator',
+            profile: {
+              ...(user?.profile || {}),
+              role: 'creator',
+              display_name: user?.profile?.display_name || user?.user_metadata?.full_name || user?.display_name || 'Maya Chen'
+            }
+          } : {
+            id: 'creator-demo-maya',
+            email: 'maya@studio.com',
+            role: 'creator',
+            display_name: 'Maya Chen',
+            profile: {
+              id: 'creator-demo-maya',
+              email: 'maya@studio.com',
+              role: 'creator',
+              display_name: 'Maya Chen'
+            }
+          };
+          localStorage.setItem('creasync_active_user', JSON.stringify(creatorUser));
+          localStorage.setItem('creasync_active_role', 'creator');
+          updateActiveUser(creatorUser);
+          executePendingActionOrRoute(creatorUser, 'creator');
         }}
       />
 

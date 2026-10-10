@@ -10,7 +10,10 @@ import {
   updateCreatorRecord,
   createCampaignRecord,
   createBrandRecord,
-  getPublicCreatorProfile
+  getPublicCreatorProfile,
+  saveWorkflowRecord,
+  deleteWorkflowRecord,
+  toggleWorkflowPublishRecord
 } from '../data/marketplaceStore.js';
 import { CREATORS } from '../data/creatorsData.js';
 
@@ -515,10 +518,13 @@ export async function savePortfolioProject(creatorId, project) {
           tools: project.tools,
           format: project.format,
           image: project.image,
+          video: project.video || null,
+          media: project.media || [],
           role: project.role,
           client_type: project.clientType,
           visibility: project.visibility || 'published',
           featured: !!project.featured,
+          workflow_id: project.workflowId || null,
           updated_at: new Date().toISOString()
         })
         .select()
@@ -908,3 +914,69 @@ function normalizeSupabaseCreator(row) {
     } : null
   };
 }
+
+// ============================================================================
+// 6. CREATIVE WORKFLOWS SERVICE LAYER
+// ============================================================================
+
+export async function fetchCreatorWorkflows(creatorId, includeDrafts = true) {
+  const state = getInitialMarketplaceState();
+  const creator = (state.creators || []).find(c => c.id === creatorId);
+  const workflows = creator?.workflows || (state.workflows || []).filter(w => w.creatorId === creatorId);
+  if (!includeDrafts) {
+    return workflows.filter(w => (w.visibility === 'published' || w.status === 'Published') && w.visibility !== 'private');
+  }
+  return workflows;
+}
+
+export async function saveCreatorWorkflow(creatorId, workflowData) {
+  const state = getInitialMarketplaceState();
+  const nextState = saveWorkflowRecord(state, creatorId, workflowData);
+  saveMarketplaceState(nextState);
+  return workflowData;
+}
+
+export async function deleteCreatorWorkflow(creatorId, workflowId) {
+  const state = getInitialMarketplaceState();
+  const nextState = deleteWorkflowRecord(state, creatorId, workflowId);
+  saveMarketplaceState(nextState);
+  return { ok: true };
+}
+
+export async function toggleCreatorWorkflowPublish(creatorId, workflowId) {
+  const state = getInitialMarketplaceState();
+  const nextState = toggleWorkflowPublishRecord(state, creatorId, workflowId);
+  saveMarketplaceState(nextState);
+  return { ok: true };
+}
+
+// ============================================================================
+// 7. CREATOR TRUST VERIFICATION SERVICE LAYER
+// ============================================================================
+
+export async function fetchCreatorTrustVerification(creatorId) {
+  const state = getInitialMarketplaceState();
+  const creator = (state.creators || []).find(c => c.id === creatorId);
+  return creator?.trustVerification || null;
+}
+
+export async function saveCreatorTrustVerification(creatorId, trustData) {
+  const state = getInitialMarketplaceState();
+  const creators = (state.creators || []).map(c => {
+    if (c.id === creatorId) {
+      return {
+        ...c,
+        trustVerification: {
+          ...c.trustVerification,
+          ...trustData,
+          lastUpdated: 'Just now'
+        }
+      };
+    }
+    return c;
+  });
+  const nextState = { ...state, creators };
+  saveMarketplaceState(nextState);
+  return trustData;
+}
+

@@ -1260,10 +1260,10 @@ export default function App() {
 
       {/* Main Views */}
       <main>
-        {/* VIEW 1: ALLOY LANDING — Complete Redesigned Editorial Marketplace */}
+        {/* VIEW 1: ALLOY MASTER LANDING PAGE */}
         {currentView === 'home' && (
           <>
-            {/* SECTION 1: Editorial Hero with Original Campaign Artwork */}
+            {/* 1. Master Editorial Hero with 3D ALLOY Animation Engine */}
             <Hero
               onFindCreator={handleHireAction}
               onJoinCreator={handleCreatorAction}
@@ -1271,33 +1271,48 @@ export default function App() {
               onSelectCreator={handleOpenCreatorProfile}
             />
 
-            {/* SECTION 2: Explain What Alloy Does (3-Part Clean Editorial Layout) */}
+            {/* 2. Curated Creative Portfolio Showcase ("Meet creativity in every direction.") */}
+            <CreativeShowcase
+              creators={creatorsList}
+              onSelectProject={handleSelectProject}
+              onSelectCreator={handleOpenCreatorProfile}
+              onExploreAll={() => navigateTo('discover')}
+            />
+
+            {/* 3. How ALLOY Works (3 Connected Steps + Dual Paths) */}
             <HowItWorks
               onFindCreators={handleHireAction}
               onBuildPortfolio={handleCreatorAction}
             />
 
-            {/* SECTION 3: Showcase Creative Work (Curated Editorial Gallery) */}
-            <CreativeShowcase
+            {/* 4. Creator DNA Architecture ("Every creator has a signature.") */}
+            <CreatorDNASection
               creators={creatorsList}
               onSelectCreator={handleOpenCreatorProfile}
-              onExploreAll={() => navigateTo('discover')}
             />
 
-            {/* SECTION 4: Two Clear User Journeys (For Brands & For Creators) */}
+            {/* 5. Two Clear User Journeys (For Brands & For Creators) */}
             <TwoJourneysSection
               onFindCreators={handleHireAction}
               onJoinAlloy={handleCreatorAction}
+              onExploreBrandStudio={handleHireAction}
+              onBuildCreatorProfile={handleCreatorAction}
             />
 
-            {/* SECTION 5: Show How Matching Works (Explainable Style Alignment) */}
+            {/* 6. Show How Matching Works (Explainable Style Alignment) */}
             <CreaMatchSection
               creators={creatorsList}
               onExploreDiscover={() => navigateTo('discover')}
-              onEnterBrandStudio={() => navigateTo('brand-workspace')}
+              onEnterBrandStudio={handleHireAction}
             />
 
-            {/* SECTION 6: Final Call To Action */}
+            {/* 7. CreaSim Interactive Concept Storyboards ("See what the collaboration could become.") */}
+            <ProductPreview
+              onSelectCreator={handleOpenCreatorProfile}
+              onExploreMarketplace={() => navigateTo('discover')}
+            />
+
+            {/* 8. Final Closing Banner & Direct Collaboration Actions */}
             <FinalCTA
               onFindCreator={handleHireAction}
               onJoinCreator={handleCreatorAction}
@@ -1385,6 +1400,7 @@ export default function App() {
         {currentView === 'creator-workspace' && myCreator && (
           <CreatorWorkspaceView
             creator={myCreator}
+            currentUser={currentUser}
             onUpdateCreator={handleUpdateCreator}
             onViewPublicProfile={() => handleOpenCreatorProfile(myCreator.id)}
             onExploreMarketplace={() => navigateTo('discover')}
@@ -1398,6 +1414,7 @@ export default function App() {
             projects={projects}
             onSubmitDeliverables={handleSubmitDeliverables}
             onSendMessage={handleSendMessage}
+            onSelectProject={handleSelectProject}
             initialTab={initialCreatorTab}
           />
         )}
@@ -1689,16 +1706,17 @@ export default function App() {
         onViewProfile={handleOpenCreatorProfile}
       />
 
-      <ProjectModal
-        project={selectedProject}
-        creator={selectedProjectCreator}
-        onClose={() => {
-          setSelectedProject(null);
-          setSelectedProjectCreator(null);
-        }}
-        onViewCreatorProfile={handleOpenCreatorProfile}
-        onInviteCreator={handleOpenInviteModal}
-      />
+      {selectedProject && (
+        <ProjectModal
+          project={selectedProject}
+          creator={selectedProjectCreator}
+          onClose={() => {
+            setSelectedProject(null);
+            setSelectedProjectCreator(null);
+          }}
+          onViewCreatorProfile={handleOpenCreatorProfile}
+        />
+      )}
     </div>
   );
 }

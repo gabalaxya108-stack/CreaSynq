@@ -947,3 +947,33 @@ export async function toggleCreatorWorkflowPublish(creatorId, workflowId) {
   return { ok: true };
 }
 
+// ============================================================================
+// 7. CREATOR TRUST VERIFICATION SERVICE LAYER
+// ============================================================================
+
+export async function fetchCreatorTrustVerification(creatorId) {
+  const state = getInitialMarketplaceState();
+  const creator = (state.creators || []).find(c => c.id === creatorId);
+  return creator?.trustVerification || null;
+}
+
+export async function saveCreatorTrustVerification(creatorId, trustData) {
+  const state = getInitialMarketplaceState();
+  const creators = (state.creators || []).map(c => {
+    if (c.id === creatorId) {
+      return {
+        ...c,
+        trustVerification: {
+          ...c.trustVerification,
+          ...trustData,
+          lastUpdated: 'Just now'
+        }
+      };
+    }
+    return c;
+  });
+  const nextState = { ...state, creators };
+  saveMarketplaceState(nextState);
+  return trustData;
+}
+

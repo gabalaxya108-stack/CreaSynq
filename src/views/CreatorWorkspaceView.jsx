@@ -13,9 +13,12 @@ import { INITIAL_CREATOR_INVITATIONS, INITIAL_CREATOR_PROJECTS } from '../data/c
 import { DEMO_WORKFLOWS, WORKFLOW_SPECIALIZATIONS, createBlankWorkflow } from '../data/workflowsData';
 import WorkflowTimeline from '../components/WorkflowTimeline';
 import WorkflowEditorModal from '../components/WorkflowEditorModal';
+import TrustCenter from '../components/TrustCenter';
+import { createInitialTrustVerification } from '../data/trustVerificationData';
 
 export default function CreatorWorkspaceView({ 
   creator, 
+  currentUser,
   onUpdateCreator,
   onViewPublicProfile,
   onExploreMarketplace,
@@ -59,7 +62,11 @@ export default function CreatorWorkspaceView({
   // Sync state when creator prop updates
   useEffect(() => {
     if (creator) {
-      setActiveCreator(creator);
+      const initializedCreator = {
+        ...creator,
+        trustVerification: creator.trustVerification || createInitialTrustVerification(creator, currentUser)
+      };
+      setActiveCreator(initializedCreator);
       setProjectsList(creator.projects || []);
       if (creator.workflows && creator.workflows.length > 0) {
         setWorkflowsList(creator.workflows);
@@ -71,7 +78,7 @@ export default function CreatorWorkspaceView({
         setCustomAiDNA(creator.creativeDNA);
       }
     }
-  }, [creator]);
+  }, [creator, currentUser]);
 
   // New Project Form State
   const [projectForm, setProjectForm] = useState({
@@ -706,6 +713,18 @@ export default function CreatorWorkspaceView({
             onClick={() => setActiveTab('profile')}
           >
             <span>Profile & DNA</span>
+          </button>
+
+          <button 
+            type="button" 
+            role="tab" 
+            aria-selected={activeTab === 'trust'}
+            className={`studio-tab-btn ${activeTab === 'trust' ? 'active' : ''}`}
+            onClick={() => setActiveTab('trust')}
+          >
+            <ShieldCheck size={14} style={{ marginRight: '5px' }} />
+            <span>Trust Center</span>
+            <span className="tab-count-pill highlight">Verified</span>
           </button>
         </div>
 
@@ -2089,6 +2108,23 @@ export default function CreatorWorkspaceView({
               </div>
             </div>
           </div>
+        )}
+
+        {/* ========================================================
+            TAB 8: TRUST CENTER
+            ======================================================== */}
+        {activeTab === 'trust' && (
+          <TrustCenter
+            creator={activeCreator}
+            currentUser={currentUser}
+            projects={projectsList}
+            workflows={workflowsList}
+            onUpdateCreator={(upd) => {
+              setActiveCreator(upd);
+              if (onUpdateCreator) onUpdateCreator(upd);
+            }}
+            onViewPublicProfile={onViewPublicProfile}
+          />
         )}
       </div>
 

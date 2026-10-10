@@ -1335,6 +1335,7 @@ export default function App() {
         {currentView === 'creator-workspace' && (
           <CreatorWorkspaceView
             creator={createdCreatorProfile || activeCreator || creatorsList[0]}
+            currentUser={currentUser}
             onUpdateCreator={handleUpdateCreator}
             onViewPublicProfile={() => handleOpenCreatorProfile(createdCreatorProfile?.id || activeCreator?.id || creatorsList[0].id)}
             onExploreMarketplace={() => navigateTo('discover')}

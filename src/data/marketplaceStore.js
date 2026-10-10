@@ -5,6 +5,7 @@
 import { INITIAL_CONNECTIONS, INITIAL_CREATOR_OPPORTUNITIES, INITIAL_CREATOR_INVITATIONS, INITIAL_CREATOR_PROJECTS } from './connectionsData.js';
 import { CREATORS } from './creatorsData.js';
 import { DEMO_WORKFLOWS } from './workflowsData.js';
+import { createInitialTrustVerification } from './trustVerificationData.js';
 
 const STORAGE_KEY = 'creasync_marketplace_state_v2';
 
@@ -383,13 +384,17 @@ export function getInitialMarketplaceState() {
           if (!Array.isArray(parsed.workflows) || parsed.workflows.length === 0) {
             parsed.workflows = DEMO_WORKFLOWS;
           }
-          // Populate creator workflows if missing
+          // Ensure creators array is present and normalized with workflows and trust verification
           parsed.creators = parsed.creators.map(c => {
-            if (!Array.isArray(c.workflows) || c.workflows.length === 0) {
-              const matchedWfs = (parsed.workflows || DEMO_WORKFLOWS).filter(w => w.creatorId === c.id);
-              return { ...c, workflows: matchedWfs };
+            let updatedC = { ...c };
+            if (!Array.isArray(updatedC.workflows) || updatedC.workflows.length === 0) {
+              const matchedWfs = (parsed.workflows || DEMO_WORKFLOWS).filter(w => w.creatorId === updatedC.id);
+              updatedC.workflows = matchedWfs;
             }
-            return c;
+            if (!updatedC.trustVerification) {
+              updatedC.trustVerification = createInitialTrustVerification(updatedC);
+            }
+            return updatedC;
           });
           return parsed;
         }
@@ -401,7 +406,8 @@ export function getInitialMarketplaceState() {
 
   const initialCreators = CREATORS.map(c => ({
     ...c,
-    workflows: DEMO_WORKFLOWS.filter(w => w.creatorId === c.id)
+    workflows: DEMO_WORKFLOWS.filter(w => w.creatorId === c.id),
+    trustVerification: createInitialTrustVerification(c)
   }));
 
   return {
@@ -428,6 +434,7 @@ export function getInitialMarketplaceState() {
 
 /**
  * Returns brand-facing public view of a creator, strictly filtering out private portfolio items and draft workflows
+ * Also sanitizes trust verification to NEVER leak private identity documents or internal reviewer notes
  */
 export function getPublicCreatorProfile(creator) {
   if (!creator) return null;
@@ -437,11 +444,31 @@ export function getPublicCreatorProfile(creator) {
   const publishedWorkflows = (creator.workflows || []).filter(w => 
     (w.visibility === 'published' || w.status === 'Published') && w.visibility !== 'private'
   );
+
+  // Sanitize trust verification: strip private government document IDs and private compliance details
+  let sanitizedTrust = null;
+  if (creator.trustVerification) {
+    sanitizedTrust = {
+      ...creator.trustVerification,
+      identity: creator.trustVerification.identity ? {
+        status: creator.trustVerification.identity.status,
+        provider: creator.trustVerification.identity.provider,
+        legalName: creator.trustVerification.identity.legalName,
+        issuingCountry: creator.trustVerification.identity.issuingCountry,
+        documentType: creator.trustVerification.identity.documentType,
+        // documentMaskedNumber and private files are explicitly stripped for brand privacy!
+        reviewedAt: creator.trustVerification.identity.reviewedAt,
+        isPrivate: true
+      } : null
+    };
+  }
+
   return {
     ...creator,
     isDraft,
     projects: publishedProjects,
-    workflows: publishedWorkflows
+    workflows: publishedWorkflows,
+    trustVerification: sanitizedTrust
   };
 }
 

@@ -15836,3 +15836,63 @@ img, video {
     display: none !important;
   }
 }
+
+/* ========================================================
+   CREATOR TRUST VERIFICATION CENTER STYLES
+   ======================================================== */
+
+.trust-center-container {
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.trust-center-header {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.2s ease;
+}
+
+.status-badge-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.status-badge-under-review {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: rgba(139, 92, 246, 0.12);
+  color: #7C3AED;
+}
+
+.status-badge-declared {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: rgba(120, 113, 108, 0.1);
+  color: #78716C;
+}
+
+@media (max-width: 768px) {
+  .trust-center-header {
+    padding: 20px 18px !important;
+  }
+  .trust-center-container .studio-card {
+    padding: 18px 16px !important;
+  }
+}

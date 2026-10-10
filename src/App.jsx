@@ -1348,6 +1348,7 @@ export default function App() {
             projects={projects}
             onSubmitDeliverables={handleSubmitDeliverables}
             onSendMessage={handleSendMessage}
+            onSelectProject={handleSelectProject}
           />
         )}
 

@@ -2146,28 +2146,77 @@ import { executeFilteringPipeline } from '../../server/filteringPipeline.js';
  * @param {Array} [creators] - Optional candidate creators list
  * @returns {Promise<Object>} Execution trace contract
  */
-export async function executeCampaignFilteringPipeline(campaign, creators = null) {
+export async function executeCampaignFilteringPipeline(campaign, creators = null, options = {}) {
+  const isNatural = typeof campaign === 'string' || (campaign && typeof campaign.naturalBrief === 'string');
+  const payload = isNatural
+    ? { naturalBrief: typeof campaign === 'string' ? campaign : campaign.naturalBrief, options }
+    : { campaign, creators, options };
+
+  // Prepare request headers; attach authenticated session token if available
+  const headers = { 'Content-Type': 'application/json' };
+  if (isNatural) {
+    let token = null;
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const sessionRes = await supabase.auth.getSession();
+        if (sessionRes?.data?.session?.access_token) {
+          token = sessionRes.data.session.access_token;
+        }
+      } catch (e) {}
+    }
+    if (!token && typeof window !== 'undefined') {
+      try {
+        const activeUser = JSON.parse(localStorage.getItem('creasync_active_user') || 'null');
+        if (activeUser) {
+          token = activeUser.token || activeUser.access_token || 'authenticated-session-token';
+        }
+      } catch (e) {}
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
   // 1. Try server endpoint
   try {
     const res = await fetch('/api/pipeline/filter', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaign, creators })
+      headers,
+      body: JSON.stringify(payload)
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      return data;
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const error = new Error(data.error || `Pipeline request failed with status ${res.status}`);
+      error.status = res.status;
+      error.code = data.code || 'PIPELINE_ERROR';
+      throw error;
     }
-  } catch (netErr) {
+
+    return data;
+  } catch (err) {
+    if (err.status) {
+      throw err;
+    }
+    if (isNatural) {
+      throw new Error(err.message || 'Natural-language brief interpretation requires an active server connection.');
+    }
     // Fall back to direct local engine execution if server endpoint is unreachable
-    console.info('[Pipeline Service] Server endpoint deferred, executing deterministic pipeline engine:', netErr.message);
+    console.info('[Pipeline Service] Server endpoint deferred, executing deterministic pipeline engine:', err.message);
   }
 
-  // 2. Direct engine execution fallback
+  // 2. Direct engine execution fallback for structured campaigns
   const pool = creators || (getInitialMarketplaceState().creators || CREATORS);
-  const result = executeFilteringPipeline({ campaign, creators: pool });
+  const result = executeFilteringPipeline({ campaign, creators: pool, options });
   return { ok: true, source: 'client-deterministic-fallback', ...result };
+}
+
+/**
+ * Convenience helper to execute natural-language brief filtering.
+ */
+export async function filterCreatorsWithNaturalBrief(naturalBrief, options = {}) {
+  return executeCampaignFilteringPipeline({ naturalBrief }, null, options);
 }
 
 // ============================================================================

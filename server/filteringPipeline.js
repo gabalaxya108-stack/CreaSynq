@@ -54,11 +54,19 @@ export function normalizeCampaignBrief(campaign = {}) {
   const rawRequirements = brief.requirements || {};
 
   // Extract explicit mandatory constraints
+  const rawMandatorySpec = normalizeTokenArray(rawRequirements.mandatory?.specialization || rawRequirements.specialization || brief.desiredCreatorSpecialties || brief.specialty);
+  const isFormatTerm = term => term.includes('9:16') || term.includes('vertical') || term.includes('horizontal') || term.includes('format') || term.includes('deliverable') || term.includes('still');
+  const specialization = rawMandatorySpec.filter(s => !isFormatTerm(s));
+  const formatFromSpec = rawMandatorySpec.filter(s => isFormatTerm(s));
+
+  const rawFormats = normalizeTokenArray(rawRequirements.mandatory?.formats || rawRequirements.mandatory?.contentFormats || rawRequirements.formats || brief.contentFormats || brief.deliverables);
+  const formats = Array.from(new Set([...rawFormats, ...formatFromSpec]));
+
   const mandatory = {
     skills: normalizeTokenArray(rawRequirements.mandatory?.skills || rawRequirements.skills || brief.requiredSkills),
-    specialization: normalizeTokenArray(rawRequirements.mandatory?.specialization || rawRequirements.specialization || brief.desiredCreatorSpecialties || brief.specialty),
+    specialization,
     tools: normalizeTokenArray(rawRequirements.mandatory?.tools || rawRequirements.tools || brief.requiredTools),
-    formats: normalizeTokenArray(rawRequirements.mandatory?.formats || rawRequirements.mandatory?.contentFormats || rawRequirements.formats || brief.contentFormats || brief.deliverables),
+    formats,
     styles: normalizeTokenArray(rawRequirements.mandatory?.styles || rawRequirements.mandatory?.creativeStyle || rawRequirements.styles || brief.creativeStyle),
     commercialLicensing: Boolean(rawRequirements.mandatory?.commercialLicensing ?? rawRequirements.commercialLicensing ?? brief.requiresCommercialLicense),
     minProjects: typeof (rawRequirements.mandatory?.minProjects ?? rawRequirements.minProjects) === 'number'
@@ -127,6 +135,41 @@ function stageBriefNormalization(normalizedBrief, candidatePool) {
 }
 
 /**
+ * Known capability clusters where equivalent industry terminology represents the same
+ * underlying AI production capability in an AI creator marketplace.
+ */
+const SKILL_EQUIVALENCE_CLUSTERS = [
+  // Video production cluster: 'ai video', 'video production', and related generative terms
+  // represent genuine equivalent video production capabilities.
+  new Set([
+    'video production',
+    'ai video',
+    'ai video production',
+    'video generation',
+    'ai video generation',
+    'generative video',
+    'video creation'
+  ])
+];
+
+function isSkillCompatible(reqSkill, creatorSkill) {
+  if (!reqSkill || !creatorSkill) return false;
+  const normReq = normalizeToken(reqSkill);
+  const normSkill = normalizeToken(creatorSkill);
+  // 1. Direct substring match (e.g. "storytelling" matches "visual storytelling")
+  if (normSkill.includes(normReq) || normReq.includes(normSkill)) {
+    return true;
+  }
+  // 2. Equivalent alias cluster match (e.g. 'ai video' satisfies 'video production')
+  for (const cluster of SKILL_EQUIVALENCE_CLUSTERS) {
+    if (cluster.has(normReq) && cluster.has(normSkill)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * STAGE 2: Mandatory Skills & Technical Capabilities Filter
  */
 function stageSkillsFilter(mandatorySkills, candidatePool) {
@@ -162,7 +205,7 @@ function stageSkillsFilter(mandatorySkills, candidatePool) {
     const missingSkills = [];
     for (const reqSkill of mandatorySkills) {
       const isMatch = Array.from(combinedSkills).some(skill =>
-        skill.includes(reqSkill) || reqSkill.includes(skill)
+        isSkillCompatible(reqSkill, skill)
       );
       if (!isMatch) {
         missingSkills.push(reqSkill);
@@ -481,6 +524,14 @@ function stageLicensingVerificationFilter(mandatoryConfig, candidatePool) {
       creator.trustVerification?.commercialLicensingEligible ||
       creator.commercialLicensingVerified
     );
+    const isLicensingExplicitlyUnavailable = Boolean(
+      creator.trustVerification?.commercialLicensingEligible === false ||
+      creator.commercialLicensingVerified === false ||
+      creator.commercialLicensingEligible === false
+    );
+    const licensingEvidenceStatus = isLicensingVerified
+      ? 'verified'
+      : (isLicensingExplicitlyUnavailable ? 'confirmed_unavailable' : 'unverified_evidence');
 
     const failedReasons = [];
     if (minProjects > 0 && !hasEnoughProjects) {
@@ -489,10 +540,18 @@ function stageLicensingVerificationFilter(mandatoryConfig, candidatePool) {
 
     if (commercialLicensing && !isLicensingVerified) {
       unknownCount++;
-      if (hasCommercialClientWork) {
-        failedReasons.push('Creator has commercial client project experience, but formal enterprise commercial-use licensing credentials are not explicitly verified in creator trust records');
+      if (isLicensingExplicitlyUnavailable) {
+        if (hasCommercialClientWork) {
+          failedReasons.push('Creator has commercial client project experience, but enterprise commercial-use licensing credentials are confirmed unavailable in creator trust records');
+        } else {
+          failedReasons.push('Enterprise commercial-use licensing authorization is confirmed unavailable in creator trust records');
+        }
       } else {
-        failedReasons.push('Missing verifiable commercial client project history and enterprise commercial licensing authorization');
+        if (hasCommercialClientWork) {
+          failedReasons.push('Creator has commercial client project experience, but formal enterprise commercial-use licensing credentials are not verified in available creator records');
+        } else {
+          failedReasons.push('Formal enterprise commercial-use licensing credentials are not verified in available creator records');
+        }
       }
     }
 
@@ -506,7 +565,12 @@ function stageLicensingVerificationFilter(mandatoryConfig, candidatePool) {
         code: isLicensingVerified ? 'PORTFOLIO_THRESHOLD_UNMET' : 'COMMERCIAL_LICENSING_UNVERIFIED',
         reason: failedReasons.join('. '),
         missingFields: commercialLicensing && !isLicensingVerified ? ['commercial_licensing_verification'] : ['verified_portfolio_projects'],
-        availableData: { projectCount: projects.length, hasCommercialClientWork, isLicensingVerified },
+        availableData: {
+          projectCount: projects.length,
+          hasCommercialClientWork,
+          isLicensingVerified,
+          licensingStatus: licensingEvidenceStatus
+        },
         requiredFields: { commercialLicensing, minProjects }
       });
     }

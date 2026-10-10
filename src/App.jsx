@@ -131,6 +131,7 @@ export default function App() {
   const [isPipelineTraceModalOpen, setIsPipelineTraceModalOpen] = useState(false);
   const [isPipelineTraceLoading, setIsPipelineTraceLoading] = useState(false);
   const [pipelineFilter, setPipelineFilter] = useState(null);
+  const [pipelineError, setPipelineError] = useState(null);
   const pipelineRunVersionRef = useRef(0);
 
   // Centralized persistent state (synced with localStorage & reactive cross-tab events)
@@ -1042,9 +1043,14 @@ export default function App() {
   };
 
   const handleRunFilteringPipeline = async (targetCampaign) => {
-    const campaignToRun = targetCampaign || (marketplaceData.campaigns || []).find(c => c.id === marketplaceData.activeCampaignId) || marketplaceData.campaigns?.[0];
+    const isNatural = typeof targetCampaign === 'string' || (targetCampaign && typeof targetCampaign.naturalBrief === 'string');
+    const campaignToRun = isNatural
+      ? targetCampaign
+      : (targetCampaign || (marketplaceData.campaigns || []).find(c => c.id === marketplaceData.activeCampaignId) || marketplaceData.campaigns?.[0]);
     if (!campaignToRun) return;
+
     setIsPipelineTraceLoading(true);
+    setPipelineError(null);
     const currentVersion = ++pipelineRunVersionRef.current;
     try {
       // Pass null creators to ensure authoritative server-side creator data is used
@@ -1055,10 +1061,32 @@ export default function App() {
           isStale: false,
           staleReason: null
         });
+        setPipelineFilter({
+          campaignId: trace.campaignId || (trace.interpretedBrief ? 'ai-natural-brief' : (typeof campaignToRun === 'object' ? campaignToRun?.id : 'ai-natural-brief')),
+          campaignTitle: trace.interpretedBrief?.title || trace.campaignTitle || 'AI Campaign Filter',
+          eligibleCreatorIds: trace.eligibleCreatorIds || [],
+          rankedOrder: trace.rankedCreators || [],
+          source: trace.source,
+          interpretedBrief: trace.interpretedBrief,
+          isStale: false
+        });
         setIsPipelineTraceModalOpen(true);
       }
     } catch (err) {
       console.error('[App] Pipeline execution error:', err);
+      if (currentVersion === pipelineRunVersionRef.current) {
+        setPipelineError(err.message || 'Pipeline execution failed.');
+        setPipelineTrace(prev => prev ? {
+          ...prev,
+          isStale: true,
+          staleReason: `Pipeline run failed: ${err.message || 'Execution error'}. Displaying previous results as stale.`
+        } : null);
+        setPipelineFilter(prev => prev ? {
+          ...prev,
+          isStale: true,
+          staleReason: `Pipeline run failed: ${err.message || 'Execution error'}. Displaying previous results as stale.`
+        } : null);
+      }
     } finally {
       if (currentVersion === pipelineRunVersionRef.current) {
         setIsPipelineTraceLoading(false);
@@ -1666,8 +1694,20 @@ export default function App() {
             onWhyClick={handleOpenWhyModal}
             onInviteCreator={handleOpenInviteModal}
             pipelineFilter={pipelineFilter}
-            onClearPipelineFilter={() => setPipelineFilter(null)}
+            onClearPipelineFilter={() => {
+              setPipelineFilter(null);
+              setPipelineError(null);
+            }}
             onOpenPipelineTrace={handleRunFilteringPipeline}
+            onRunNaturalPipeline={handleRunFilteringPipeline}
+            isPipelineTraceLoading={isPipelineTraceLoading}
+            pipelineError={pipelineError}
+            currentUser={currentUser}
+            onOpenLogin={() => {
+              setLoginNotice('Sign in to filter creators using AI natural language.');
+              setLoginInitialRole('brand');
+              setIsLoginOpen(true);
+            }}
           />
         )}
 

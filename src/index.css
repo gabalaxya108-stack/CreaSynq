@@ -18826,3 +18826,123 @@ img, video {
     justify-content: flex-end;
   }
 }
+
+/* ==========================================================================
+   AI Natural-Language Campaign Filter — High Contrast & Readability Styles
+   Preserves white-to-black gradient while providing WCAG compliant contrast
+   ========================================================================== */
+.ai-campaign-filter-card {
+  position: relative;
+}
+
+.ai-campaign-filter-card .filter-card-heading {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+.ai-campaign-filter-card .filter-card-desc {
+  color: #1e293b !important;
+  font-weight: 500 !important;
+  line-height: 1.55 !important;
+}
+
+.ai-campaign-filter-card .discover-brief-textarea {
+  color: #ffffff !important;
+  background: rgba(15, 23, 42, 0.94) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 8px !important;
+  font-size: 0.92rem !important;
+  line-height: 1.45 !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.ai-campaign-filter-card .discover-brief-textarea::placeholder {
+  color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+.ai-campaign-filter-card .discover-brief-textarea:focus {
+  outline: 2px solid #10b981 !important;
+  outline-offset: 1px !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35) !important;
+}
+
+.ai-campaign-filter-card .discover-brief-textarea:disabled {
+  opacity: 0.75 !important;
+  cursor: not-allowed !important;
+}
+
+.ai-campaign-filter-card .search-suggestion-chip {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 0.76rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.ai-campaign-filter-card .search-suggestion-chip:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.ai-campaign-filter-card .search-suggestion-chip:focus-visible {
+  outline: 2px solid #38bdf8 !important;
+  outline-offset: 2px !important;
+}
+
+.ai-campaign-filter-card .btn-filter-primary {
+  background: #059669 !important;
+  color: #ffffff !important;
+  border: 1px solid #34d399 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.4) !important;
+  transition: all 0.15s ease !important;
+}
+
+.ai-campaign-filter-card .btn-filter-primary:hover:not(:disabled) {
+  background: #047857 !important;
+  border-color: #6ee7b7 !important;
+  transform: translateY(-1px) !important;
+}
+
+.ai-campaign-filter-card .btn-filter-primary:focus-visible {
+  outline: 2px solid #34d399 !important;
+  outline-offset: 2px !important;
+}
+
+.ai-campaign-filter-card .btn-filter-clear {
+  color: #f8fafc !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  font-weight: 600 !important;
+  transition: all 0.15s ease !important;
+}
+
+.ai-campaign-filter-card .btn-filter-clear:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.ai-campaign-filter-card .btn-filter-clear:focus-visible {
+  outline: 2px solid #ffffff !important;
+  outline-offset: 2px !important;
+}
+
+.ai-campaign-filter-card .filter-auth-lock-banner {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+

@@ -3,7 +3,7 @@ import CreatorCard from '../components/CreatorCard';
 import { CATEGORIES, FILTER_OPTIONS } from '../data/creatorsData';
 import { calculateCreaMatch } from '../intelligence/matchingEngine';
 import { semanticCreatorSearch } from '../ai/semanticSearch';
-import { Search, SlidersHorizontal, Heart, X, ArrowLeft, RotateCcw, Sparkles, ArrowUpDown } from 'lucide-react';
+import { Search, SlidersHorizontal, Heart, X, ArrowLeft, RotateCcw, Sparkles, ArrowUpDown, Cpu, ShieldCheck, AlertTriangle, Loader2, Send, Lock } from 'lucide-react';
 
 export default function DiscoverView({ 
   creators, 
@@ -15,9 +15,16 @@ export default function DiscoverView({
   onWhyClick,
   pipelineFilter = null,
   onClearPipelineFilter,
-  onOpenPipelineTrace
+  onOpenPipelineTrace,
+  onRunNaturalPipeline,
+  isPipelineTraceLoading = false,
+  pipelineError = null,
+  currentUser = null,
+  onOpenLogin = null
 }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [naturalBriefInput, setNaturalBriefInput] = useState('');
+  const [validationError, setValidationError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showOnlySaved, setShowOnlySaved] = useState(false);
   const [showFilterPopover, setShowFilterPopover] = useState(false);
@@ -178,48 +185,102 @@ export default function DiscoverView({
           </div>
         )}
 
-        {/* Campaign Pipeline Filter Banner */}
-        {pipelineFilter && (
-          <div className="pipeline-filter-banner studio-card" style={{ marginBottom: 24 }}>
-            <div className="filter-banner-content">
-              <div className="filter-banner-icon">
-                <Sparkles size={20} className="text-mint" />
-              </div>
-              <div className="filter-banner-text">
-                <div className="filter-banner-heading">
-                  <strong>Filtered for Campaign:</strong> {pipelineFilter.campaignTitle || 'Campaign'}
-                  {pipelineFilter.isStale && (
-                    <span className="badge-stale" style={{ marginLeft: 8, background: 'rgba(235, 110, 75, 0.2)', color: '#eb6e4b', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
-                      Brief Updated (Stale)
-                    </span>
-                  )}
-                </div>
-                <div className="filter-banner-sub">
-                  Showing {processedCreators.length} eligible creator{processedCreators.length === 1 ? '' : 's'} matching mandatory pipeline requirements. Excluded candidates are filtered out.
+        {/* Error Alert */}
+        {pipelineError && (
+          <div className="studio-card" style={{ marginBottom: 20, padding: '14px 18px', border: '1px solid #fca5a5', borderLeft: '5px solid #dc2626', background: '#fef2f2', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <AlertTriangle size={18} color="#dc2626" />
+                <div>
+                  <strong style={{ color: '#991b1b', fontSize: '0.92rem', fontWeight: 700 }}>Pipeline Filter Error:</strong>
+                  <span style={{ fontSize: '0.86rem', color: '#7f1d1d', marginLeft: 8, fontWeight: 500 }}>{pipelineError}</span>
                 </div>
               </div>
-            </div>
-            <div className="filter-banner-actions">
-              {onOpenPipelineTrace && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => onOpenPipelineTrace(pipelineFilter.campaignId)}
-                >
-                  <Sparkles size={13} />
-                  <span>View Pipeline Trace</span>
+              {onClearPipelineFilter && (
+                <button type="button" className="btn btn-ghost btn-xs" onClick={onClearPipelineFilter} style={{ color: '#991b1b' }}>
+                  <X size={14} />
                 </button>
               )}
-              {onClearPipelineFilter && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={onClearPipelineFilter}
-                  title="Clear campaign filter and view all creators"
-                >
-                  <X size={14} />
-                  <span>Clear Filter</span>
-                </button>
+            </div>
+          </div>
+        )}
+
+        {/* Campaign Pipeline Filter Banner */}
+        {pipelineFilter && (
+          <div className="pipeline-filter-banner studio-card" style={{ marginBottom: 24, padding: '16px 20px', background: '#ffffff', border: '1px solid var(--border-medium, #d1d5db)' }}>
+            <div className="filter-banner-content" style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="filter-banner-icon">
+                    <Sparkles size={20} style={{ color: '#059669' }} />
+                  </div>
+                  <div>
+                    <div className="filter-banner-heading" style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                      <strong>Active Filter:</strong> {pipelineFilter.campaignTitle || 'Campaign Requirements'}
+                      {pipelineFilter.isStale && (
+                        <span className="badge-stale" style={{ marginLeft: 8, background: '#ffedd5', color: '#c2410c', border: '1px solid #fdba74', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>
+                          Brief Updated (Stale)
+                        </span>
+                      )}
+                      <span className="badge-subtle" style={{ marginLeft: 8, fontSize: '0.75rem', fontWeight: 600, color: '#334155', background: '#f1f5f9', border: '1px solid #cbd5e1' }}>
+                        Source: {pipelineFilter.source === 'supabase' ? 'Supabase Authoritative' : 'Local Fallback'}
+                      </span>
+                    </div>
+                    <div className="filter-banner-sub" style={{ fontSize: '0.86rem', color: '#334155', marginTop: 2, fontWeight: 500 }}>
+                      Showing {processedCreators.length} eligible creator{processedCreators.length === 1 ? '' : 's'} matching mandatory pipeline requirements. Excluded candidates are filtered out deterministically.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="filter-banner-actions" style={{ display: 'flex', gap: 8 }}>
+                  {onOpenPipelineTrace && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => onOpenPipelineTrace(pipelineFilter.campaignId)}
+                      style={{ fontWeight: 600 }}
+                    >
+                      <Sparkles size={13} style={{ color: '#059669' }} />
+                      <span>Inspect 7-Stage Trace</span>
+                    </button>
+                  )}
+                  {onClearPipelineFilter && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={onClearPipelineFilter}
+                      title="Clear campaign filter and view all creators"
+                      style={{ fontWeight: 600, color: '#475569' }}
+                    >
+                      <X size={14} />
+                      <span>Clear Filter</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Requirement Summary Pills */}
+              {pipelineFilter.interpretedBrief?.requirements && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 4, paddingTop: 8, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#991b1b', textTransform: 'uppercase' }}>Mandatory:</span>
+                  {(pipelineFilter.interpretedBrief.requirements.mandatory.skills || []).map((s, i) => (
+                    <span key={`ms-${i}`} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171', fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>{s}</span>
+                  ))}
+                  {(pipelineFilter.interpretedBrief.requirements.mandatory.formats || []).map((f, i) => (
+                    <span key={`mf-${i}`} style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171', fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>{f}</span>
+                  ))}
+                  {pipelineFilter.interpretedBrief.requirements.mandatory.commercialLicensing && (
+                    <span style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171', fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>Commercial License Required</span>
+                  )}
+
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#065f46', textTransform: 'uppercase', marginLeft: 8 }}>Preferred:</span>
+                  {(pipelineFilter.interpretedBrief.requirements.preferred.styles || []).map((s, i) => (
+                    <span key={`ps-${i}`} style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #34d399', fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>{s}</span>
+                  ))}
+                  {(pipelineFilter.interpretedBrief.requirements.preferred.industries || []).map((ind, i) => (
+                    <span key={`pi-${i}`} style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #34d399', fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px' }}>{ind}</span>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -238,6 +299,253 @@ export default function DiscoverView({
               ? "Based on your brief, these creators are especially aligned with your creative direction and deliverables."
               : "Explore AI creators making everything from cinematic campaigns to product visuals."}
           </p>
+
+          {/* AI Campaign Brief Pipeline Filter Card */}
+          <div className="studio-card ai-campaign-filter-card" style={{
+            margin: '20px 0 24px',
+            padding: '20px 24px',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.04) 0%, rgba(20, 20, 24, 0.95) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.3)',
+            borderRadius: '12px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles size={18} style={{ color: '#059669' }} />
+                <strong className="filter-card-heading" style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+                  AI Natural-Language Campaign Filter
+                </strong>
+                <span style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: 4, 
+                  padding: '3px 9px', 
+                  borderRadius: '4px', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 600, 
+                  background: 'rgba(5, 150, 105, 0.15)', 
+                  color: '#065f46', 
+                  border: '1px solid #10b981' 
+                }}>
+                  Groq LLM + Supabase Pipeline
+                </span>
+              </div>
+              <span style={{ 
+                fontSize: '0.75rem', 
+                fontWeight: 600, 
+                color: '#334155', 
+                background: 'rgba(255, 255, 255, 0.9)', 
+                padding: '2px 8px', 
+                borderRadius: '4px', 
+                border: '1px solid rgba(0,0,0,0.1)' 
+              }}>
+                7-Stage Deterministic Enforcement
+              </span>
+            </div>
+
+            <p className="filter-card-desc" style={{ fontSize: '0.88rem', color: '#1e293b', margin: '0 0 14px 0', lineHeight: 1.55, fontWeight: 500 }}>
+              Describe your campaign in plain language. CreaSync interprets hard mandatory requirements vs. ranking preferences, retrieves authoritative creator data from Supabase, and computes grounded matches.
+            </p>
+
+            {/* Authenticated vs Logged-Out states */}
+            {!currentUser && (
+              <div className="filter-auth-lock-banner" style={{
+                background: 'rgba(15, 23, 42, 0.95)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                borderRadius: '8px',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                flexWrap: 'wrap',
+                marginBottom: '14px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: '8px',
+                    background: 'rgba(16, 185, 129, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#34d399'
+                  }}>
+                    <Lock size={18} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#ffffff' }}>
+                      Sign In Required to Use AI Campaign Filter
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: '#cbd5e1', marginTop: 2 }}>
+                      Natural-language creator discovery is protected. Sign in with a brand or creator account to unlock brief interpretation.
+                    </div>
+                  </div>
+                </div>
+
+                {onOpenLogin && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm btn-filter-primary"
+                    style={{ minWidth: 140, fontWeight: 700 }}
+                    onClick={onOpenLogin}
+                  >
+                    <span>Sign In to Unlock</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ position: 'relative' }}>
+                <textarea
+                  className="discover-brief-textarea"
+                  style={{
+                    width: '100%',
+                    minHeight: '84px',
+                    padding: '12px 14px',
+                    background: 'rgba(15, 23, 42, 0.94)',
+                    border: '1.5px solid rgba(255, 255, 255, 0.35)',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '0.92rem',
+                    lineHeight: '1.45',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    cursor: isPipelineTraceLoading ? 'not-allowed' : 'text'
+                  }}
+                  placeholder="e.g. Find creators who can produce cinematic vertical AI videos for a premium skincare launch. Commercial usage rights are required. Preferably, they should have experience with beauty brands."
+                  value={naturalBriefInput}
+                  onChange={(e) => {
+                    setNaturalBriefInput(e.target.value);
+                    if (validationError) setValidationError(null);
+                  }}
+                  disabled={isPipelineTraceLoading}
+                />
+              </div>
+
+              {/* Inline Validation & Pipeline Error Notices */}
+              {validationError && (
+                <div
+                  className="brief-validation-alert"
+                  role="alert"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid #ef4444',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: '0.84rem',
+                    color: '#fca5a5'
+                  }}
+                >
+                  <AlertTriangle size={15} style={{ color: '#ef4444', flexShrink: 0 }} />
+                  <span style={{ fontWeight: 600 }}>{validationError}</span>
+                </div>
+              )}
+              {pipelineError && !validationError && (
+                <div
+                  className="brief-pipeline-error-alert"
+                  role="alert"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid #ef4444',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: '0.84rem',
+                    color: '#fca5a5'
+                  }}
+                >
+                  <AlertTriangle size={15} style={{ color: '#ef4444', flexShrink: 0 }} />
+                  <span style={{ fontWeight: 600 }}>{pipelineError}</span>
+                </div>
+              )}
+
+              {/* Action buttons and example chips */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                {/* Example Quick Pills */}
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                  <span style={{ fontSize: '0.78rem', color: '#f8fafc', fontWeight: 700 }}>Try:</span>
+                  {[
+                    { label: "Skincare Launch (Video + Commercial)", text: "Find creators who can produce cinematic vertical AI videos for a premium skincare launch. Commercial usage rights are required. Preferably, they should have experience with beauty brands." },
+                    { label: "High Fashion Editorial", text: "Looking for an AI fashion director for an editorial lookbook. Experience with luxury fashion brands preferred." },
+                    { label: "3D Product CGI", text: "Looking for 3D CGI product animation for consumer hardware. Must have 3D modeling skills and commercial licensing." }
+                  ].map((ex, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="search-suggestion-chip"
+                      style={{ fontSize: '0.76rem', padding: '4px 10px', color: '#ffffff' }}
+                      onClick={() => {
+                        setNaturalBriefInput(ex.text);
+                        if (validationError) setValidationError(null);
+                      }}
+                      disabled={isPipelineTraceLoading}
+                    >
+                      {ex.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {naturalBriefInput && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm btn-filter-clear"
+                      onClick={() => {
+                        setNaturalBriefInput('');
+                        if (validationError) setValidationError(null);
+                      }}
+                      disabled={isPipelineTraceLoading}
+                    >
+                      Clear
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    id="filter-by-brief-btn"
+                    className="btn btn-primary btn-sm btn-filter-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: '150px', justifyContent: 'center' }}
+                    onClick={() => {
+                      if (!currentUser) {
+                        setValidationError("Authentication required. Please sign in to use the AI Campaign Filter.");
+                        if (onOpenLogin) onOpenLogin();
+                        return;
+                      }
+                      const trimmed = naturalBriefInput.trim();
+                      if (!trimmed) {
+                        setValidationError("Please enter a campaign brief or choose one of the sample prompts below.");
+                        return;
+                      }
+                      setValidationError(null);
+                      if (onRunNaturalPipeline) {
+                        onRunNaturalPipeline(trimmed);
+                      }
+                    }}
+                    disabled={isPipelineTraceLoading}
+                  >
+                    {isPipelineTraceLoading ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" style={{ color: '#ffffff' }} />
+                        <span style={{ color: '#ffffff', fontWeight: 600 }}>Evaluating Pipeline…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={14} style={{ color: '#ffffff' }} />
+                        <span style={{ color: '#ffffff', fontWeight: 700 }}>Filter by Brief</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Prominent Search Field with Rotating Suggestions */}
           <div className="discover-search-container">

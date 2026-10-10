@@ -739,6 +739,16 @@ export default function PipelineTraceModal({
                 <Layers size={15} />
                 <span>Execution Stages ({stages.length})</span>
               </button>
+              {pipelineTrace?.interpretedBrief && (
+                <button
+                  type="button"
+                  className={`pipeline-tab-btn ${activeTab === 'brief' ? 'active' : ''}`}
+                  onClick={() => handleSelectTab('brief')}
+                >
+                  <Sparkles size={15} />
+                  <span>Interpreted Brief</span>
+                </button>
+              )}
               <button
                 type="button"
                 className={`pipeline-tab-btn ${activeTab === 'eligible' ? 'active' : ''}`}
@@ -857,6 +867,228 @@ export default function PipelineTraceModal({
                       })}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* TAB: Interpreted Brief (Groq AI Extraction & Requirement Structure) */}
+              {activeTab === 'brief' && pipelineTrace?.interpretedBrief && (
+                <div className="pipeline-interpreted-brief-tab-content" style={{ padding: '4px 0 24px' }}>
+                  {/* Hero Summary */}
+                  <div className="studio-card" style={{ padding: '20px 24px', marginBottom: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span className="badge-subtle" style={{ color: 'var(--brand-mint, #10b981)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                            <Cpu size={12} style={{ marginRight: 4, display: 'inline' }} />
+                            Groq AI Brief Interpretation (openai/gpt-oss-120b)
+                          </span>
+                          <span className="badge-subtle">
+                            Dataset: {pipelineTrace.source === 'supabase' ? 'Supabase Authoritative' : 'Local Fallback'}
+                          </span>
+                        </div>
+                        <h3 className="font-editorial" style={{ fontSize: '1.4rem', margin: '4px 0' }}>
+                          {pipelineTrace.interpretedBrief.title}
+                        </h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+                          Target Industry: <strong>{pipelineTrace.interpretedBrief.industry || 'General Commercial'}</strong>
+                          {pipelineTrace.interpretedBrief.budget && (
+                            <span> • Budget: <strong>{pipelineTrace.interpretedBrief.budget}</strong></span>
+                          )}
+                          {pipelineTrace.interpretedBrief.timeline && (
+                            <span> • Timeline: <strong>{pipelineTrace.interpretedBrief.timeline}</strong></span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Two-column layout: Mandatory vs Preferred */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 20 }}>
+                    {/* Mandatory Requirements Card */}
+                    <div className="studio-card" style={{ padding: '20px', borderLeft: '3px solid #ef4444' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <ShieldCheck size={18} color="#ef4444" />
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                          Mandatory Constraints (Hard Eligibility)
+                        </h4>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                        A creator failing ANY mandatory requirement is strictly excluded by the deterministic 7-stage pipeline.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Mandatory Skills</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.mandatory?.skills || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.mandatory.skills.map((s, i) => (
+                                <span key={i} className="criteria-pill" style={{ borderColor: 'rgba(239, 68, 68, 0.4)' }}>{s}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified (all skills accepted)</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Specialization Domain</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.mandatory?.specialization || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.mandatory.specialization.map((s, i) => (
+                                <span key={i} className="criteria-pill">{s}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Deliverable Formats</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.mandatory?.formats || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.mandatory.formats.map((f, i) => (
+                                <span key={i} className="criteria-pill">{f}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Production Tools</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.mandatory?.tools || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.mandatory.tools.map((t, i) => (
+                                <span key={i} className="criteria-pill">{t}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 20, paddingTop: 6, borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))' }}>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Commercial Licensing:</span>
+                            <strong style={{ marginLeft: 6, color: pipelineTrace.interpretedBrief.requirements?.mandatory?.commercialLicensing ? '#ef4444' : 'var(--text-secondary)' }}>
+                              {pipelineTrace.interpretedBrief.requirements?.mandatory?.commercialLicensing ? 'Strictly Required' : 'Not explicitly required'}
+                            </strong>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Min Projects:</span>
+                            <strong style={{ marginLeft: 6 }}>
+                              {pipelineTrace.interpretedBrief.requirements?.mandatory?.minProjects || 0}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preferred Requirements Card */}
+                    <div className="studio-card" style={{ padding: '20px', borderLeft: '3px solid #10b981' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <Sparkles size={18} color="#10b981" />
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                          Preferred Signals (Ranking Preferences)
+                        </h4>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                        Preferences influence compatibility ranking among eligible creators. They NEVER exclude creators or bypass mandatory checks.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Preferred Visual Styles</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.preferred?.styles || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.preferred.styles.map((s, i) => (
+                                <span key={i} className="criteria-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.4)' }}>{s}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Industry / Brand Experience</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.preferred?.industries || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.preferred.industries.map((ind, i) => (
+                                <span key={i} className="criteria-pill">{ind}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Preferred Platforms</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.preferred?.platforms || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.preferred.platforms.map((p, i) => (
+                                <span key={i} className="criteria-pill">{p}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Aesthetic Tone</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.preferred?.tone || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.preferred.tone.map((t, i) => (
+                                <span key={i} className="criteria-pill">{t}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notes and Clarifying Questions */}
+                  {((pipelineTrace.interpretedBrief.interpretationNotes || []).length > 0 || (pipelineTrace.interpretedBrief.clarifyingQuestions || []).length > 0) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                      {(pipelineTrace.interpretedBrief.interpretationNotes || []).length > 0 && (
+                        <div className="studio-card" style={{ padding: '16px 20px' }}>
+                          <h5 style={{ margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
+                            <Info size={15} color="var(--brand-mint, #10b981)" />
+                            AI Interpretation Notes
+                          </h5>
+                          <ul style={{ margin: 0, paddingLeft: 18, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            {pipelineTrace.interpretedBrief.interpretationNotes.map((note, i) => (
+                              <li key={i} style={{ marginBottom: 4 }}>{note}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {(pipelineTrace.interpretedBrief.clarifyingQuestions || []).length > 0 && (
+                        <div className="studio-card" style={{ padding: '16px 20px' }}>
+                          <h5 style={{ margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
+                            <AlertTriangle size={15} color="#eab308" />
+                            Clarifying Questions
+                          </h5>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>
+                            Ambiguities identified by Groq (no unverified facts were invented for these details):
+                          </p>
+                          <ul style={{ margin: 0, paddingLeft: 18, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            {pipelineTrace.interpretedBrief.clarifyingQuestions.map((q, i) => (
+                              <li key={i} style={{ marginBottom: 4 }}>{q}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

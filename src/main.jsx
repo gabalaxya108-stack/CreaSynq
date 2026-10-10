@@ -40,7 +40,7 @@ class ErrorBoundary extends React.Component {
             padding: '36px',
             boxShadow: '0 8px 30px rgba(0,0,0,0.06)'
           }}>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '12px', fontWeight: 600 }}>CreaSync Encountered an Error</h2>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '12px', fontWeight: 600 }}>Alloy Encountered an Error</h2>
             <p style={{ color: '#555', marginBottom: '20px', lineHeight: 1.5 }}>
               {this.state.error?.message || 'An unexpected error occurred while rendering.'}
             </p>

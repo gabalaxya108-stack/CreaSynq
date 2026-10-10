@@ -96,11 +96,22 @@ export default function CampaignModal({ isOpen, onClose, onCampaignCreated, acti
           deliverables: analysis.deliverables || [analysis.contentFormat || 'Key Campaign Visuals'],
           creativeDirection: analysis.creativeDirection,
           creativeStyle: analysis.creativeDirection || 'Contemporary Luxury',
+          desiredCreatorSpecialties: analysis.contentFormat?.toLowerCase().includes('video') ? ['AI Video'] : analysis.contentFormat?.toLowerCase().includes('3d') ? ['3D'] : ['AI Photography'],
+          requirements: {
+            mandatory: {
+              formats: analysis.contentFormat ? [analysis.contentFormat] : [],
+              styles: analysis.creativeDirection ? [analysis.creativeDirection] : []
+            },
+            preferred: {
+              platforms: analysis.platform ? [analysis.platform] : ['Instagram'],
+              industries: analysis.industry ? [analysis.industry] : []
+            }
+          },
           traits: analysis.traits,
           shortlist: []
         };
 
-        onCampaignCreated(newCampaign);
+        onCampaignCreated(newCampaign, { openPipelineTrace: true });
         // Reset state
         setStage('input');
         setNaturalText('');
@@ -148,7 +159,7 @@ export default function CampaignModal({ isOpen, onClose, onCampaignCreated, acti
                 Describe what you want to create.
               </h2>
               <p className="modal-subtitle">
-                Speak naturally. CreaSynq extracts the creative direction, deliverables, timeline, and platform automatically.
+                Speak naturally. Alloy extracts the creative direction, deliverables, timeline, and platform automatically.
               </p>
             </div>
 
@@ -215,7 +226,7 @@ export default function CampaignModal({ isOpen, onClose, onCampaignCreated, acti
                 {clarification.question}
               </h2>
               <p className="modal-subtitle">
-                Clarifying this helps CreaSynq pinpoint the exact creators who match your format.
+                Clarifying this helps Alloy pinpoint the exact creators who match your format.
               </p>
             </div>
 
@@ -268,7 +279,7 @@ export default function CampaignModal({ isOpen, onClose, onCampaignCreated, acti
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                 <span className="live-pulse-dot" />
                 <span className="section-label" style={{ marginBottom: 0, color: 'var(--accent-lavender-deep)' }}>
-                  CreaSynq Understood Your Brief
+                  Alloy Understood Your Brief
                 </span>
               </div>
               <h2 className="modal-title font-editorial" style={{ fontSize: '2.3rem' }}>

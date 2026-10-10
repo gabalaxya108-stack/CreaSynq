@@ -113,7 +113,7 @@ export function createInitialTrustVerification(creator = {}, currentUser = null)
       email: {
         ...creator.trustVerification.email,
         status: isEmailConfirmed ? VERIFICATION_STATUSES.VERIFIED : creator.trustVerification.email?.status || emailState,
-        emailAddress: currentUser?.email || creator.email || 'creator@creasync.network',
+        emailAddress: currentUser?.email || creator.email || 'creator@alloy.market',
         verifiedAt: isEmailConfirmed ? (currentUser?.email_confirmed_at || 'Recently confirmed') : null
       }
     };
@@ -129,7 +129,7 @@ export function createInitialTrustVerification(creator = {}, currentUser = null)
     // A. Account & Email Verification
     email: {
       status: isEmailConfirmed ? VERIFICATION_STATUSES.VERIFIED : (isMaya ? VERIFICATION_STATUSES.VERIFIED : VERIFICATION_STATUSES.NOT_STARTED),
-      emailAddress: currentUser?.email || (isMaya ? 'maya.chen@creasync.network' : 'creator@creasync.network'),
+      emailAddress: currentUser?.email || (isMaya ? 'maya.chen@alloy.market' : 'creator@alloy.market'),
       verifiedAt: isEmailConfirmed ? (currentUser?.email_confirmed_at || 'Authenticated session') : (isMaya ? 'Sep 14, 2026 via Supabase Auth' : null),
       notes: isEmailConfirmed 
         ? 'Cryptographically verified through Supabase magic link / OTP.' 
@@ -159,7 +159,7 @@ export function createInitialTrustVerification(creator = {}, currentUser = null)
         projectTitle: 'Echoes of the Solarium — Mid-Century Brand Odyssey',
         evidenceType: 'Raw Project Files & ComfyUI Generation Graph',
         description: 'Original ComfyUI JSON pipeline export, seed parameters (Seed #48921104), and 4K uncompressed ProRes 4444 master timeline with 35mm grain pass.',
-        artifactUrl: 'https://vault.creasync.network/audit/solarium_comfy_v4.json',
+        artifactUrl: 'https://vault.alloy.market/audit/solarium_comfy_v4.json',
         status: VERIFICATION_STATUSES.REVIEWED,
         submittedAt: 'Oct 04, 2026',
         reviewedAt: 'Oct 06, 2026',
@@ -171,7 +171,7 @@ export function createInitialTrustVerification(creator = {}, currentUser = null)
         projectTitle: 'Lumina Botanica — Bio-Luminescent Serums',
         evidenceType: 'Model Seed Logs & Depth Map Passes',
         description: 'Midjourney v6 seed reference sheet, ControlNet depth map passes for fluid droplets, and raw PSD layers separating lighting reflections.',
-        artifactUrl: 'https://vault.creasync.network/audit/lumina_depth_passes.zip',
+        artifactUrl: 'https://vault.alloy.market/audit/lumina_depth_passes.zip',
         status: VERIFICATION_STATUSES.SUBMITTED,
         submittedAt: 'Oct 08, 2026',
         reviewedAt: null,

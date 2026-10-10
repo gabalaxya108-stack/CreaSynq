@@ -96,12 +96,12 @@ export function explainMatch(campaign, creator) {
     contentFormat: match.breakdown.formatScore >= 11 ? 'Fully Compatible' : 'Partially Compatible',
     industryFit: match.breakdown.industryScore >= 11 ? 'Proven Experience' : 'Translatable Commercial Skill',
     platformFit: match.breakdown.platformScore >= 7 ? 'Active Distribution' : 'Compatible Format',
-    budgetAvailability: creator.availability.includes('Available') ? 'Available / Within Range' : 'Booking / In Discussion'
+    budgetAvailability: (creator.availability || '').includes('Available') ? 'Available / Within Range' : 'Booking / In Discussion'
   };
 
   const summary = relevantProjects.length > 0
     ? `Your brief calls for ${campaign.creativeStyle || 'elevated visual'} storytelling. ${creatorFirstName}'s verified work in “${relevantProjects[0].title}” confirms direct capability in this aesthetic.`
-    : `Your brief aligns with ${creatorFirstName}'s focus on ${creator.specialty.toLowerCase()} and ${(creator.styles || []).slice(0, 2).join(', ').toLowerCase()} direction.`;
+    : `Your brief aligns with ${creatorFirstName}'s focus on ${(creator.specialty || 'creative visual').toLowerCase()} and ${(creator.styles || []).slice(0, 2).join(', ').toLowerCase()} direction.`;
 
   return {
     score: match.score,

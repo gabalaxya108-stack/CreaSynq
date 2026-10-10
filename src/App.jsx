@@ -651,10 +651,10 @@ export default function App() {
 
       {/* Main Views */}
       <main>
-        {/* VIEW 1: ALLOY LANDING — Compact 3-Section Cinematic Marketplace */}
+        {/* VIEW 1: ALLOY MASTER LANDING PAGE */}
         {currentView === 'home' && (
           <>
-            {/* SECTION 1: The Cinematic Hero with 3D ALLOY Sculpture & Orbiting Assets */}
+            {/* 1. Master Editorial Hero with 3D ALLOY Animation Engine */}
             <Hero
               onFindCreator={() => navigateTo('brand-onboard')}
               onJoinCreator={() => navigateTo('creator-join')}
@@ -662,13 +662,45 @@ export default function App() {
               onSelectCreator={handleOpenCreatorProfile}
             />
 
-            {/* SECTION 2: How ALLOY Works (3 Connected Steps + Dual Paths) */}
+            {/* 2. Curated Creative Portfolio Showcase ("Meet creativity in every direction.") */}
+            <CreativeShowcase
+              creators={creatorsList}
+              onSelectProject={handleSelectProject}
+              onExploreAll={() => navigateTo('discover')}
+            />
+
+            {/* 3. How ALLOY Works (3 Connected Steps + Dual Paths) */}
             <HowItWorks
               onFindCreators={() => navigateTo('brand-onboard')}
               onBuildPortfolio={() => navigateTo('creator-join')}
             />
 
-            {/* SECTION 3: Compact Closing Banner & Actions */}
+            {/* 4. Creator DNA Architecture ("Every creator has a signature.") */}
+            <CreatorDNASection
+              creators={creatorsList}
+              onSelectCreator={handleOpenCreatorProfile}
+            />
+
+            {/* 5. CreaMatch & Explainable Intelligence ("Find the fit behind the feeling.") */}
+            <CreaMatchSection
+              creators={creatorsList}
+              onExploreDiscover={() => navigateTo('discover')}
+              onEnterBrandStudio={() => navigateTo('brand-workspace')}
+            />
+
+            {/* 6. CreaSim Interactive Concept Storyboards ("See what the collaboration could become.") */}
+            <ProductPreview
+              onSelectCreator={handleOpenCreatorProfile}
+              onExploreMarketplace={() => navigateTo('discover')}
+            />
+
+            {/* 7. Two Journeys • One Ecosystem (Brands & Agencies vs Creators) */}
+            <TwoJourneysSection
+              onExploreBrandStudio={() => navigateTo('brand-workspace')}
+              onBuildCreatorProfile={() => navigateTo('creator-join')}
+            />
+
+            {/* 8. Final Closing Banner & Direct Collaboration Actions */}
             <FinalCTA
               onFindCreator={() => navigateTo('brand-onboard')}
               onJoinCreator={() => navigateTo('creator-join')}

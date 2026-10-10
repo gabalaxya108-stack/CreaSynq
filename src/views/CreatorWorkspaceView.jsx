@@ -689,17 +689,6 @@ export default function CreatorWorkspaceView({
           <button 
             type="button" 
             role="tab" 
-            aria-selected={activeTab === 'workflows'}
-            className={`studio-tab-btn ${activeTab === 'workflows' ? 'active' : ''}`}
-            onClick={() => setActiveTab('workflows')}
-          >
-            <span>Creative Workflow</span>
-            <span className="tab-count-pill highlight">{workflowsList.length}</span>
-          </button>
-
-          <button 
-            type="button" 
-            role="tab" 
             aria-selected={activeTab === 'opportunities'}
             className={`studio-tab-btn ${activeTab === 'opportunities' ? 'active' : ''}`}
             onClick={() => setActiveTab('opportunities')}

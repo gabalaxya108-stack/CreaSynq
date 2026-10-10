@@ -297,7 +297,7 @@ export function createInitialTrustVerification(creator = {}, currentUser = null)
  * Calculates genuine verification summary stats without arbitrary composite scores
  */
 export function calculateTrustSummary(trustData) {
-  if (!trustData) return { totalCategories: 7, verifiedCount: 0, underReviewCount: 0, declaredCount: 0 };
+  if (!trustData) return { totalCategories: 6, verifiedCount: 0, underReviewCount: 0, declaredCount: 0 };
 
   let verifiedCount = 0;
   let underReviewCount = 0;
@@ -309,39 +309,33 @@ export function calculateTrustSummary(trustData) {
   else if (trustData.email?.status === VERIFICATION_STATUSES.UNDER_REVIEW) underReviewCount++;
   else notStartedCount++;
 
-  // 2. Identity
-  if (trustData.identity?.status === VERIFICATION_STATUSES.VERIFIED) verifiedCount++;
-  else if (trustData.identity?.status === VERIFICATION_STATUSES.UNDER_REVIEW || trustData.identity?.status === VERIFICATION_STATUSES.SUBMITTED) underReviewCount++;
-  else if (trustData.identity?.status === VERIFICATION_STATUSES.ACTION_REQUIRED) actionRequiredCount++;
-  else notStartedCount++;
-
-  // 3. Portfolio Evidence
+  // 2. Portfolio Evidence
   const hasReviewedEvidence = (trustData.portfolioEvidence || []).some(pe => pe.status === VERIFICATION_STATUSES.REVIEWED);
   const hasPendingEvidence = (trustData.portfolioEvidence || []).some(pe => pe.status === VERIFICATION_STATUSES.SUBMITTED || pe.status === VERIFICATION_STATUSES.UNDER_REVIEW);
   if (hasReviewedEvidence) verifiedCount++;
   else if (hasPendingEvidence) underReviewCount++;
   else notStartedCount++;
 
-  // 4. AI Tools
+  // 3. AI Tools
   const hasAuditedTools = (trustData.toolDeclarations || []).some(td => td.status === VERIFICATION_STATUSES.REVIEWED);
   if (hasAuditedTools) verifiedCount++;
   else underReviewCount++;
 
-  // 5. Workflow
+  // 4. Workflow
   if (trustData.workflowVerification?.status === VERIFICATION_STATUSES.REVIEWED || trustData.workflowVerification?.status === VERIFICATION_STATUSES.VERIFIED) verifiedCount++;
   else if (trustData.workflowVerification?.status === VERIFICATION_STATUSES.UNDER_REVIEW) underReviewCount++;
   else notStartedCount++;
 
-  // 6. Platform History
+  // 5. Platform History
   if (trustData.platformHistory?.completedEngagementsCount > 0) verifiedCount++;
   else notStartedCount++;
 
-  // 7. Licensing
+  // 6. Licensing
   if (trustData.licensing?.status === VERIFICATION_STATUSES.REVIEWED) verifiedCount++;
   else underReviewCount++;
 
   return {
-    totalCategories: 7,
+    totalCategories: 6,
     verifiedCount,
     underReviewCount,
     actionRequiredCount,

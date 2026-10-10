@@ -399,7 +399,7 @@ export default function TrustCenter({
               Tracked Categories
             </div>
             <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-              7 Categories
+              6 Categories
             </div>
             <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
               Full transparency spectrum
@@ -411,7 +411,7 @@ export default function TrustCenter({
               Audited / Verified
             </div>
             <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#059669', marginTop: '4px' }}>
-              {summary.verifiedCount} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>of 7</span>
+              {summary.verifiedCount} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-secondary)' }}>of 6</span>
             </div>
             <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
               Confirmed by provider/audit
@@ -537,73 +537,7 @@ export default function TrustCenter({
           </div>
         </div>
 
-        {/* CATEGORY B: IDENTITY VERIFICATION */}
-        <div className="studio-card" style={{ padding: '24px 28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-              <div style={{ padding: '12px', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', color: '#7C3AED' }}>
-                <UserCheck size={22} />
-              </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>B. Legal Identity & Personhood</h3>
-                  <span style={{
-                    padding: '3px 10px',
-                    borderRadius: '100px',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    background: STATUS_META[trustData.identity?.status || 'not_started'].bg,
-                    color: STATUS_META[trustData.identity?.status || 'not_started'].color
-                  }}>
-                    {STATUS_META[trustData.identity?.status || 'not_started'].label}
-                  </span>
-                </div>
-                <p style={{ margin: '4px 0 8px 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                  Confirms real human personhood and legal entity standing. Securely processed via Stripe Identity / Alloy Compliance Bridge.
-                </p>
-
-                {/* Privacy Callout */}
-                <div style={{
-                  background: 'rgba(0, 0, 0, 0.03)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  maxWidth: '560px'
-                }}>
-                  <Lock size={14} style={{ color: '#D97706', flexShrink: 0 }} />
-                  <span>
-                    <strong>Strict Privacy:</strong> Government IDs and legal document numbers are encrypted and <em>never shown to brands</em> or listed on public profiles.
-                  </span>
-                </div>
-
-                {trustData.identity?.legalName && (
-                  <div style={{ marginTop: '10px', fontSize: '0.84rem', color: 'var(--text-secondary)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    <span><strong>Legal Name:</strong> {trustData.identity.legalName}</span>
-                    <span><strong>Country:</strong> {trustData.identity.issuingCountry}</span>
-                    <span><strong>Document:</strong> {trustData.identity.documentType} ({trustData.identity.documentMaskedNumber})</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setActiveModal('identity')}
-              >
-                {trustData.identity?.status === VERIFICATION_STATUSES.VERIFIED ? 'View Submission' : 'Submit Identity Verification'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* CATEGORY C: PORTFOLIO AUTHENTICITY */}
+        {/* CATEGORY B: PORTFOLIO AUTHENTICITY */}
         <div className="studio-card" style={{ padding: '24px 28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
@@ -612,7 +546,7 @@ export default function TrustCenter({
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>C. Portfolio Authenticity & Project Provenance</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>B. Portfolio Authenticity & Project Provenance</h3>
                   <span style={{
                     padding: '3px 10px',
                     borderRadius: '100px',
@@ -691,7 +625,7 @@ export default function TrustCenter({
           </div>
         </div>
 
-        {/* CATEGORY D: AI TOOLS AND MODELS TRANSPARENCY */}
+        {/* CATEGORY C: AI TOOLS AND MODELS TRANSPARENCY */}
         <div className="studio-card" style={{ padding: '24px 28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
@@ -700,7 +634,7 @@ export default function TrustCenter({
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>D. AI Tools & Models Transparency</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>C. AI Tools & Models Transparency</h3>
                   <span style={{
                     padding: '3px 10px',
                     borderRadius: '100px',
@@ -770,7 +704,7 @@ export default function TrustCenter({
           </div>
         </div>
 
-        {/* CATEGORY E: CREATIVE WORKFLOW VERIFICATION */}
+        {/* CATEGORY D: CREATIVE WORKFLOW VERIFICATION */}
         <div className="studio-card" style={{ padding: '24px 28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
@@ -779,7 +713,7 @@ export default function TrustCenter({
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>E. Creative Workflow Verification</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>D. Creative Workflow Verification</h3>
                   <span style={{
                     padding: '3px 10px',
                     borderRadius: '100px',
@@ -816,7 +750,7 @@ export default function TrustCenter({
           </div>
         </div>
 
-        {/* CATEGORY F: ENGAGEMENT & DELIVERY HISTORY */}
+        {/* CATEGORY E: ENGAGEMENT & DELIVERY HISTORY */}
         <div className="studio-card" style={{ padding: '24px 28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
@@ -825,7 +759,7 @@ export default function TrustCenter({
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>F. Platform Engagements & Delivery History</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>E. Platform Engagements & Delivery History</h3>
                   <span style={{
                     padding: '3px 10px',
                     borderRadius: '100px',
@@ -887,7 +821,7 @@ export default function TrustCenter({
           )}
         </div>
 
-        {/* CATEGORY G: COMMERCIAL-USE & LICENSING DISCLOSURES */}
+        {/* CATEGORY F: COMMERCIAL-USE & LICENSING DISCLOSURES */}
         <div className="studio-card" style={{ padding: '24px 28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
@@ -896,7 +830,7 @@ export default function TrustCenter({
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>G. Commercial Rights & Licensing Disclosures</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem' }}>F. Commercial Rights & Licensing Disclosures</h3>
                   <span style={{
                     padding: '3px 10px',
                     borderRadius: '100px',
@@ -1309,10 +1243,9 @@ export default function TrustCenter({
                   value={reviewerDecision.targetType}
                   onChange={e => setReviewerDecision({ ...reviewerDecision, targetType: e.target.value })}
                 >
-                  <option value="identity">B. Legal Identity Submission</option>
-                  <option value="portfolio">C. Portfolio Authenticity Evidence</option>
-                  <option value="workflow">E. Creative Workflow Pipeline</option>
-                  <option value="licensing">G. Licensing Disclosures</option>
+                  <option value="portfolio">B. Portfolio Authenticity Evidence</option>
+                  <option value="workflow">D. Creative Workflow Pipeline</option>
+                  <option value="licensing">F. Licensing Disclosures</option>
                 </select>
               </div>
 

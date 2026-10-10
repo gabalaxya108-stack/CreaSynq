@@ -96,11 +96,22 @@ export default function CampaignModal({ isOpen, onClose, onCampaignCreated, acti
           deliverables: analysis.deliverables || [analysis.contentFormat || 'Key Campaign Visuals'],
           creativeDirection: analysis.creativeDirection,
           creativeStyle: analysis.creativeDirection || 'Contemporary Luxury',
+          desiredCreatorSpecialties: analysis.contentFormat?.toLowerCase().includes('video') ? ['AI Video'] : analysis.contentFormat?.toLowerCase().includes('3d') ? ['3D'] : ['AI Photography'],
+          requirements: {
+            mandatory: {
+              formats: analysis.contentFormat ? [analysis.contentFormat] : [],
+              styles: analysis.creativeDirection ? [analysis.creativeDirection] : []
+            },
+            preferred: {
+              platforms: analysis.platform ? [analysis.platform] : ['Instagram'],
+              industries: analysis.industry ? [analysis.industry] : []
+            }
+          },
           traits: analysis.traits,
           shortlist: []
         };
 
-        onCampaignCreated(newCampaign);
+        onCampaignCreated(newCampaign, { openPipelineTrace: true });
         // Reset state
         setStage('input');
         setNaturalText('');

@@ -65,7 +65,11 @@ export default function BrandWorkspaceView({
   connections = [],
   onSendMessage,
   onSelectCreator,
-  initialTab = 'overview'
+  onRunFilteringPipeline,
+  initialTab = 'overview',
+  pipelineFilter = null,
+  onClearPipelineFilter,
+  onOpenPipelineTrace
 }) {
   // Navigation Tabs:
   // 'overview' | 'campaigns' | 'discover' | 'shortlists' | 'invitations' | 'collaborations' | 'deliverables' | 'messages' | 'brand-settings'
@@ -76,6 +80,12 @@ export default function BrandWorkspaceView({
       setActiveTab(initialTab);
     }
   }, [initialTab]);
+
+  useEffect(() => {
+    if (pipelineFilter) {
+      setActiveTab('discover');
+    }
+  }, [pipelineFilter]);
 
   // Currently inspected campaign
   const inspectedCampaign = activeCampaign || campaigns[0] || null;
@@ -246,7 +256,42 @@ export default function BrandWorkspaceView({
   }, [discoverSearch, creators]);
 
   const filteredCreators = useMemo(() => {
-    let list = discoverSearch.trim() ? [...semanticResults.results] : [...creators];
+    let list;
+
+    // Campaign-specific pipeline filter: strict eligibility & preserved rank order
+    if (pipelineFilter && Array.isArray(pipelineFilter.eligibleCreatorIds)) {
+      const eligibleSet = new Set(pipelineFilter.eligibleCreatorIds);
+      const matching = creators.filter(c => eligibleSet.has(c.id));
+
+      if (Array.isArray(pipelineFilter.rankedOrder) && pipelineFilter.rankedOrder.length > 0) {
+        const rankIndexMap = new Map();
+        pipelineFilter.rankedOrder.forEach((item, idx) => {
+          const id = typeof item === 'string' ? item : (item.id || item.creatorId);
+          if (id) rankIndexMap.set(id, idx);
+        });
+        matching.sort((a, b) => {
+          const rankA = rankIndexMap.has(a.id) ? rankIndexMap.get(a.id) : 9999;
+          const rankB = rankIndexMap.has(b.id) ? rankIndexMap.get(b.id) : 9999;
+          return rankA - rankB;
+        });
+      } else {
+        const idOrder = new Map(pipelineFilter.eligibleCreatorIds.map((id, idx) => [id, idx]));
+        matching.sort((a, b) => (idOrder.get(a.id) ?? 9999) - (idOrder.get(b.id) ?? 9999));
+      }
+
+      list = matching;
+    } else {
+      list = discoverSearch.trim() ? [...semanticResults.results] : [...creators];
+    }
+
+    if (pipelineFilter && discoverSearch.trim()) {
+      const q = discoverSearch.toLowerCase();
+      list = list.filter(c =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.specialty || '').toLowerCase().includes(q) ||
+        (c.styles || []).some(s => s.toLowerCase().includes(q))
+      );
+    }
 
     if (discoverCategory !== 'all') {
       list = list.filter(c => {
@@ -265,7 +310,7 @@ export default function BrandWorkspaceView({
     }
 
     return list;
-  }, [creators, discoverSearch, semanticResults, discoverCategory, discoverStyle, discoverAvailability]);
+  }, [creators, discoverSearch, semanticResults, discoverCategory, discoverStyle, discoverAvailability, pipelineFilter]);
 
   // Shortlisted creators for current campaign
   const activeShortlistIds = useMemo(() => {
@@ -880,14 +925,28 @@ export default function BrandWorkspaceView({
                         <span className="question-number">03</span>
                         <h2 className="question-text">Recommended Creators for “{inspectedCampaign?.title}”</h2>
                       </div>
-                      <button 
-                        type="button" 
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setActiveTab('discover')}
-                      >
-                        <span>View All in Marketplace</span>
-                        <ArrowRight size={13} />
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {onRunFilteringPipeline && inspectedCampaign && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => onRunFilteringPipeline(inspectedCampaign)}
+                            title="Execute backend filtering pipeline and view candidate execution trace"
+                            id="run-filtering-pipeline-overview-btn"
+                          >
+                            <Sparkles size={13} className="text-mint" />
+                            <span>Filtering Pipeline Trace</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setActiveTab('discover')}
+                        >
+                          <span>View All in Marketplace</span>
+                          <ArrowRight size={13} />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="top-matches-grid">
@@ -1127,8 +1186,19 @@ export default function BrandWorkspaceView({
                       <span className="camp-card-updated">Updated {camp.updatedAt || camp.createdAt}</span>
                       
                       <div className="camp-card-actions">
-                        <button 
-                          type="button" 
+                        {onRunFilteringPipeline && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-xs"
+                            onClick={() => onRunFilteringPipeline(camp)}
+                            title="Execute Creator Filtering Pipeline"
+                          >
+                            <Sparkles size={12} className="text-mint" />
+                            <span>Pipeline</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
                           className="btn btn-secondary btn-xs"
                           onClick={() => handleOpenDetailModal(camp)}
                           title="View Full Brief & Matches"
@@ -1175,6 +1245,53 @@ export default function BrandWorkspaceView({
             ======================================================== */}
         {activeTab === 'discover' && (
           <div className="studio-discover-content fade-in">
+            {/* Pipeline Filter Active Banner */}
+            {pipelineFilter && (
+              <div className="pipeline-filter-banner studio-card">
+                <div className="filter-banner-content">
+                  <div className="filter-banner-icon">
+                    <Sparkles size={20} className="text-mint" />
+                  </div>
+                  <div className="filter-banner-text">
+                    <div className="filter-banner-heading">
+                      <strong>Filtered for Campaign:</strong> {pipelineFilter.campaignTitle || 'Campaign'}
+                      {pipelineFilter.isStale && (
+                        <span className="badge-stale" style={{ marginLeft: 8, background: 'rgba(235, 110, 75, 0.2)', color: '#eb6e4b', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                          Brief Updated (Stale)
+                        </span>
+                      )}
+                    </div>
+                    <div className="filter-banner-sub">
+                      Showing {filteredCreators.length} eligible creator{filteredCreators.length === 1 ? '' : 's'} matching mandatory pipeline requirements. Excluded candidates are filtered out.
+                    </div>
+                  </div>
+                </div>
+                <div className="filter-banner-actions">
+                  {onOpenPipelineTrace && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => onOpenPipelineTrace(pipelineFilter.campaignId)}
+                    >
+                      <Layers size={13} />
+                      <span>View Pipeline Trace</span>
+                    </button>
+                  )}
+                  {onClearPipelineFilter && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={onClearPipelineFilter}
+                      title="Clear campaign filter and view all creators"
+                    >
+                      <X size={14} />
+                      <span>Clear Filter</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Search and Filters */}
             <div className="discover-toolbar studio-card">
               <div className="toolbar-search-wrap">
@@ -1202,98 +1319,140 @@ export default function BrandWorkspaceView({
               </div>
             </div>
 
-            {/* Creators Grid */}
-            <div className="creators-marketplace-grid">
-              {filteredCreators.map(creator => {
-                const isShortlisted = activeShortlistIds.includes(creator.id);
-                const matchData = inspectedCampaign ? calculateCreaMatch(inspectedCampaign, creator) : null;
+            {/* Creators Grid / Empty State */}
+            {filteredCreators.length === 0 ? (
+              <div className="empty-state-card studio-card text-center" style={{ padding: '48px 24px', margin: '20px 0' }}>
+                <AlertCircle size={36} className="text-tertiary" style={{ margin: '0 auto 12px' }} />
+                <h3>{pipelineFilter ? 'No eligible creators match this campaign' : 'No creators found'}</h3>
+                <p style={{ maxWidth: 480, margin: '0 auto 16px', color: 'var(--text-secondary)' }}>
+                  {pipelineFilter
+                    ? `None of the candidate creators met all mandatory eligibility requirements for ${pipelineFilter.campaignTitle || 'this campaign'}. Review the campaign brief or relax mandatory criteria.`
+                    : 'No creators match your current search or filter criteria. Try adjusting your search query or specialty filters.'
+                  }
+                </p>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                  {pipelineFilter && (
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => {
+                        setActiveTab('campaigns');
+                        const camp = campaigns.find(c => c.id === pipelineFilter.campaignId);
+                        if (camp) handleOpenEditCampaign(camp);
+                      }}
+                    >
+                      <Edit3 size={13} />
+                      <span>Review Campaign Brief</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      if (onClearPipelineFilter) onClearPipelineFilter();
+                      setDiscoverSearch('');
+                      setDiscoverCategory('all');
+                      setDiscoverStyle('all');
+                      setDiscoverAvailability('all');
+                    }}
+                  >
+                    <span>{pipelineFilter ? 'Clear Filter (View All Creators)' : 'Reset Filters'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="creators-marketplace-grid">
+                {filteredCreators.map(creator => {
+                  const isShortlisted = activeShortlistIds.includes(creator.id);
+                  const matchData = inspectedCampaign ? calculateCreaMatch(inspectedCampaign, creator) : null;
 
-                return (
-                  <div key={creator.id} className="creator-market-card studio-card">
-                    <div className="market-card-header">
-                      <img src={creator.avatar} alt={creator.name} className="market-creator-avatar" />
-                      <div className="market-creator-meta">
-                        <h3 className="market-creator-name">{creator.name}</h3>
-                        <span className="market-creator-role">{creator.specialty || creator.creativeIdentity}</span>
-                        <span className="market-creator-loc">{creator.location}</span>
-                      </div>
-                      
-                      {matchData && (
-                        <div className="market-fit-badge">
-                          <Sparkles size={11} className="text-mint" />
-                          <span>{matchData.score}%</span>
+                  return (
+                    <div key={creator.id} className="creator-market-card studio-card">
+                      <div className="market-card-header">
+                        <img src={creator.avatar} alt={creator.name} className="market-creator-avatar" />
+                        <div className="market-creator-meta">
+                          <h3 className="market-creator-name">{creator.name}</h3>
+                          <span className="market-creator-role">{creator.specialty || creator.creativeIdentity}</span>
+                          <span className="market-creator-loc">{creator.location}</span>
                         </div>
-                      )}
+
+                        {matchData && (
+                          <div className="market-fit-badge">
+                            <Sparkles size={11} className="text-mint" />
+                            <span>{matchData.score}%</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Work Preview Image */}
+                      <div className="market-preview-image-wrap">
+                        <img
+                          src={creator.heroWork || creator.projects?.[0]?.image || "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80"}
+                          alt={creator.name}
+                          className="market-preview-img"
+                        />
+                      </div>
+
+                      <p className="market-creator-bio">
+                        {creator.bio || creator.introduction || creator.summary || creator.tagline || 'No introduction provided yet.'}
+                      </p>
+
+                      <div className="market-card-tags">
+                        {(creator.styles || []).slice(0, 3).map((st, i) => (
+                          <span key={i} className="market-style-tag">{st}</span>
+                        ))}
+                      </div>
+
+                      <div className="market-card-actions">
+                        <button
+                          type="button"
+                          className={`btn btn-xs ${isShortlisted ? 'btn-primary' : 'btn-secondary'}`}
+                          onClick={() => {
+                            if (inspectedCampaign && onToggleShortlist) {
+                              onToggleShortlist(inspectedCampaign.id, creator.id);
+                            }
+                          }}
+                        >
+                          <Bookmark size={12} />
+                          <span>{isShortlisted ? 'Shortlisted' : 'Shortlist'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          onClick={() => {
+                            setWhyModalCreator(creator);
+                            setIsWhyModalOpen(true);
+                          }}
+                        >
+                          <span>Why Fit</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-xs"
+                          onClick={() => {
+                            setInviteModalCreator(creator);
+                            setIsInviteModalOpen(true);
+                          }}
+                        >
+                          <Send size={12} />
+                          <span>Invite</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => onSelectCreator && onSelectCreator(creator.id)}
+                        >
+                          <span>Profile</span>
+                        </button>
+                      </div>
                     </div>
-
-                    {/* Work Preview Image */}
-                    <div className="market-preview-image-wrap">
-                      <img 
-                        src={creator.heroWork || creator.projects?.[0]?.image || "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80"} 
-                        alt={creator.name}
-                        className="market-preview-img" 
-                      />
-                    </div>
-
-                    <p className="market-creator-bio">
-                      {creator.bio || creator.introduction || creator.summary || creator.tagline || 'No introduction provided yet.'}
-                    </p>
-
-                    <div className="market-card-tags">
-                      {(creator.styles || []).slice(0, 3).map((st, i) => (
-                        <span key={i} className="market-style-tag">{st}</span>
-                      ))}
-                    </div>
-
-                    <div className="market-card-actions">
-                      <button 
-                        type="button" 
-                        className={`btn btn-xs ${isShortlisted ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => {
-                          if (inspectedCampaign && onToggleShortlist) {
-                            onToggleShortlist(inspectedCampaign.id, creator.id);
-                          }
-                        }}
-                      >
-                        <Bookmark size={12} />
-                        <span>{isShortlisted ? 'Shortlisted' : 'Shortlist'}</span>
-                      </button>
-
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary btn-xs"
-                        onClick={() => {
-                          setWhyModalCreator(creator);
-                          setIsWhyModalOpen(true);
-                        }}
-                      >
-                        <span>Why Fit</span>
-                      </button>
-
-                      <button 
-                        type="button" 
-                        className="btn btn-primary btn-xs"
-                        onClick={() => {
-                          setInviteModalCreator(creator);
-                          setIsInviteModalOpen(true);
-                        }}
-                      >
-                        <Send size={12} />
-                        <span>Invite</span>
-                      </button>
-
-                      <button 
-                        type="button" 
-                        className="btn btn-ghost btn-xs"
-                        onClick={() => onSelectCreator && onSelectCreator(creator.id)}
-                      >
-                        <span>Profile</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1961,8 +2120,22 @@ export default function BrandWorkspaceView({
               </div>
 
               <div className="detail-actions-footer">
-                <button 
-                  type="button" 
+                {onRunFilteringPipeline && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setIsCampaignDetailOpen(false);
+                      onRunFilteringPipeline(detailCampaign);
+                    }}
+                  >
+                    <Sparkles size={14} className="text-mint" />
+                    <span>Execute Filtering Pipeline</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() => {
                     setIsCampaignDetailOpen(false);

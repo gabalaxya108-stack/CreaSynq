@@ -10,6 +10,7 @@ import {
   evaluateCreaMatchAndScore, 
   generateCreaSimConcepts 
 } from './groqService.js';
+import { executeFilteringPipeline } from './filteringPipeline.js';
 
 function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -46,12 +47,41 @@ export function createGroqMiddleware() {
     const url = req.url ? req.url.split('?')[0] : '';
 
     // Handle CORS preflight
-    if (req.method === 'OPTIONS' && url.startsWith('/api/ai')) {
+    if (req.method === 'OPTIONS' && (url.startsWith('/api/ai') || url.startsWith('/api/pipeline'))) {
       res.statusCode = 204;
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       return res.end();
+    }
+
+    // Direct Filtering Pipeline Endpoint (Autonomous backend pipeline, does not require external AI key)
+    if ((url === '/api/pipeline/filter' || url === '/api/ai/pipeline') && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        if (!body || typeof body !== 'object' || Array.isArray(body)) {
+          return sendJson(res, 400, {
+            ok: false,
+            code: 'INVALID_REQUEST',
+            error: 'Request body must be a valid JSON object containing campaign brief parameters.'
+          });
+        }
+
+        const campaign = body.campaign || body.brief || body;
+        const options = body.options || {};
+
+        // Authoritative Server-Side Source of Truth:
+        // Never allow browser to inject arbitrary creator records to bypass eligibility filters
+        const result = executeFilteringPipeline({ campaign, creators: null, options });
+        return sendJson(res, 200, { ok: true, source: 'server-authoritative-pipeline', ...result });
+      } catch (err) {
+        console.error('[Pipeline Middleware Error]:', err.message);
+        return sendJson(res, 500, {
+          ok: false,
+          code: 'PIPELINE_EXECUTION_ERROR',
+          error: 'An unexpected error occurred while executing the backend filtering pipeline.'
+        });
+      }
     }
 
     if (!url.startsWith('/api/ai')) {

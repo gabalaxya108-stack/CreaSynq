@@ -980,3 +980,42 @@ export async function saveCreatorTrustVerification(creatorId, trustData) {
   return trustData;
 }
 
+// ============================================================================
+// 8. CAMPAIGN-TO-CREATOR FILTERING PIPELINE SERVICE LAYER
+// ============================================================================
+
+import { executeFilteringPipeline } from '../../server/filteringPipeline.js';
+
+/**
+ * Executes the backend campaign-to-creator filtering pipeline.
+ * Tries the live server endpoint /api/pipeline/filter first.
+ * If running in static/offline client mode, executes the deterministic pipeline engine directly.
+ *
+ * @param {Object} campaign - Campaign brief or configuration
+ * @param {Array} [creators] - Optional candidate creators list
+ * @returns {Promise<Object>} Execution trace contract
+ */
+export async function executeCampaignFilteringPipeline(campaign, creators = null) {
+  // 1. Try server endpoint
+  try {
+    const res = await fetch('/api/pipeline/filter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaign, creators })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch (netErr) {
+    // Fall back to direct local engine execution if server endpoint is unreachable
+    console.info('[Pipeline Service] Server endpoint deferred, executing deterministic pipeline engine:', netErr.message);
+  }
+
+  // 2. Direct engine execution fallback
+  const pool = creators || (getInitialMarketplaceState().creators || CREATORS);
+  const result = executeFilteringPipeline({ campaign, creators: pool });
+  return { ok: true, source: 'client-deterministic-fallback', ...result };
+}
+

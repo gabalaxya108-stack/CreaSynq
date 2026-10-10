@@ -12,7 +12,10 @@ export default function DiscoverView({
   onBackToCampaign,
   savedCreatorIds = [],
   onToggleSaveCreator,
-  onWhyClick 
+  onWhyClick,
+  pipelineFilter = null,
+  onClearPipelineFilter,
+  onOpenPipelineTrace
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -63,8 +66,32 @@ export default function DiscoverView({
 
   // Filter and sort creators
   const processedCreators = useMemo(() => {
-    // Start with semantic results if search query is provided, else full creators list
-    let list = searchQuery.trim() ? [...semanticResult.results] : [...creators];
+    let list;
+
+    if (pipelineFilter && Array.isArray(pipelineFilter.eligibleCreatorIds)) {
+      const eligibleSet = new Set(pipelineFilter.eligibleCreatorIds);
+      const matching = creators.filter(c => eligibleSet.has(c.id));
+
+      if (Array.isArray(pipelineFilter.rankedOrder) && pipelineFilter.rankedOrder.length > 0) {
+        const rankIndexMap = new Map();
+        pipelineFilter.rankedOrder.forEach((item, idx) => {
+          const id = typeof item === 'string' ? item : (item.id || item.creatorId);
+          if (id) rankIndexMap.set(id, idx);
+        });
+        matching.sort((a, b) => {
+          const rankA = rankIndexMap.has(a.id) ? rankIndexMap.get(a.id) : 9999;
+          const rankB = rankIndexMap.has(b.id) ? rankIndexMap.get(b.id) : 9999;
+          return rankA - rankB;
+        });
+      } else {
+        const idOrder = new Map(pipelineFilter.eligibleCreatorIds.map((id, idx) => [id, idx]));
+        matching.sort((a, b) => (idOrder.get(a.id) ?? 9999) - (idOrder.get(b.id) ?? 9999));
+      }
+
+      list = matching;
+    } else {
+      list = searchQuery.trim() ? [...semanticResult.results] : [...creators];
+    }
 
     list = list.filter((c) => {
       // Saved filter
@@ -100,8 +127,8 @@ export default function DiscoverView({
       return true;
     });
 
-    // Sorting logic (especially inside campaign context)
-    if (activeCampaign && !searchQuery.trim()) {
+    // Sorting logic (especially inside campaign context when no pipeline filter)
+    if (!pipelineFilter && activeCampaign && !searchQuery.trim()) {
       if (sortBy === 'recommended' || sortBy === 'best-fit') {
         list = [...list].sort((a, b) => {
           const matchA = calculateCreaMatch(activeCampaign, a).score;
@@ -118,7 +145,7 @@ export default function DiscoverView({
     }
 
     return list;
-  }, [creators, semanticResult, selectedCategory, searchQuery, showOnlySaved, savedCreatorIds, filters, sortBy, activeCampaign]);
+  }, [creators, semanticResult, selectedCategory, searchQuery, showOnlySaved, savedCreatorIds, filters, sortBy, activeCampaign, pipelineFilter]);
 
   return (
     <div className="discover-view">
@@ -148,6 +175,53 @@ export default function DiscoverView({
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               CreaMatch scores calculated for your brief.
             </span>
+          </div>
+        )}
+
+        {/* Campaign Pipeline Filter Banner */}
+        {pipelineFilter && (
+          <div className="pipeline-filter-banner studio-card" style={{ marginBottom: 24 }}>
+            <div className="filter-banner-content">
+              <div className="filter-banner-icon">
+                <Sparkles size={20} className="text-mint" />
+              </div>
+              <div className="filter-banner-text">
+                <div className="filter-banner-heading">
+                  <strong>Filtered for Campaign:</strong> {pipelineFilter.campaignTitle || 'Campaign'}
+                  {pipelineFilter.isStale && (
+                    <span className="badge-stale" style={{ marginLeft: 8, background: 'rgba(235, 110, 75, 0.2)', color: '#eb6e4b', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                      Brief Updated (Stale)
+                    </span>
+                  )}
+                </div>
+                <div className="filter-banner-sub">
+                  Showing {processedCreators.length} eligible creator{processedCreators.length === 1 ? '' : 's'} matching mandatory pipeline requirements. Excluded candidates are filtered out.
+                </div>
+              </div>
+            </div>
+            <div className="filter-banner-actions">
+              {onOpenPipelineTrace && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onOpenPipelineTrace(pipelineFilter.campaignId)}
+                >
+                  <Sparkles size={13} />
+                  <span>View Pipeline Trace</span>
+                </button>
+              )}
+              {onClearPipelineFilter && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={onClearPipelineFilter}
+                  title="Clear campaign filter and view all creators"
+                >
+                  <X size={14} />
+                  <span>Clear Filter</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
 

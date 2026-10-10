@@ -31,6 +31,7 @@ import LoginModal from './components/LoginModal';
 import RoleConflictModal from './components/RoleConflictModal';
 
 import { CREATORS } from './data/creatorsData';
+import PipelineTraceModal from './components/PipelineTraceModal';
 import {
   getInitialMarketplaceState,
   saveMarketplaceState,
@@ -54,7 +55,8 @@ import {
   getCurrentUser,
   signOut as backendSignOut,
   syncUserProfileSafely,
-  updateUserRoleExplicitly
+  updateUserRoleExplicitly,
+  executeCampaignFilteringPipeline
 } from './services/marketplaceBackend';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 
@@ -63,6 +65,13 @@ export default function App() {
   const [activeCreatorId, setActiveCreatorId] = useState(null);
   const [initialBrandTab, setInitialBrandTab] = useState('overview');
   const [initialCreatorTab, setInitialCreatorTab] = useState('overview');
+
+  // --- Filtering Pipeline Trace States ---
+  const [pipelineTrace, setPipelineTrace] = useState(null);
+  const [isPipelineTraceModalOpen, setIsPipelineTraceModalOpen] = useState(false);
+  const [isPipelineTraceLoading, setIsPipelineTraceLoading] = useState(false);
+  const [pipelineFilter, setPipelineFilter] = useState(null);
+  const pipelineRunVersionRef = useRef(0);
 
   // Centralized persistent state (synced with localStorage & reactive cross-tab events)
   const [marketplaceData, setMarketplaceData] = useState(() => getInitialMarketplaceState());
@@ -877,6 +886,31 @@ export default function App() {
     setMarketplaceData(fresh);
   };
 
+  const handleRunFilteringPipeline = async (targetCampaign) => {
+    const campaignToRun = targetCampaign || (marketplaceData.campaigns || []).find(c => c.id === marketplaceData.activeCampaignId) || marketplaceData.campaigns?.[0];
+    if (!campaignToRun) return;
+    setIsPipelineTraceLoading(true);
+    const currentVersion = ++pipelineRunVersionRef.current;
+    try {
+      // Pass null creators to ensure authoritative server-side creator data is used
+      const trace = await executeCampaignFilteringPipeline(campaignToRun, null);
+      if (currentVersion === pipelineRunVersionRef.current) {
+        setPipelineTrace({
+          ...trace,
+          isStale: false,
+          staleReason: null
+        });
+        setIsPipelineTraceModalOpen(true);
+      }
+    } catch (err) {
+      console.error('[App] Pipeline execution error:', err);
+    } finally {
+      if (currentVersion === pipelineRunVersionRef.current) {
+        setIsPipelineTraceLoading(false);
+      }
+    }
+  };
+
   // --- Campaign Handlers ---
   const handleSelectCampaign = (campId) => {
     setMarketplaceData(prev => ({
@@ -885,7 +919,7 @@ export default function App() {
     }));
   };
 
-  const handleCampaignCreated = (newCampaignData) => {
+  const handleCampaignCreated = async (newCampaignData, options = {}) => {
     const finalCamp = createCampaignRecord(newCampaignData, currentBrand);
     setMarketplaceData(prev => ({
       ...prev,
@@ -898,17 +932,117 @@ export default function App() {
     });
     setIsCampaignModalOpen(false);
     navigateTo('brand-workspace');
+
+    // Run backend filtering pipeline and present real execution trace
+    try {
+      setIsPipelineTraceLoading(true);
+      const trace = await executeCampaignFilteringPipeline(finalCamp, null);
+      setPipelineTrace({
+        ...trace,
+        isStale: false,
+        staleReason: null
+      });
+      setIsPipelineTraceModalOpen(true);
+    } catch (pipelineErr) {
+      console.warn('[App] Pipeline trace presentation deferred:', pipelineErr);
+    } finally {
+      setIsPipelineTraceLoading(false);
+    }
   };
 
-  const handleUpdateCampaign = (campaignId, updates) => {
-    setMarketplaceData(prev => ({
+  const handleUpdateCampaign = async (campaignId, updates) => {
+    let updatedCampaign = null;
+    setMarketplaceData(prev => {
+      const updatedList = (prev.campaigns || []).map(c => {
+        if (c.id === campaignId) {
+          updatedCampaign = { ...c, ...updates, updatedAt: 'Just now' };
+          return updatedCampaign;
+        }
+        return c;
+      });
+      return {
+        ...prev,
+        campaigns: updatedList
+      };
+    });
+
+    if (!updatedCampaign) {
+      const existing = (marketplaceData.campaigns || []).find(c => c.id === campaignId);
+      if (existing) updatedCampaign = { ...existing, ...updates };
+    }
+
+    if (!updatedCampaign) return;
+
+    // Fix 1: Automatically rerun pipeline after Update Campaign and show running/presenting state
+    setIsPipelineTraceLoading(true);
+    setIsPipelineTraceModalOpen(true);
+
+    const isCurrentTraceCampaign = pipelineTrace && (pipelineTrace.campaignId === campaignId || !pipelineTrace.campaignId);
+    const isCurrentFilterCampaign = pipelineFilter && pipelineFilter.campaignId === campaignId;
+
+    // Invalidate prior trace immediately: retain prior results labeled as stale while re-running
+    setPipelineTrace(prev => prev ? {
       ...prev,
-      campaigns: (prev.campaigns || []).map(c => c.id === campaignId ? {
-        ...c,
-        ...updates,
-        updatedAt: 'Just now'
-      } : c)
-    }));
+      isStale: true,
+      staleReason: 'Campaign brief requirements updated. Re-evaluating pipeline…'
+    } : null);
+
+    if (isCurrentFilterCampaign) {
+      setPipelineFilter(prev => prev ? {
+        ...prev,
+        isStale: true,
+        staleReason: 'Campaign brief requirements updated. Re-running pipeline…'
+      } : null);
+    }
+
+    // Race condition guard: increment version token so older responses cannot overwrite newer results
+    const currentVersion = ++pipelineRunVersionRef.current;
+
+    try {
+      const freshTrace = await executeCampaignFilteringPipeline(updatedCampaign, null);
+
+      // Replace prior results only after a successful new run
+      if (currentVersion === pipelineRunVersionRef.current) {
+        setPipelineTrace({
+          ...freshTrace,
+          isStale: false,
+          staleReason: null
+        });
+
+        // Update Discover Creators filter with the exact new eligible set and ranking
+        if (isCurrentFilterCampaign) {
+          setPipelineFilter({
+            campaignId,
+            campaignTitle: updatedCampaign.title || freshTrace.campaignTitle,
+            eligibleCreatorIds: freshTrace.eligibleCreatorIds || [],
+            rankedOrder: freshTrace.rankedCreators || [],
+            isStale: false
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[App] Pipeline rerun failed after brief update:', err);
+      // If execution fails, retain previous results as stale and label them clearly
+      if (currentVersion === pipelineRunVersionRef.current) {
+        setPipelineTrace(prev => prev ? {
+          ...prev,
+          isStale: true,
+          staleReason: 'Pipeline re-evaluation failed. Displaying previous results as stale.'
+        } : null);
+
+        if (isCurrentFilterCampaign) {
+          setPipelineFilter(prev => prev ? {
+            ...prev,
+            isStale: true,
+            staleReason: 'Pipeline re-evaluation failed. Displaying previous results as stale.'
+          } : null);
+        }
+      }
+    } finally {
+      if (currentVersion === pipelineRunVersionRef.current) {
+        setIsPipelineTraceLoading(false);
+      }
+    }
   };
 
   const handleDuplicateCampaign = (campaignId) => {
@@ -1331,6 +1465,9 @@ export default function App() {
             onToggleSaveCreator={handleToggleSaveCreator}
             onWhyClick={handleOpenWhyModal}
             onInviteCreator={handleOpenInviteModal}
+            pipelineFilter={pipelineFilter}
+            onClearPipelineFilter={() => setPipelineFilter(null)}
+            onOpenPipelineTrace={handleRunFilteringPipeline}
           />
         )}
 
@@ -1363,7 +1500,18 @@ export default function App() {
             connections={brandConnections}
             onSendMessage={handleSendMessage}
             onSelectCreator={handleOpenCreatorProfile}
+            onRunFilteringPipeline={handleRunFilteringPipeline}
             initialTab={initialBrandTab}
+            pipelineFilter={pipelineFilter}
+            onClearPipelineFilter={() => setPipelineFilter(null)}
+            onOpenPipelineTrace={(campaignId) => {
+              const camp = (marketplaceData.campaigns || []).find(c => c.id === campaignId) || activeCampaign;
+              if (camp) {
+                handleRunFilteringPipeline(camp);
+              } else {
+                setIsPipelineTraceModalOpen(true);
+              }
+            }}
           />
         )}
 
@@ -1717,6 +1865,21 @@ export default function App() {
           onViewCreatorProfile={handleOpenCreatorProfile}
         />
       )}
+
+      {/* Campaign-to-Creator Backend Filtering Pipeline Visualizer */}
+      <PipelineTraceModal
+        isOpen={isPipelineTraceModalOpen}
+        onClose={() => setIsPipelineTraceModalOpen(false)}
+        pipelineTrace={pipelineTrace}
+        isLoading={isPipelineTraceLoading}
+        onSelectCreator={handleOpenCreatorProfile}
+        onViewAllEligible={(filterPayload) => {
+          setIsPipelineTraceModalOpen(false);
+          setPipelineFilter(filterPayload);
+          setInitialBrandTab('discover');
+          navigateTo('brand-workspace');
+        }}
+      />
     </div>
   );
 }

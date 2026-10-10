@@ -154,37 +154,33 @@ export default function LoginModal({
         </button>
 
         {/* ========================================================
-            COLUMN 1: High-Contrast, Elegant Auth Form
+            COLUMN 1: High-Contrast, Elegant Auth Form (Compact Single Page)
             ======================================================== */}
         <div className="alloy-login-form-col">
           
-          {/* Brand Wordmark & Eyebrow */}
+          {/* Brand Wordmark & Eyebrow Row */}
           <div className="alloy-login-brand-header">
-            <img 
-              src="/assets/alloy-wordmark.webp" 
-              alt="Alloy" 
-              className="alloy-login-logo-img" 
-            />
-            <div className="alloy-login-pill">
-              <Sparkles size={11} className="pill-star" />
-              <span>WORKSPACE ENTRY</span>
+            <div className="alloy-login-brand-row">
+              <img 
+                src="/assets/alloy-wordmark.webp" 
+                alt="Alloy" 
+                className="alloy-login-logo-img" 
+              />
+              <div className="alloy-login-pill">
+                <Sparkles size={10} className="pill-star" />
+                <span>WORKSPACE ENTRY</span>
+              </div>
             </div>
             
             <h2 id="login-modal-title" className="alloy-login-headline font-editorial">
               {authMode === 'signup' ? 'Create Your Account' : 'Sign In to Alloy'}
             </h2>
-            
-            <p className="alloy-login-subtext">
-              {authMode === 'signup' 
-                ? 'Join our network of verified AI creators and forward-thinking brands.'
-                : 'Access your persistent workspace, campaign briefs, or creator studio.'}
-            </p>
           </div>
 
           {/* Pending Action Callout Notice (if triggered by a protected action) */}
           {pendingActionNotice && (
             <div className="alloy-pending-notice">
-              <ShieldCheck size={16} className="notice-icon" />
+              <ShieldCheck size={13} className="notice-icon" />
               <span>{pendingActionNotice}</span>
             </div>
           )}
@@ -209,26 +205,17 @@ export default function LoginModal({
             </button>
           </div>
 
-          {/* Role Preselection / Selector (Brand Studio vs Creator Studio) */}
+          {/* Role Preselection / Selector (Inline) */}
           <div className="auth-role-select-group">
-            <div className="role-header-row">
-              <span className="role-header-title">
-                Select Workspace Role:
-              </span>
-              <span className="role-header-current">
-                {selectedRole === 'brand' ? 'Brand Studio' : 'Creator Studio'}
-              </span>
-            </div>
-            
             <div className="auth-role-picker">
               <button
                 type="button"
                 className={`role-pill-btn ${selectedRole === 'brand' ? 'is-selected' : ''}`}
                 onClick={() => setSelectedRole('brand')}
               >
-                <Briefcase size={14} />
+                <Briefcase size={13} />
                 <span>Brand Studio</span>
-                {selectedRole === 'brand' && <Check size={12} className="role-check" />}
+                {selectedRole === 'brand' && <Check size={11} className="role-check" />}
               </button>
 
               <button
@@ -236,9 +223,9 @@ export default function LoginModal({
                 className={`role-pill-btn ${selectedRole === 'creator' ? 'is-selected' : ''}`}
                 onClick={() => setSelectedRole('creator')}
               >
-                <Palette size={14} />
+                <Palette size={13} />
                 <span>Creator Studio</span>
-                {selectedRole === 'creator' && <Check size={12} className="role-check" />}
+                {selectedRole === 'creator' && <Check size={11} className="role-check" />}
               </button>
             </div>
           </div>
@@ -252,9 +239,9 @@ export default function LoginModal({
             className="btn-google-oauth"
           >
             {loading ? (
-              <Loader size={16} className="auth-spinner" />
+              <Loader size={14} className="auth-spinner" />
             ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
@@ -270,30 +257,19 @@ export default function LoginModal({
             </span>
           </button>
 
-          {/* Elegant Local Demo Fallback Notice when Supabase is not configured */}
+          {/* Fallback Notice for Unconfigured Supabase OAuth */}
           {isDemoFallbackOpen && (
             <div className="demo-oauth-notice-banner">
               <div className="notice-banner-text">
-                <strong>Google Authentication Note</strong>
-                <p>Live OAuth requires Supabase API keys in <code>.env</code>. You can enter instantly in evaluation demo mode.</p>
+                <p>Google OAuth requires Supabase in <code>.env</code>.</p>
               </div>
-              <div className="notice-banner-actions">
-                <button
-                  type="button"
-                  className="btn-demo-quick-action"
-                  onClick={() => handleQuickDemoEnter(selectedRole)}
-                >
-                  <span>Enter as Demo {selectedRole === 'brand' ? 'Brand' : 'Creator'} →</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn-notice-dismiss"
-                  onClick={() => setIsDemoFallbackOpen(false)}
-                  aria-label="Dismiss notice"
-                >
-                  <X size={14} />
-                </button>
-              </div>
+              <button
+                type="button"
+                className="btn-demo-quick-action"
+                onClick={() => handleQuickDemoEnter(selectedRole)}
+              >
+                <span>Demo {selectedRole === 'brand' ? 'Brand' : 'Creator'} →</span>
+              </button>
             </div>
           )}
 
@@ -305,16 +281,16 @@ export default function LoginModal({
           {/* Error / Success Messages */}
           {errorMsg && (
             <div className="auth-alert alert-error">
-              <AlertCircle size={15} />
+              <AlertCircle size={14} />
               <span>{errorMsg}</span>
               <button type="button" onClick={() => setErrorMsg('')} className="alert-close-btn">
-                <X size={13} />
+                <X size={12} />
               </button>
             </div>
           )}
           {successMsg && (
             <div className="auth-alert alert-success">
-              <ShieldCheck size={15} />
+              <ShieldCheck size={14} />
               <span>{successMsg}</span>
             </div>
           )}
@@ -322,119 +298,92 @@ export default function LoginModal({
           {/* Credentials Form */}
           <form onSubmit={handleSubmit} className="alloy-auth-form">
             {authMode === 'signup' && (
-              <div className="auth-field-group">
-                <label className="auth-field-label" htmlFor="auth-name">
-                  Full Name / Studio Name
-                </label>
-                <div className="auth-input-container">
-                  <UserPlus size={16} className="auth-input-icon" />
-                  <input 
-                    id="auth-name"
-                    type="text" 
-                    className="auth-text-input" 
-                    placeholder="e.g. Alex Rivera or Studio Lumina"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    required
-                  />
-                </div>
+              <div className="auth-input-container">
+                <UserPlus size={14} className="auth-input-icon" />
+                <input 
+                  id="auth-name"
+                  type="text" 
+                  className="auth-text-input" 
+                  placeholder="Full Name / Studio Name"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                />
               </div>
             )}
 
-            <div className="auth-field-group">
-              <label className="auth-field-label" htmlFor="auth-email">
-                Email Address
-              </label>
-              <div className="auth-input-container">
-                <Mail size={16} className="auth-input-icon" />
-                <input 
-                  id="auth-email"
-                  type="email" 
-                  className="auth-text-input" 
-                  placeholder="name@company.com or creator@studio.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="auth-input-container">
+              <Mail size={14} className="auth-input-icon" />
+              <input 
+                id="auth-email"
+                type="email" 
+                className="auth-text-input" 
+                placeholder="Email Address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
 
-            <div className="auth-field-group">
-              <label className="auth-field-label" htmlFor="auth-password">
-                Password
-              </label>
-              <div className="auth-input-container">
-                <Lock size={16} className="auth-input-icon" />
-                <input 
-                  id="auth-password"
-                  type="password" 
-                  className="auth-text-input" 
-                  placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
-              </div>
+            <div className="auth-input-container">
+              <Lock size={14} className="auth-input-icon" />
+              <input 
+                id="auth-password"
+                type="password" 
+                className="auth-text-input" 
+                placeholder="Password (min. 6 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
             </div>
 
             {/* Submit Button */}
             <button type="submit" className="auth-submit-btn" disabled={loading} id="auth-submit-btn">
               {loading ? (
                 <>
-                  <Loader size={16} className="auth-spinner" />
+                  <Loader size={14} className="auth-spinner" />
                   <span>Connecting...</span>
                 </>
               ) : (
                 <>
                   <span>{authMode === 'signup' ? 'Create Account & Enter' : 'Continue to Workspace'}</span>
-                  <ArrowRight size={15} />
+                  <ArrowRight size={14} />
                 </>
               )}
             </button>
           </form>
 
-          {/* 1-Click Instant Demo Panel (Available for Quick Evaluation) */}
-          <div className="alloy-demo-panel">
-            <span className="demo-panel-title">Or Evaluate Instantly:</span>
-            <div className="demo-card-grid">
+          {/* 1-Click Instant Demo Bar */}
+          <div className="alloy-demo-bar">
+            <span className="demo-bar-label">Instant Demo:</span>
+            <div className="demo-bar-actions">
               <button
                 type="button"
-                className="demo-choice-card brand-choice"
+                className="demo-pill-btn brand-demo"
                 id="demo-login-brand-btn"
                 onClick={() => handleQuickDemoEnter('brand')}
               >
-                <div className="demo-icon-wrap brand-icon-wrap">
-                  <Briefcase size={15} />
-                </div>
-                <div className="demo-text-wrap">
-                  <span className="demo-name">Lumina Botanica</span>
-                  <span className="demo-role">Brand Studio</span>
-                </div>
-                <ArrowRight size={13} className="demo-arrow" />
+                <Briefcase size={12} />
+                <span>Lumina Botanica</span>
               </button>
 
               <button
                 type="button"
-                className="demo-choice-card creator-choice"
+                className="demo-pill-btn creator-demo"
                 id="demo-login-creator-btn"
                 onClick={() => handleQuickDemoEnter('creator')}
               >
-                <div className="demo-icon-wrap creator-icon-wrap">
-                  <Palette size={15} />
-                </div>
-                <div className="demo-text-wrap">
-                  <span className="demo-name">Maya Chen</span>
-                  <span className="demo-role">Creator Studio</span>
-                </div>
-                <ArrowRight size={13} className="demo-arrow" />
+                <Palette size={12} />
+                <span>Maya Chen</span>
               </button>
             </div>
           </div>
 
           {/* Footer Security Badge */}
           <div className="alloy-auth-footer-badge">
-            <ShieldCheck size={13} className="badge-shield-icon" />
+            <ShieldCheck size={12} className="badge-shield-icon" />
             <span>Isolated multi-tenant workspace security</span>
           </div>
 
@@ -445,11 +394,13 @@ export default function LoginModal({
             ======================================================== */}
         <div className="alloy-login-visual-col">
           <div className="visual-blended-frame">
-            <img 
-              src="/assets/alloy-emblem-sculpture.webp" 
-              alt="Alloy Intertwined Creative Sculpture" 
-              className="blended-sculpture-img"
-            />
+            <div className="visual-sculpture-wrapper">
+              <img 
+                src="/assets/alloy-emblem-transparent.png" 
+                alt="Alloy Intertwined Creative Sculpture" 
+                className="blended-sculpture-img"
+              />
+            </div>
             
             {/* Soft Ambient Blend Overlay */}
             <div className="visual-ambient-overlay" aria-hidden="true" />

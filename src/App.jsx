@@ -31,8 +31,8 @@ import LoginModal from './components/LoginModal';
 import RoleConflictModal from './components/RoleConflictModal';
 
 import { CREATORS } from './data/creatorsData';
-import { 
-  getInitialMarketplaceState, 
+import {
+  getInitialMarketplaceState,
   saveMarketplaceState,
   subscribeToMarketplace,
   getBrandScopedData,
@@ -44,9 +44,9 @@ import {
   getPublicCreatorProfile,
   INITIAL_CAMPAIGNS
 } from './data/marketplaceStore';
-import { 
-  fetchCreators as fetchBackendCreators, 
-  fetchCampaigns as fetchBackendCampaigns, 
+import {
+  fetchCreators as fetchBackendCreators,
+  fetchCampaigns as fetchBackendCampaigns,
   saveCreator as saveBackendCreator,
   saveCampaign as saveBackendCampaign,
   savePortfolioProject as saveBackendProject,
@@ -214,7 +214,7 @@ export default function App() {
           updateActiveUser(user);
           syncUserProfileSafely(user, null);
         } else {
-          const localUser = typeof window !== 'undefined' 
+          const localUser = typeof window !== 'undefined'
             ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null')
             : null;
           if (localUser) {
@@ -226,7 +226,7 @@ export default function App() {
         setAuthLoading(false);
       }).catch(err => {
         console.warn('[CreaSync Auth] Session validation note:', err);
-        const localUser = typeof window !== 'undefined' 
+        const localUser = typeof window !== 'undefined'
           ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null')
           : null;
         if (localUser) {
@@ -247,9 +247,9 @@ export default function App() {
             let intendedRole = null;
             if (typeof window !== 'undefined') {
               try {
-                intendedRole = sessionStorage.getItem('creasync_intended_role') 
+                intendedRole = sessionStorage.getItem('creasync_intended_role')
                   || localStorage.getItem('creasync_intended_role');
-              } catch (e) {}
+              } catch (e) { }
             }
 
             // Sync user profile (preserves existing verified profile roles!)
@@ -261,9 +261,9 @@ export default function App() {
             if (syncedProfile && active) {
               active.profile = syncedProfile;
             }
-            const activeRole = active?.profile?.role 
-              || (active?.role !== 'authenticated' ? active?.role : null) 
-              || intendedRole 
+            const activeRole = active?.profile?.role
+              || (active?.role !== 'authenticated' ? active?.role : null)
+              || intendedRole
               || (typeof window !== 'undefined' ? localStorage.getItem('creasync_active_role') : null)
               || 'brand';
 
@@ -341,12 +341,12 @@ export default function App() {
         if (stored) {
           action = JSON.parse(stored);
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     try {
       sessionStorage.removeItem('creasync_pending_action');
-    } catch (e) {}
+    } catch (e) { }
     setPendingAction(null);
     setLoginNotice(null);
     setIsLoginOpen(false); // Close login modal on successful authentication
@@ -394,7 +394,7 @@ export default function App() {
       try {
         sessionStorage.removeItem('creasync_intended_role');
         localStorage.removeItem('creasync_intended_role');
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (action) {
@@ -410,9 +410,9 @@ export default function App() {
           return;
         case 'TOGGLE_SAVE':
           if (action.creatorId) {
-            setSavedCreatorIds(prev => 
-              prev.includes(action.creatorId) 
-                ? prev.filter(id => id !== action.creatorId) 
+            setSavedCreatorIds(prev =>
+              prev.includes(action.creatorId)
+                ? prev.filter(id => id !== action.creatorId)
                 : [...prev, action.creatorId]
             );
           }
@@ -496,7 +496,7 @@ export default function App() {
       sessionStorage.setItem('creasync_pending_action', JSON.stringify(actionConfig));
       sessionStorage.setItem('creasync_intended_role', targetRole);
       localStorage.setItem('creasync_intended_role', targetRole);
-    } catch (e) {}
+    } catch (e) { }
 
     setLoginInitialRole(targetRole);
     setLoginNotice(actionConfig.notice || 'Authentication required to proceed');
@@ -571,7 +571,7 @@ export default function App() {
     try {
       sessionStorage.removeItem('creasync_pending_action');
       sessionStorage.removeItem('creasync_intended_role');
-    } catch (e) {}
+    } catch (e) { }
     navigateTo('home', null, null);
   };
 
@@ -765,9 +765,9 @@ export default function App() {
     requireAuth(
       { type: 'TOGGLE_SAVE', creatorId, role: 'brand', notice: 'Please sign in to save creators to your shortlist' },
       () => {
-        setSavedCreatorIds((prev) => 
-          prev.includes(creatorId) 
-            ? prev.filter(id => id !== creatorId) 
+        setSavedCreatorIds((prev) =>
+          prev.includes(creatorId)
+            ? prev.filter(id => id !== creatorId)
             : [...prev, creatorId]
         );
       }
@@ -847,10 +847,10 @@ export default function App() {
   const handleUpdateCampaign = (campaignId, updates) => {
     setMarketplaceData(prev => ({
       ...prev,
-      campaigns: (prev.campaigns || []).map(c => c.id === campaignId ? { 
-        ...c, 
-        ...updates, 
-        updatedAt: 'Just now' 
+      campaigns: (prev.campaigns || []).map(c => c.id === campaignId ? {
+        ...c,
+        ...updates,
+        updatedAt: 'Just now'
       } : c)
     }));
   };
@@ -1002,7 +1002,7 @@ export default function App() {
     setMarketplaceData(prev => ({
       ...prev,
       invitations: prev.invitations.map(inv => inv.id === invitation.id ? { ...inv, status: 'accepted' } : inv),
-      projects: existingProject 
+      projects: existingProject
         ? prev.projects.map(p => p.id === existingProject.id ? newProject : p)
         : [newProject, ...prev.projects]
     }));
@@ -1196,10 +1196,10 @@ export default function App() {
 
       {/* Main Views */}
       <main>
-        {/* VIEW 1: ALLOY LANDING — Compact 3-Section Cinematic Marketplace */}
+        {/* VIEW 1: ALLOY LANDING — Complete Redesigned Editorial Marketplace */}
         {currentView === 'home' && (
           <>
-            {/* SECTION 1: The Cinematic Hero with 3D ALLOY Sculpture & Orbiting Assets */}
+            {/* SECTION 1: Editorial Hero with Original Campaign Artwork */}
             <Hero
               onFindCreator={handleHireAction}
               onJoinCreator={handleCreatorAction}
@@ -1207,13 +1207,33 @@ export default function App() {
               onSelectCreator={handleOpenCreatorProfile}
             />
 
-            {/* SECTION 2: How ALLOY Works (3 Connected Steps + Dual Paths) */}
+            {/* SECTION 2: Explain What Alloy Does (3-Part Clean Editorial Layout) */}
             <HowItWorks
               onFindCreators={handleHireAction}
               onBuildPortfolio={handleCreatorAction}
             />
 
-            {/* SECTION 3: Compact Closing Banner & Actions */}
+            {/* SECTION 3: Showcase Creative Work (Curated Editorial Gallery) */}
+            <CreativeShowcase
+              creators={creatorsList}
+              onSelectCreator={handleOpenCreatorProfile}
+              onExploreAll={() => navigateTo('discover')}
+            />
+
+            {/* SECTION 4: Two Clear User Journeys (For Brands & For Creators) */}
+            <TwoJourneysSection
+              onFindCreators={handleHireAction}
+              onJoinAlloy={handleCreatorAction}
+            />
+
+            {/* SECTION 5: Show How Matching Works (Explainable Style Alignment) */}
+            <CreaMatchSection
+              creators={creatorsList}
+              onExploreDiscover={() => navigateTo('discover')}
+              onEnterBrandStudio={() => navigateTo('brand-workspace')}
+            />
+
+            {/* SECTION 6: Final Call To Action */}
             <FinalCTA
               onFindCreator={handleHireAction}
               onJoinCreator={handleCreatorAction}
@@ -1409,7 +1429,7 @@ export default function App() {
           setPendingAction(null);
           try {
             sessionStorage.removeItem('creasync_pending_action');
-          } catch (e) {}
+          } catch (e) { }
         }}
         initialRole={loginInitialRole}
         pendingActionNotice={loginNotice}

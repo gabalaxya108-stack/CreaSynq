@@ -1,177 +1,102 @@
 // src/components/HowItWorks.jsx
-// SECTION 2 — How ALLOY Works
-// Eyebrow: "FROM IDEA TO CREATIVE TEAM"
-// Headline: "Your next great collaboration starts here."
-// 3 Horizontally Arranged Steps with visual micro-previews and dual Brand / Creator paths
+// SECTION 2 — Explain What ALLOY Does
+// Heading: "Where creative vision meets the right talent."
+// Supporting copy: "Alloy brings brands and AI creators together through portfolios, creative discovery, and intelligent matching."
+// 3-part clean editorial layout:
+// 01 — Discover
+// 02 — Find Your Fit
+// 03 — Create Together
 
-import React, { useState } from 'react';
-import { ArrowRight, Sparkles, Compass, CheckCircle2, FileText, Users } from 'lucide-react';
+import React from 'react';
+import { ArrowRight, Compass, Sparkles, Handshake, Check } from 'lucide-react';
 
 export default function HowItWorks({ onFindCreators, onBuildPortfolio }) {
-  const [hoveredStep, setHoveredStep] = useState(null);
-
-  const steps = [
+  const pillars = [
     {
       num: "01",
       title: "Discover",
-      desc: "Explore AI-native creators through their actual work, specialties, and creative styles.",
-      visualType: "portfolio"
+      desc: "Explore creators through their actual portfolios, creative styles, specializations, and published work.",
+      highlight: "Evidence-backed portfolios",
+      details: ["Curated 4K commercial visuals", "Verified prompt & tool stacks", "Diverse creative disciplines"]
     },
     {
       num: "02",
-      title: "Match",
-      desc: "Find creators whose visual direction, skills, and capabilities fit your campaign.",
-      visualType: "match"
+      title: "Find Your Fit",
+      desc: "Use Alloy's existing matching experience to discover relevant creators and understand why their work may fit a brief.",
+      highlight: "Explainable style alignment",
+      details: ["Aesthetic style matching", "Technical capability alignment", "Turnaround & brief suitability"]
     },
     {
       num: "03",
-      title: "Collaborate",
-      desc: "Share a brief, assemble your team, and move from creative direction to deliverables.",
-      visualType: "collaborate"
+      title: "Create Together",
+      desc: "Help brands and creators move from discovery to collaboration using the existing campaign and engagement workflows.",
+      highlight: "Streamlined collaboration",
+      details: ["Structured campaign briefs", "Direct talent engagement", "End-to-end milestone delivery"]
     }
   ];
 
   return (
-    <section className="alloy-how-section" id="how-it-works">
-      <div className="page-container alloy-how-container">
+    <section className="alloy-explanation-section" id="how-it-works">
+      <div className="page-container alloy-explanation-container">
         
         {/* Section Header */}
-        <div className="alloy-how-header">
-          <div className="alloy-eyebrow">
-            <span className="alloy-eyebrow-dot" />
-            <span className="alloy-eyebrow-text">FROM IDEA TO CREATIVE TEAM</span>
+        <div className="alloy-explanation-header">
+          <div className="section-pill-badge">
+            <span className="pill-dot" />
+            <span>HOW ALLOY WORKS</span>
           </div>
 
-          <h2 className="alloy-section-headline font-editorial">
-            Your next great collaboration starts here.
+          <h2 className="explanation-headline font-editorial">
+            Where creative vision meets the right talent.
           </h2>
 
-          <p className="alloy-section-subtext">
-            From finding the right talent to building campaign-ready teams, ALLOY brings the creative process together.
+          <p className="explanation-subtext">
+            Alloy brings brands and AI creators together through portfolios, creative discovery, and intelligent matching.
           </p>
         </div>
 
-        {/* 3 Horizontally Arranged Steps */}
-        <div className="alloy-steps-wrapper">
-          <div className="alloy-steps-track-line" aria-hidden="true" />
-          
-          <div className="alloy-steps-grid">
-            {steps.map((step, idx) => (
-              <div 
-                key={step.num}
-                className={`alloy-step-card ${hoveredStep === idx ? 'step-hovered' : ''}`}
-                onMouseEnter={() => setHoveredStep(idx)}
-                onMouseLeave={() => setHoveredStep(null)}
-              >
-                {/* Step Top Bar */}
-                <div className="step-card-top">
-                  <span className="step-num-badge">{step.num}</span>
-                  <span className="step-title-text">{step.title}</span>
-                </div>
-
-                {/* Step Description */}
-                <p className="step-desc-text">
-                  {step.desc}
-                </p>
-
-                {/* Step Micro-Visual */}
-                <div className="step-visual-box">
-                  {step.visualType === 'portfolio' && (
-                    <div className="step-visual-portfolio">
-                      <div className="micro-thumb-card card-1">
-                        <img 
-                          src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=260&q=80" 
-                          alt="Fashion" 
-                        />
-                        <span className="micro-tag">Couture</span>
-                      </div>
-                      <div className="micro-thumb-card card-2">
-                        <img 
-                          src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=260&q=80" 
-                          alt="3D Spatial" 
-                        />
-                        <span className="micro-tag">Spatial 3D</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {step.visualType === 'match' && (
-                    <div className="step-visual-match">
-                      <div className="match-node brand-node">
-                        <span className="node-label">Brief</span>
-                      </div>
-                      <div className="match-connector-line">
-                        <div className="match-pulse-node">
-                          <Sparkles size={11} />
-                          <span>98%</span>
-                        </div>
-                      </div>
-                      <div className="match-node creator-node">
-                        <span className="node-label">Creator</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {step.visualType === 'collaborate' && (
-                    <div className="step-visual-collab">
-                      <div className="collab-brief-bar">
-                        <FileText size={12} className="brief-icon" />
-                        <span className="brief-bar-title">Q4 Capsule Campaign</span>
-                        <span className="brief-status-tag">Ready</span>
-                      </div>
-                      <div className="collab-team-row">
-                        <div className="team-avatar-stack">
-                          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80" alt="Elena" />
-                          <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=80&q=80" alt="Alex" />
-                        </div>
-                        <span className="team-status-text">2 Creators Assigned</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
+        {/* 3-Part Editorial Grid */}
+        <div className="explanation-pillars-grid">
+          {pillars.map((pillar) => (
+            <div key={pillar.num} className="explanation-pillar-card">
+              
+              <div className="pillar-top-row">
+                <span className="pillar-number font-editorial">{pillar.num}</span>
+                <span className="pillar-tag">{pillar.highlight}</span>
               </div>
-            ))}
-          </div>
+
+              <h3 className="pillar-title font-editorial">
+                {pillar.title}
+              </h3>
+
+              <p className="pillar-desc">
+                {pillar.desc}
+              </p>
+
+              <div className="pillar-details-list">
+                {pillar.details.map((detail, idx) => (
+                  <div key={idx} className="pillar-detail-item">
+                    <span className="pillar-check-dot">✓</span>
+                    <span>{detail}</span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          ))}
         </div>
 
-        {/* Dual Paths for Brands and Creators */}
-        <div className="alloy-dual-paths" id="for-brands">
-          {/* For Brands */}
-          <div className="dual-path-card path-brands">
-            <div className="path-content-col">
-              <span className="path-eyebrow">FOR BRANDS</span>
-              <h3 className="path-heading font-editorial">Have a campaign in mind?</h3>
-              <p className="path-desc">Brief AI-native creators and assemble high-velocity creative teams.</p>
-            </div>
-            <button 
-              type="button" 
-              className="btn btn-primary path-action-btn"
-              onClick={onFindCreators}
-              id="how-find-creators-btn"
-            >
-              <span>Find creators</span>
-              <ArrowRight size={15} />
-            </button>
-          </div>
-
-          {/* For Creators */}
-          <div className="dual-path-card path-creators" id="for-creators">
-            <div className="path-content-col">
-              <span className="path-eyebrow">FOR CREATORS</span>
-              <h3 className="path-heading font-editorial">Ready to showcase your work?</h3>
-              <p className="path-desc">Exhibit verified portfolio projects and receive targeted brand briefs.</p>
-            </div>
-            <button 
-              type="button" 
-              className="btn btn-secondary path-action-btn"
-              onClick={onBuildPortfolio}
-              id="how-build-portfolio-btn"
-            >
-              <span>Build your portfolio</span>
-              <ArrowRight size={15} />
-            </button>
-          </div>
+        {/* Action Row */}
+        <div className="explanation-action-row">
+          <button
+            type="button"
+            className="btn-editorial-dark"
+            onClick={onFindCreators}
+            id="how-it-works-find-btn"
+          >
+            <span>Explore creator portfolios</span>
+            <ArrowRight size={14} />
+          </button>
         </div>
 
       </div>

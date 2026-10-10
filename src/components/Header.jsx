@@ -1,5 +1,9 @@
+// src/components/Header.jsx
+// ALLOY — Clean Editorial Navigation Bar with Full Auth & Workspace Integration
+// Minimal, elevated, typography-first header supporting both authenticated users & guests
+
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, UserCheck, Sparkles, LogIn, LogOut, User, Briefcase, Palette, ChevronRight } from 'lucide-react';
+import { Menu, X, ArrowRight, LogIn, LogOut, ChevronRight } from 'lucide-react';
 
 export default function Header({ 
   currentView, 
@@ -82,7 +86,8 @@ export default function Header({
   return (
     <header className={`header-nav ${scrolled ? 'header-scrolled' : ''}`}>
       <div className="header-container">
-        {/* Brand Logo / Wordmark */}
+        
+        {/* Brand Wordmark */}
         <a 
           href="#home" 
           className="logo-link alloy-logo-link"
@@ -90,9 +95,9 @@ export default function Header({
             e.preventDefault();
             handleLinkClick(() => onNavigate('home'));
           }}
-          aria-label="ALLOY Home"
+          aria-label="Alloy Home"
         >
-          <span className="logo-wordmark alloy-wordmark">A L L O Y</span>
+          <span className="alloy-wordmark font-editorial">Alloy</span>
         </a>
 
         {/* Desktop Navigation Links */}
@@ -100,15 +105,6 @@ export default function Header({
           <ul className="nav-links">
             <li 
               className={`nav-item ${currentView === 'discover' ? 'active' : ''}`}
-              onClick={() => handleLinkClick(() => onNavigate('discover'))}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => onNavigate('discover'))}
-            >
-              Discover
-            </li>
-            <li 
-              className="nav-item"
               onClick={() => handleLinkClick(() => onNavigate('discover'))}
               role="button"
               tabIndex={0}
@@ -127,29 +123,29 @@ export default function Header({
             </li>
             <li 
               className="nav-item"
-              onClick={() => handleLinkClick(() => scrollToSection('for-creators'))}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => scrollToSection('for-creators'))}
-            >
-              For Creators
-            </li>
-            <li 
-              className="nav-item"
               onClick={() => handleLinkClick(() => scrollToSection('how-it-works'))}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => scrollToSection('how-it-works'))}
             >
-              How it works
+              How It Works
+            </li>
+            <li 
+              className="nav-item"
+              onClick={() => handleLinkClick(() => onNavigate('discover'))}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => onNavigate('discover'))}
+            >
+              Explore
             </li>
           </ul>
         </nav>
 
-        {/* Right CTA Actions */}
+        {/* Right Nav: Actions */}
         <div className="nav-actions">
           {currentUser ? (
-            <div className="header-auth-group">
+            <div className="header-auth-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {/* User Identity Pill / Workspace Link */}
               <button
                 type="button"
@@ -157,6 +153,16 @@ export default function Header({
                 className="header-user-pill"
                 title={`Enter ${activeRole === 'creator' ? 'Creator' : 'Brand'} Workspace`}
                 id="header-user-profile-pill"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(255, 255, 255, 0.75)',
+                  border: '1px solid #E2DBD0',
+                  borderRadius: '9999px',
+                  padding: '4px 12px 4px 5px',
+                  cursor: 'pointer'
+                }}
               >
                 {avatarUrl ? (
                   <img 
@@ -169,8 +175,8 @@ export default function Header({
                     width: '26px',
                     height: '26px',
                     borderRadius: '50%',
-                    background: activeRole === 'creator' ? 'var(--accent-lavender, #EAE6F8)' : 'var(--accent-peach, #FDE8DC)',
-                    color: activeRole === 'creator' ? 'var(--accent-lavender-deep, #6D28D9)' : 'var(--accent-peach-deep, #C2410C)',
+                    background: '#EDE5D8',
+                    color: '#9E744A',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -181,7 +187,7 @@ export default function Header({
                     {displayName.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <span className="header-user-name">
+                <span className="header-user-name" style={{ fontSize: '0.82rem', fontWeight: 600, color: '#191816' }}>
                   {displayName}
                 </span>
               </button>
@@ -189,7 +195,7 @@ export default function Header({
               {/* Workspace Action Button */}
               <button 
                 type="button" 
-                className="header-workspace-btn"
+                className="btn btn-primary btn-sm alloy-nav-btn"
                 onClick={handleGoToWorkspace}
                 aria-label="Open Workspace"
                 id="header-workspace-btn"
@@ -198,21 +204,22 @@ export default function Header({
                 <ArrowRight size={13} />
               </button>
 
-              {/* Clearly Visible Log Out Button */}
+              {/* Log Out Button */}
               <button
                 type="button"
                 id="header-logout-btn"
-                className="header-logout-btn"
+                className="btn-link-login"
                 onClick={onLogout}
                 aria-label="Log Out"
-                title="Log Out of CreaSync"
+                title="Log Out"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
               >
-                <LogOut size={14} />
+                <LogOut size={13} />
                 <span>Log Out</span>
               </button>
             </div>
           ) : (
-            <div className="header-anon-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="header-anon-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <button 
                 type="button" 
                 className="btn-link-login"
@@ -222,6 +229,7 @@ export default function Header({
               >
                 <span>Log in</span>
               </button>
+              
               <button 
                 type="button" 
                 className="btn btn-primary btn-sm alloy-nav-btn"
@@ -229,7 +237,7 @@ export default function Header({
                 aria-label="Get started"
                 id="header-get-started-btn"
               >
-                <span>Get started</span>
+                <span>Get Started</span>
                 <ArrowRight size={13} />
               </button>
             </div>
@@ -241,164 +249,70 @@ export default function Header({
             className="mobile-menu-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? 'Close Menu' : 'Open Menu'}
-            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
+
       </div>
 
-      {/* Mobile Drawer Navigation */}
+      {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
-          <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="mobile-drawer-header">
-              <span className="logo-wordmark alloy-wordmark">ALLOY</span>
-              <button 
-                type="button" 
-                className="btn-icon" 
-                onClick={() => setMobileMenuOpen(false)}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            
-            <ul className="mobile-nav-list">
-              <li>
-                <button 
-                  type="button" 
-                  className={`mobile-nav-link ${currentView === 'home' ? 'active' : ''}`}
-                  onClick={() => handleLinkClick(() => onNavigate('home'))}
-                >
-                  <span>Home</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  className={`mobile-nav-link ${currentView === 'discover' ? 'active' : ''}`}
-                  onClick={() => handleLinkClick(() => onNavigate('discover'))}
-                >
-                  <span>Discover Creators</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  className="mobile-nav-link"
-                  onClick={() => handleLinkClick(() => scrollToSection('for-brands'))}
-                >
-                  <span>For Brands</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  className="mobile-nav-link"
-                  onClick={() => handleLinkClick(() => scrollToSection('for-creators'))}
-                >
-                  <span>For Creators</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  className="mobile-nav-link"
-                  onClick={() => handleLinkClick(() => scrollToSection('how-it-works'))}
-                >
-                  <span>How It Works</span>
-                  <ChevronRight size={16} />
-                </button>
-              </li>
-            </ul>
+        <div className="mobile-menu-drawer">
+          <ul className="mobile-nav-links">
+            <li onClick={() => handleLinkClick(() => onNavigate('discover'))}>
+              <span>Creators</span>
+            </li>
+            <li onClick={() => handleLinkClick(() => scrollToSection('for-brands'))}>
+              <span>For Brands</span>
+            </li>
+            <li onClick={() => handleLinkClick(() => scrollToSection('how-it-works'))}>
+              <span>How It Works</span>
+            </li>
+            <li onClick={() => handleLinkClick(() => onNavigate('discover'))}>
+              <span>Explore</span>
+            </li>
+          </ul>
 
-            <div className="mobile-drawer-actions">
-              {currentUser ? (
-                <>
-                  <div style={{
-                    padding: '10px 14px',
-                    borderRadius: '12px',
-                    background: 'var(--bg-secondary, #F3EFEA)',
-                    border: '1px solid var(--border-light, rgba(26, 25, 24, 0.08))',
-                    marginBottom: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px'
-                  }}>
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt={displayName} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                    ) : (
-                      <div style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: activeRole === 'creator' ? 'var(--accent-lavender, #EAE6F8)' : 'var(--accent-peach, #FDE8DC)',
-                        color: activeRole === 'creator' ? 'var(--accent-lavender-deep, #6D28D9)' : 'var(--accent-peach-deep, #C2410C)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.84rem',
-                        fontWeight: 700,
-                        flexShrink: 0
-                      }}>
-                        {displayName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <span style={{ fontWeight: 600, fontSize: '0.92rem', color: '#252525', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {displayName}
-                    </span>
-                  </div>
-                  <button 
-                    type="button" 
-                    className="btn btn-primary btn-block"
-                    onClick={() => handleLinkClick(handleGoToWorkspace)}
-                  >
-                    <span>{activeRole === 'creator' ? 'Enter Creator Studio' : activeRole === 'brand' ? 'Enter Brand Studio' : 'Enter Workspace'}</span>
-                    <ArrowRight size={16} />
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-block"
-                    onClick={() => handleLinkClick(onLogout)}
-                    style={{
-                      height: '42px',
-                      background: '#ffffff',
-                      border: '1px solid rgba(220, 38, 38, 0.32)',
-                      color: '#b91c1c',
-                      fontWeight: 600,
-                      gap: '8px'
-                    }}
-                  >
-                    <LogOut size={16} />
-                    <span>Log Out</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-block"
-                    onClick={() => handleLinkClick(onOpenLogin)}
-                  >
-                    <LogIn size={16} />
-                    <span>Log In</span>
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-primary btn-block"
-                    onClick={() => handleLinkClick(onOpenRoleSelect)}
-                  >
-                    <span>Get Started</span>
-                    <ArrowRight size={16} />
-                  </button>
-                </>
-              )}
-            </div>
+          <div className="mobile-drawer-footer">
+            {currentUser ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary w-full"
+                  onClick={() => handleLinkClick(handleGoToWorkspace)}
+                >
+                  <span>{activeRole === 'creator' ? 'Creator Studio' : activeRole === 'brand' ? 'Brand Studio' : 'Workspace'}</span>
+                  <ArrowRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary w-full"
+                  onClick={() => handleLinkClick(onLogout)}
+                  style={{ color: '#b91c1c' }}
+                >
+                  <LogOut size={14} />
+                  <span>Log Out</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary w-full"
+                  onClick={() => handleLinkClick(onOpenLogin)}
+                >
+                  <span>Log in</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary w-full"
+                  onClick={() => handleLinkClick(onOpenRoleSelect)}
+                >
+                  <span>Get Started</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -160,7 +160,11 @@ export default function LoginModal({
           
           {/* Brand Wordmark & Eyebrow */}
           <div className="alloy-login-brand-header">
-            <span className="alloy-login-logo font-editorial">Alloy</span>
+            <img 
+              src="/assets/alloy-wordmark.webp" 
+              alt="Alloy" 
+              className="alloy-login-logo-img" 
+            />
             <div className="alloy-login-pill">
               <Sparkles size={11} className="pill-star" />
               <span>WORKSPACE ENTRY</span>
@@ -442,8 +446,8 @@ export default function LoginModal({
         <div className="alloy-login-visual-col">
           <div className="visual-blended-frame">
             <img 
-              src="/assets/alloy-login-artwork.webp" 
-              alt="Alloy Editorial Creative Masterpiece" 
+              src="/assets/alloy-emblem-sculpture.webp" 
+              alt="Alloy Intertwined Creative Sculpture" 
               className="blended-sculpture-img"
             />
             

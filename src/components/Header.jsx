@@ -97,7 +97,11 @@ export default function Header({
           }}
           aria-label="Alloy Home"
         >
-          <span className="alloy-wordmark font-editorial">Alloy</span>
+          <img 
+            src="/assets/alloy-wordmark.webp" 
+            alt="Alloy" 
+            className="alloy-nav-wordmark-img" 
+          />
         </a>
 
         {/* Desktop Navigation Links */}

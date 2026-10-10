@@ -221,6 +221,18 @@ img, video {
   box-shadow: 0 0 10px rgba(199, 164, 123, 0.6);
 }
 
+.alloy-nav-wordmark-img {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.alloy-logo-link:hover .alloy-nav-wordmark-img {
+  transform: scale(1.03);
+}
+
 .alloy-wordmark {
   letter-spacing: 0.18em;
   font-weight: 700;
@@ -14538,6 +14550,8 @@ img, video {
 }
 
 .alloy-closing-card {
+  position: relative;
+  overflow: hidden;
   background: #191816;
   border-radius: 28px;
   padding: 72px 48px;
@@ -14549,13 +14563,36 @@ img, video {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16);
 }
 
+.alloy-closing-sculpture-bg {
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 360px;
+  height: 360px;
+  opacity: 0.22;
+  pointer-events: none;
+  filter: contrast(1.1) brightness(1.15);
+  transition: opacity 0.4s ease;
+}
+
+.closing-sculpture-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .closing-badge {
+  position: relative;
+  z-index: 2;
   background: rgba(255, 255, 255, 0.12) !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
   color: #E2CCA8 !important;
 }
 
 .closing-headline {
+  position: relative;
+  z-index: 2;
   font-size: clamp(2.4rem, 4.4vw, 4.2rem);
   line-height: 1.1;
   color: #FAF8F5;
@@ -14566,11 +14603,18 @@ img, video {
 }
 
 .closing-subtext {
+  position: relative;
+  z-index: 2;
   font-size: 1.15rem;
   color: #A8A196;
   max-width: 600px;
   line-height: 1.6;
   margin-bottom: 40px;
+}
+
+.closing-editorial-actions {
+  position: relative;
+  z-index: 2;
 }
 
 .closing-editorial-actions {
@@ -14620,6 +14664,24 @@ img, video {
 
 .alloy-footer-brand {
   max-width: 480px;
+}
+
+.alloy-footer-wordmark-link {
+  display: inline-block;
+  text-decoration: none;
+  margin-bottom: 12px;
+}
+
+.alloy-footer-wordmark-img {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.alloy-footer-wordmark-link:hover .alloy-footer-wordmark-img {
+  opacity: 0.82;
 }
 
 .alloy-footer-wordmark {
@@ -14872,6 +14934,14 @@ img, video {
 .alloy-login-brand-header {
   margin-bottom: 20px;
   text-align: left;
+}
+
+.alloy-login-logo-img {
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  margin-bottom: 12px;
 }
 
 .alloy-login-logo {
@@ -15419,13 +15489,13 @@ img, video {
 .blended-sculpture-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  max-height: 380px;
+  object-fit: contain;
   object-position: center;
   border-radius: 14px;
-  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 58%, rgba(0,0,0,0) 96%);
-  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,1) 58%, rgba(0,0,0,0) 96%);
-  filter: contrast(1.03) saturate(1.04);
+  filter: contrast(1.02) saturate(1.04);
   transition: transform 0.6s ease;
+  margin: auto 0;
 }
 
 .visual-blended-frame:hover .blended-sculpture-img {

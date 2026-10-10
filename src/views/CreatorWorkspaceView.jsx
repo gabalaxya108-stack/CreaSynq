@@ -166,9 +166,23 @@ export default function CreatorWorkspaceView({
     creativeIdentity: activeCreator.creativeIdentity || 'Cinematic AI Director & Visual Worldbuilder',
     bio: activeCreator.bio || 'Directing cinematic narrative commercials, evocative brand mythologies, and cinematic product worlds with 35mm grain.',
     location: activeCreator.location || 'London / New York (GMT/EST)',
-    availability: activeCreator.availability || 'Available for projects'
+    availability: activeCreator.availability || 'Available for projects',
+    avatar: activeCreator.avatar || ''
   });
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const [profileSuccessNotice, setProfileSuccessNotice] = useState(false);
+
+  const handleOpenEditProfile = () => {
+    setProfileForm({
+      name: activeCreator.name || 'Maya Chen',
+      creativeIdentity: activeCreator.creativeIdentity || 'Cinematic AI Director & Visual Worldbuilder',
+      bio: activeCreator.bio || '',
+      location: activeCreator.location || 'London / New York',
+      availability: activeCreator.availability || 'Available for projects',
+      avatar: activeCreator.avatar || ''
+    });
+    setIsEditProfileModalOpen(true);
+  };
   const [customAiDNA, setCustomAiDNA] = useState(null);
   const [isDnaAnalyzing, setIsDnaAnalyzing] = useState(false);
 
@@ -597,7 +611,7 @@ export default function CreatorWorkspaceView({
 
   // --- Handlers: Profile Save ---
   const handleSaveProfile = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const updated = {
       ...activeCreator,
       ...profileForm
@@ -608,6 +622,7 @@ export default function CreatorWorkspaceView({
     }
     setProfileSuccessNotice(true);
     setTimeout(() => setProfileSuccessNotice(false), 3500);
+    setIsEditProfileModalOpen(false);
   };
 
   const activeConnection = creatorConnections.find(c => c.id === selectedConnectionId) || creatorConnections[0];
@@ -762,27 +777,45 @@ export default function CreatorWorkspaceView({
             <div className="overview-summary-grid">
               {/* Creator Profile Summary Card */}
               <div className="studio-card overview-profile-card">
-                <div className="overview-avatar-row">
-                  <div className="overview-avatar-wrap">
-                    <img 
-                      src={activeCreator.avatar || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80"} 
-                      alt={activeCreator.name}
-                      className="overview-avatar-img"
-                    />
-                    <span className="avatar-online-dot" />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
+                  <div className="overview-avatar-row" style={{ margin: 0 }}>
+                    <div 
+                      className="overview-avatar-wrap" 
+                      onClick={handleOpenEditProfile}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to edit profile photo"
+                    >
+                      <img 
+                        src={activeCreator.avatar || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80"} 
+                        alt={activeCreator.name}
+                        className="overview-avatar-img"
+                      />
+                      <span className="avatar-online-dot" />
+                    </div>
+
+                    <div className="overview-name-meta">
+                      <div className="overview-name-badge">
+                        <h2 className="overview-creator-name">{activeCreator.name || 'Maya Chen'}</h2>
+                        <span className="status-badge-verified">
+                          <CheckCircle2 size={13} />
+                          <span>Verified AI Creator</span>
+                        </span>
+                      </div>
+                      <p className="overview-creator-role">{activeCreator.creativeIdentity || 'Cinematic AI Director & Visual Worldbuilder'}</p>
+                      <span className="overview-creator-loc">{activeCreator.location || 'London / New York'}</span>
+                    </div>
                   </div>
 
-                  <div className="overview-name-meta">
-                    <div className="overview-name-badge">
-                      <h2 className="overview-creator-name">{activeCreator.name || 'Maya Chen'}</h2>
-                      <span className="status-badge-verified">
-                        <CheckCircle2 size={13} />
-                        <span>Verified AI Creator</span>
-                      </span>
-                    </div>
-                    <p className="overview-creator-role">{activeCreator.creativeIdentity || 'Cinematic AI Director & Visual Worldbuilder'}</p>
-                    <span className="overview-creator-loc">{activeCreator.location || 'London / New York'}</span>
-                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleOpenEditProfile}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    title="Edit your creator profile details"
+                  >
+                    <Edit3 size={14} />
+                    <span>Edit Profile</span>
+                  </button>
                 </div>
 
                 <p className="overview-bio-text">
@@ -2190,6 +2223,145 @@ export default function CreatorWorkspaceView({
           />
         )}
       </div>
+
+      {/* ========================================================
+          MODAL: EDIT CREATOR PROFILE (From Overview or Studio)
+          ======================================================== */}
+      {isEditProfileModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsEditProfileModalOpen(false)}>
+          <div className="creator-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+            <button 
+              type="button" 
+              className="modal-close-btn"
+              onClick={() => setIsEditProfileModalOpen(false)}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="modal-header-block">
+              <span className="section-label-pill">Creator Profile</span>
+              <h2 className="modal-title font-editorial">Edit Profile</h2>
+              <p className="modal-sub">Update your public positioning, bio, location, and availability for hiring brands.</p>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="modal-form">
+              {/* Avatar Preview & URL */}
+              <div className="form-group">
+                <label className="form-label">Profile Avatar URL</label>
+                <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                  <img 
+                    src={profileForm.avatar || activeCreator.avatar || "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80"} 
+                    alt="Preview"
+                    style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-light, #E2E8F0)' }}
+                    onError={(e) => {
+                      e.currentTarget.src = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80";
+                    }}
+                  />
+                  <input 
+                    type="url" 
+                    className="form-input" 
+                    placeholder="https://images.unsplash.com/..."
+                    value={profileForm.avatar}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, avatar: e.target.value }))}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Full Name *</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  required
+                  placeholder="e.g. Maya Chen"
+                  value={profileForm.name}
+                  onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Creative Identity & Positioning</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="e.g. Cinematic AI Director & Visual Worldbuilder"
+                  value={profileForm.creativeIdentity}
+                  onChange={(e) => setProfileForm(prev => ({ ...prev, creativeIdentity: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Bio Statement</label>
+                <textarea 
+                  className="form-textarea" 
+                  rows={4}
+                  placeholder="Directing cinematic narrative commercials, evocative brand mythologies, and cinematic product worlds..."
+                  value={profileForm.bio}
+                  onChange={(e) => setProfileForm(prev => ({ ...prev, bio: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="form-label">Location / Timezone</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. London / New York"
+                    value={profileForm.location}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, location: e.target.value }))}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Availability Status</label>
+                  <select 
+                    className="form-input"
+                    value={profileForm.availability}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, availability: e.target.value }))}
+                  >
+                    <option value="Available for projects">Available for projects</option>
+                    <option value="Booking for Q4">Booking for Q4</option>
+                    <option value="Open to select opportunities">Open to select opportunities</option>
+                    <option value="Currently Booked">Currently Booked</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="modal-actions-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+                <button 
+                  type="button" 
+                  className="link-subtle"
+                  onClick={() => {
+                    setIsEditProfileModalOpen(false);
+                    setActiveTab('profile');
+                  }}
+                  style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}
+                >
+                  Full Profile & DNA Settings →
+                </button>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setIsEditProfileModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary btn-sm"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================
           MODAL: ADD / EDIT PORTFOLIO PROJECT

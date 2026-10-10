@@ -3,8 +3,8 @@
 // Displays all information from high-res media display to comprehensive production specs.
 // Strictly excludes any 'Invite this Creator' button.
 
-import React, { useState } from 'react';
-import { X, ArrowRight, Sparkles, Layers, Maximize2, Minimize2, Play, Volume2, VolumeX, Eye, CheckCircle2, Sliders, Palette, Cpu, Film, GitCommit } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, ArrowRight, Sparkles, Layers, Maximize2, Minimize2, Play, Volume2, VolumeX, Eye, CheckCircle2, Sliders, Palette, Cpu, Film, GitCommit, ChevronLeft, ChevronRight } from 'lucide-react';
 import WorkflowTimeline from './WorkflowTimeline';
 import { DEMO_WORKFLOWS } from '../data/workflowsData';
 
@@ -28,8 +28,46 @@ export default function ProjectModal({
     capabilities: ['Generative Stills', 'Visual Direction']
   };
 
-  const hasVideo = !!(project.video || project.videoPreview || (project.category === 'AI Video' && resolvedCreator.videoPreview));
-  const videoSrc = project.video || project.videoPreview || resolvedCreator.videoPreview;
+  // Compile full media list supporting multiple attached images & videos
+  const mediaList = useMemo(() => {
+    if (project.media && project.media.length > 0) {
+      return project.media;
+    }
+    const list = [];
+    if (project.image) {
+      list.push({
+        id: 'med-cover',
+        url: project.image,
+        type: 'image',
+        mediaType: 'image',
+        name: project.title,
+        isCover: true
+      });
+    }
+    if (project.video || project.videoPreview || (project.category === 'AI Video' && resolvedCreator.videoPreview)) {
+      list.push({
+        id: 'med-video',
+        url: project.video || project.videoPreview || resolvedCreator.videoPreview,
+        type: 'video',
+        mediaType: 'video',
+        name: `${project.title} (Motion Pass)`,
+        isCover: false
+      });
+    }
+    return list;
+  }, [project, resolvedCreator]);
+
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const activeMedia = mediaList[activeMediaIndex] || mediaList[0] || null;
+  const isCurrentVideo = activeMedia ? (
+    activeMedia.type === 'video' || 
+    activeMedia.mediaType === 'video' || 
+    activeMedia.mimeType?.startsWith('video/')
+  ) : false;
+  const currentMediaUrl = activeMedia ? activeMedia.url : project.image;
+
+  const hasVideo = !!(project.video || project.videoPreview || (project.category === 'AI Video' && resolvedCreator.videoPreview) || isCurrentVideo);
+  const videoSrc = isCurrentVideo ? currentMediaUrl : (project.video || project.videoPreview || resolvedCreator.videoPreview);
 
   const roleText = project.role || resolvedCreator.creativeIdentity || "Lead Visual Artist";
   const clientText = project.clientType || "Commercial & Editorial";
@@ -80,32 +118,25 @@ export default function ProjectModal({
         </div>
 
         {/* 1. Large Cinematic Media Dominating the Top View */}
-        <div className={`project-modal-hero-media ${isExpanded ? 'media-full-expand' : ''}`} style={{ margin: 0, borderRadius: '21px 21px 0 0', position: 'relative', width: '100%', maxHeight: isExpanded ? '65vh' : '440px', background: '#121110', overflow: 'hidden' }}>
-          {hasVideo && isPlayingVideo ? (
-            <div className="project-video-player-wrap" style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div className={`project-modal-hero-media ${isExpanded ? 'media-full-expand' : ''}`} style={{ margin: 0, borderRadius: '21px 21px 0 0', position: 'relative', width: '100%', maxHeight: isExpanded ? '65vh' : '460px', background: '#121110', overflow: 'hidden' }}>
+          {isCurrentVideo || (hasVideo && isPlayingVideo) ? (
+            <div className="project-video-player-wrap" style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000000' }}>
               <video 
+                key={videoSrc}
                 src={videoSrc}
                 autoPlay
+                controls
                 playsInline
                 loop
                 muted={isMuted}
                 className="project-modal-video"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                style={{ width: '100%', maxHeight: isExpanded ? '65vh' : '460px', objectFit: 'contain', display: 'block' }}
               />
-              <button 
-                type="button" 
-                className="video-mute-pill-btn"
-                onClick={() => setIsMuted(!isMuted)}
-                style={{ position: 'absolute', bottom: '16px', right: '16px', background: 'rgba(20, 19, 18, 0.8)', backdropFilter: 'blur(8px)', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.25)', padding: '6px 14px', borderRadius: '100px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', cursor: 'pointer' }}
-              >
-                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                <span>{isMuted ? "Unmute Sound" : "Muted"}</span>
-              </button>
             </div>
           ) : (
             <div className="project-image-hero-wrap" style={{ width: '100%', height: '100%', position: 'relative' }}>
               <img 
-                src={project.image} 
+                src={currentMediaUrl} 
                 alt={project.title} 
                 className="project-modal-img"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
@@ -121,7 +152,7 @@ export default function ProjectModal({
                   style={{ position: 'absolute', bottom: '20px', left: '20px', background: 'rgba(20, 19, 18, 0.85)', backdropFilter: 'blur(10px)', color: '#FFFFFF', border: '1px solid rgba(255, 255, 255, 0.3)', padding: '10px 20px', borderRadius: '100px', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.86rem', fontWeight: 600, cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
                 >
                   <Play size={16} fill="#FFFFFF" />
-                  <span>Play Cinematic 4K Preview</span>
+                  <span>Play Cinematic Motion Preview</span>
                 </button>
               )}
             </div>
@@ -149,6 +180,73 @@ export default function ProjectModal({
             )}
           </div>
         </div>
+
+        {/* Multi-Format Gallery Selector Strip */}
+        {mediaList.length > 1 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '12px 24px',
+            background: 'var(--bg-secondary, #F8FAFC)',
+            borderBottom: '1px solid var(--border-subtle, #E2E8F0)',
+            overflowX: 'auto'
+          }}>
+            <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', fontWeight: 700, flexShrink: 0 }}>
+              Project Media ({mediaList.length}):
+            </span>
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '2px 0' }}>
+              {mediaList.map((asset, idx) => {
+                const isVid = asset.type === 'video' || asset.mediaType === 'video' || asset.mimeType?.startsWith('video/');
+                const isActive = activeMediaIndex === idx;
+                return (
+                  <button
+                    key={asset.id || idx}
+                    type="button"
+                    onClick={() => {
+                      setActiveMediaIndex(idx);
+                      setIsPlayingVideo(isVid);
+                    }}
+                    style={{
+                      width: '64px',
+                      height: '46px',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      border: isActive ? '2px solid var(--accent-primary, #EB6E4B)' : '1px solid var(--border-medium, #CBD5E1)',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      padding: 0,
+                      background: '#0F172A',
+                      flexShrink: 0,
+                      boxShadow: isActive ? '0 0 0 2px rgba(235, 110, 75, 0.2)' : 'none',
+                      transition: 'transform 0.15s ease'
+                    }}
+                    title={asset.name || `Asset ${idx + 1}`}
+                  >
+                    {isVid ? (
+                      <video src={asset.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <img src={asset.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )}
+                    {isVid && (
+                      <span style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(0,0,0,0.3)',
+                        color: '#FFFFFF'
+                      }}>
+                        <Play size={12} fill="#FFFFFF" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 2. Comprehensive Details Body */}
         <div style={{ padding: '32px 36px 36px', display: 'flex', flexDirection: 'column', gap: '24px' }}>

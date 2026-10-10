@@ -5,7 +5,7 @@ import {
   Clock, DollarSign, Calendar, Sparkles, Filter, Bookmark, BookmarkCheck,
   Edit3, Trash2, Upload, AlertCircle, FileText, UserCheck, ShieldCheck,
   ArrowUp, ArrowDown, Globe, Lock, Cpu, Play, Minimize2, Wrench, Compass, Layers,
-  Workflow
+  Workflow, Video
 } from 'lucide-react';
 import { generateCreatorDNA } from '../intelligence/creatorDNA';
 import { generateCreatorDNA as generateCreatorDNAWithGroq } from '../ai/groqClient';
@@ -14,6 +14,7 @@ import { DEMO_WORKFLOWS, WORKFLOW_SPECIALIZATIONS, createBlankWorkflow } from '.
 import WorkflowTimeline from '../components/WorkflowTimeline';
 import WorkflowEditorModal from '../components/WorkflowEditorModal';
 import TrustCenter from '../components/TrustCenter';
+import MultiFormatUploader from '../components/MultiFormatUploader';
 import { createInitialTrustVerification } from '../data/trustVerificationData';
 
 export default function CreatorWorkspaceView({ 
@@ -89,12 +90,14 @@ export default function CreatorWorkspaceView({
     tools: 'Midjourney v6, Runway Gen-3',
     format: '4K Stills Suite',
     platform: 'Campaign OOH & Digital',
-    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85',
+    image: '',
+    video: null,
     visibility: 'published',
     featured: false,
     role: 'Lead Visual Artist',
     clientType: 'Commercial Campaign',
-    workflowId: ''
+    workflowId: '',
+    media: []
   });
   const [projectFormErrors, setProjectFormErrors] = useState({});
 
@@ -275,6 +278,18 @@ export default function CreatorWorkspaceView({
   const handleOpenAddProject = (existing = null) => {
     if (existing) {
       setEditingProject(existing);
+      const initialMedia = (existing.media && existing.media.length > 0)
+        ? existing.media
+        : (existing.image ? [{
+            id: `media-init-${Date.now()}`,
+            url: existing.image,
+            name: existing.title || 'Primary Visual',
+            size: 0,
+            mimeType: existing.video ? 'video/mp4' : 'image/jpeg',
+            mediaType: existing.video ? 'video' : 'image',
+            isCover: true
+          }] : []);
+
       setProjectForm({
         title: existing.title || '',
         description: existing.description || '',
@@ -284,11 +299,13 @@ export default function CreatorWorkspaceView({
         format: existing.format || '4K Stills Suite',
         platform: existing.platform || 'Campaign OOH & Digital',
         image: existing.image || '',
+        video: existing.video || null,
         visibility: existing.visibility || 'published',
         featured: !!existing.featured,
         role: existing.role || 'Lead Visual Artist',
         clientType: existing.clientType || 'Commercial Campaign',
-        workflowId: existing.workflowId || ''
+        workflowId: existing.workflowId || '',
+        media: initialMedia
       });
     } else {
       setEditingProject(null);
@@ -300,12 +317,14 @@ export default function CreatorWorkspaceView({
         tools: 'Midjourney v6, Runway Gen-3',
         format: '4K Stills Suite',
         platform: 'Campaign OOH & Digital',
-        image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85',
+        image: '',
+        video: null,
         visibility: 'published',
         featured: false,
         role: 'Lead Visual Artist',
         clientType: 'Commercial Campaign',
-        workflowId: ''
+        workflowId: '',
+        media: []
       });
     }
     setProjectFormErrors({});
@@ -317,24 +336,41 @@ export default function CreatorWorkspaceView({
     const errors = {};
     if (!projectForm.title.trim()) errors.title = 'Project title is required';
     if (!projectForm.description.trim()) errors.description = 'Description is required';
-    if (!projectForm.image.trim()) errors.image = 'Media preview URL is required';
+
+    const mediaList = projectForm.media || [];
+    const coverItem = mediaList.find(m => m.isCover) || mediaList[0];
+    const videoItem = mediaList.find(m => m.mediaType === 'video' || m.mimeType?.startsWith('video/'));
+
+    const finalImage = coverItem ? coverItem.url : (projectForm.image || '');
+    const finalVideo = videoItem ? videoItem.url : (projectForm.video || null);
+
+    if (!finalImage.trim() && mediaList.length === 0) {
+      errors.image = 'At least one creative asset (image or video) is required';
+    }
 
     if (Object.keys(errors).length > 0) {
       setProjectFormErrors(errors);
       return;
     }
 
+    const projectPayload = {
+      ...projectForm,
+      image: finalImage || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85",
+      video: finalVideo,
+      media: mediaList
+    };
+
     let updatedList;
     if (editingProject) {
       updatedList = projectsList.map(p => 
         p.id === editingProject.id 
-          ? { ...p, ...projectForm }
+          ? { ...p, ...projectPayload }
           : p
       );
     } else {
       const newProj = {
         id: `proj-${Date.now()}`,
-        ...projectForm,
+        ...projectPayload,
         createdAt: 'Just now'
       };
       updatedList = [newProj, ...projectsList];
@@ -1067,6 +1103,44 @@ export default function CreatorWorkspaceView({
                         }}
                       />
                       <span className="portfolio-cat-badge">{proj.category || 'Visual Art'}</span>
+
+                      {/* Mixed Media / Video Indicators */}
+                      <div style={{ position: 'absolute', bottom: '10px', left: '10px', display: 'flex', gap: '5px', zIndex: 4 }}>
+                        {Boolean((proj.media && proj.media.some(m => m.mediaType === 'video')) || proj.video) && (
+                          <span style={{
+                            fontSize: '0.68rem',
+                            padding: '2px 7px',
+                            borderRadius: '100px',
+                            background: 'rgba(15, 23, 42, 0.85)',
+                            backdropFilter: 'blur(4px)',
+                            color: '#38BDF8',
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            border: '1px solid rgba(56, 189, 248, 0.3)'
+                          }}>
+                            <Video size={10} /> Video
+                          </span>
+                        )}
+                        {Boolean(proj.media && proj.media.length > 1) && (
+                          <span style={{
+                            fontSize: '0.68rem',
+                            padding: '2px 7px',
+                            borderRadius: '100px',
+                            background: 'rgba(15, 23, 42, 0.85)',
+                            backdropFilter: 'blur(4px)',
+                            color: '#F1F5F9',
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            border: '1px solid rgba(255, 255, 255, 0.2)'
+                          }}>
+                            <Layers size={10} /> {proj.media.length} Media
+                          </span>
+                        )}
+                      </div>
 
                       {/* Clickable Hover Cue */}
                       <div className="portfolio-media-click-hint">
@@ -2295,32 +2369,27 @@ export default function CreatorWorkspaceView({
                 </span>
               </div>
 
+              {/* Multi-Format Creative Work Uploader */}
               <div className="form-group">
-                <label className="form-label">Media Preview URL *</label>
-                <input 
-                  type="url" 
-                  className={`form-input ${projectFormErrors.image ? 'error' : ''}`}
-                  placeholder="https://images.unsplash.com/..."
-                  value={projectForm.image}
-                  onChange={(e) => setProjectForm(prev => ({ ...prev, image: e.target.value }))}
+                <MultiFormatUploader
+                  media={projectForm.media || []}
+                  creatorId={activeCreator?.id || 'creator-1'}
+                  onChange={(newMedia) => {
+                    const cover = newMedia.find(m => m.isCover) || newMedia[0];
+                    const firstVid = newMedia.find(m => m.mediaType === 'video' || m.mimeType?.startsWith('video/'));
+                    setProjectForm(prev => ({
+                      ...prev,
+                      media: newMedia,
+                      image: cover ? cover.url : prev.image,
+                      video: firstVid ? firstVid.url : prev.video
+                    }));
+                    if (newMedia.length > 0 && projectFormErrors.image) {
+                      setProjectFormErrors(prev => ({ ...prev, image: null }));
+                    }
+                  }}
                 />
                 {projectFormErrors.image && <span className="error-text">{projectFormErrors.image}</span>}
               </div>
-
-              {/* Live Preview Box */}
-              {projectForm.image && (
-                <div className="modal-media-preview-box">
-                  <img 
-                    src={projectForm.image} 
-                    alt="Preview" 
-                    className="modal-preview-img"
-                    onError={(e) => {
-                      e.currentTarget.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85";
-                    }}
-                  />
-                  <span className="preview-label">Live Preview</span>
-                </div>
-              )}
 
               <div className="modal-actions-row">
                 <button 

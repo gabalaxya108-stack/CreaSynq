@@ -7,7 +7,7 @@ import {
   ArrowLeft, MapPin, Heart, Share2, Send, Sparkles, ArrowDown, Dna, 
   CheckCircle2, MessageSquare, Clock, ShieldCheck, AlertCircle, Bookmark, 
   BookmarkCheck, ExternalLink, Edit3, Eye, Layers, ChevronRight, Check,
-  Sparkle, Compass, UserCheck, Wrench, Cpu, FileCheck2, Award, Lock, FileText
+  Sparkle, Compass, UserCheck, Wrench, Cpu, FileCheck2, Award, Lock, FileText, Video
 } from 'lucide-react';
 import { getPublicCreatorProfile } from '../data/marketplaceStore';
 import { generateCreatorDNA } from '../intelligence/creatorDNA';
@@ -472,10 +472,48 @@ export default function CreatorProfileView({
                     />
                     
                     {proj.featured && (
-                      <span style={{ position: 'absolute', top: '12px', left: '12px', fontSize: '0.72rem', padding: '3px 9px', borderRadius: '100px', background: 'rgba(245, 158, 11, 0.95)', color: '#FFFFFF', fontWeight: 600 }}>
+                      <span style={{ position: 'absolute', top: '12px', left: '12px', fontSize: '0.72rem', padding: '3px 9px', borderRadius: '100px', background: 'rgba(245, 158, 11, 0.95)', color: '#FFFFFF', fontWeight: 600, zIndex: 3 }}>
                         ★ Featured
                       </span>
                     )}
+
+                    {/* Media Type Indicators */}
+                    <div style={{ position: 'absolute', bottom: '12px', left: '12px', display: 'flex', gap: '6px', zIndex: 3 }}>
+                      {Boolean((proj.media && proj.media.some(m => m.mediaType === 'video')) || proj.video) && (
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '3px 8px',
+                          borderRadius: '100px',
+                          background: 'rgba(15, 23, 42, 0.85)',
+                          backdropFilter: 'blur(4px)',
+                          color: '#38BDF8',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          border: '1px solid rgba(56, 189, 248, 0.3)'
+                        }}>
+                          <Video size={11} /> Video
+                        </span>
+                      )}
+                      {Boolean(proj.media && proj.media.length > 1) && (
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '3px 8px',
+                          borderRadius: '100px',
+                          background: 'rgba(15, 23, 42, 0.85)',
+                          backdropFilter: 'blur(4px)',
+                          color: '#F1F5F9',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          border: '1px solid rgba(255, 255, 255, 0.2)'
+                        }}>
+                          <Layers size={11} /> {proj.media.length} Media
+                        </span>
+                      )}
+                    </div>
 
                     <div className="portfolio-item-overlay">
                       <span>Explore Case Study →</span>

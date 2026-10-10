@@ -518,10 +518,13 @@ export async function savePortfolioProject(creatorId, project) {
           tools: project.tools,
           format: project.format,
           image: project.image,
+          video: project.video || null,
+          media: project.media || [],
           role: project.role,
           client_type: project.clientType,
           visibility: project.visibility || 'published',
           featured: !!project.featured,
+          workflow_id: project.workflowId || null,
           updated_at: new Date().toISOString()
         })
         .select()

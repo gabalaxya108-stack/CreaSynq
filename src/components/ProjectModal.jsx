@@ -17,8 +17,7 @@ export default function ProjectModal({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
-
-  if (!project) return null;
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
   const resolvedCreator = creator || {
     name: 'AI Creator',
@@ -30,6 +29,7 @@ export default function ProjectModal({
 
   // Compile full media list supporting multiple attached images & videos
   const mediaList = useMemo(() => {
+    if (!project) return [];
     if (project.media && project.media.length > 0) {
       return project.media;
     }
@@ -57,7 +57,7 @@ export default function ProjectModal({
     return list;
   }, [project, resolvedCreator]);
 
-  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  if (!project) return null;
   const activeMedia = mediaList[activeMediaIndex] || mediaList[0] || null;
   const isCurrentVideo = activeMedia ? (
     activeMedia.type === 'video' || 

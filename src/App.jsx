@@ -1595,15 +1595,17 @@ export default function App() {
         onViewProfile={handleOpenCreatorProfile}
       />
 
-      <ProjectModal
-        project={selectedProject}
-        creator={selectedProjectCreator}
-        onClose={() => {
-          setSelectedProject(null);
-          setSelectedProjectCreator(null);
-        }}
-        onViewCreatorProfile={handleOpenCreatorProfile}
-      />
+      {selectedProject && (
+        <ProjectModal
+          project={selectedProject}
+          creator={selectedProjectCreator}
+          onClose={() => {
+            setSelectedProject(null);
+            setSelectedProjectCreator(null);
+          }}
+          onViewCreatorProfile={handleOpenCreatorProfile}
+        />
+      )}
     </div>
   );
 }

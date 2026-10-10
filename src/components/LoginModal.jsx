@@ -1,12 +1,12 @@
 // src/components/LoginModal.jsx
 // ALLOY — Luxury Blended Editorial Login & Workspace Entry Modal
-// Seamless integration of Google OAuth, role-aware preselection, 
+// Seamless integration of Google OAuth, role preselection, 
 // protected action notices, and 1-click evaluation demos.
 
 import React, { useState, useEffect } from 'react';
 import { 
-  X, LogIn, Briefcase, Palette, ArrowRight, ShieldCheck, 
-  Mail, Lock, UserPlus, Database, AlertCircle, Loader, Sparkles 
+  X, Briefcase, Palette, ArrowRight, ShieldCheck, 
+  Mail, Lock, UserPlus, AlertCircle, Loader, Sparkles, Check 
 } from 'lucide-react';
 import { signIn, signUp, signInWithGoogle, getBackendStatus } from '../services/marketplaceBackend';
 
@@ -19,7 +19,7 @@ export default function LoginModal({
   initialRole = 'brand',
   pendingActionNotice = null
 }) {
-  const [authMode, setAuthMode] = useState('signin'); // 'signin' | 'signup'
+  const [authMode, setAuthMode] = useState('signup'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -27,6 +27,7 @@ export default function LoginModal({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isDemoFallbackOpen, setIsDemoFallbackOpen] = useState(false);
 
   // Synchronize initial role when modal is opened for a specific target action
   useEffect(() => {
@@ -37,8 +38,6 @@ export default function LoginModal({
 
   if (!isOpen) return null;
 
-  const backendStatus = getBackendStatus();
-
   // Initiates Google OAuth with preselected role
   const handleGoogleSignIn = async () => {
     if (!selectedRole || (selectedRole !== 'brand' && selectedRole !== 'creator')) {
@@ -48,6 +47,7 @@ export default function LoginModal({
 
     setErrorMsg('');
     setSuccessMsg('');
+    setIsDemoFallbackOpen(false);
     setLoading(true);
 
     try {
@@ -63,9 +63,25 @@ export default function LoginModal({
       await signInWithGoogle({ role: targetRole });
       // When Supabase is configured with Google OAuth, browser redirects to Google.
     } catch (err) {
-      setErrorMsg(err.message || 'Google Authentication encountered an error. Please verify your credentials or try email sign in.');
       setLoading(false);
+      // If Supabase keys are not configured in local environment, offer instant demo entry
+      if (err.message && err.message.includes('Supabase')) {
+        setIsDemoFallbackOpen(true);
+      } else {
+        setErrorMsg(err.message || 'Google Authentication encountered an error. Please try email sign in.');
+      }
     }
+  };
+
+  // 1-Click Demo Evaluation Sign In
+  const handleQuickDemoEnter = (roleToEnter) => {
+    const role = roleToEnter || selectedRole || 'brand';
+    if (role === 'brand' && onLoginBrand) {
+      onLoginBrand();
+    } else if (onLoginCreator) {
+      onLoginCreator();
+    }
+    if (onClose) onClose();
   };
 
   // Credentials submission
@@ -73,6 +89,7 @@ export default function LoginModal({
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    setIsDemoFallbackOpen(false);
     setLoading(true);
 
     try {
@@ -143,39 +160,27 @@ export default function LoginModal({
           
           {/* Brand Wordmark & Eyebrow */}
           <div className="alloy-login-brand-header">
-            <span className="alloy-login-logo">A L L O Y</span>
+            <span className="alloy-login-logo font-editorial">Alloy</span>
             <div className="alloy-login-pill">
               <Sparkles size={11} className="pill-star" />
               <span>WORKSPACE ENTRY</span>
             </div>
             
             <h2 id="login-modal-title" className="alloy-login-headline font-editorial">
-              {authMode === 'signup' ? 'Create Your Account' : 'Sign In to ALLOY'}
+              {authMode === 'signup' ? 'Create Your Account' : 'Sign In to Alloy'}
             </h2>
             
             <p className="alloy-login-subtext">
               {authMode === 'signup' 
                 ? 'Join our network of verified AI creators and forward-thinking brands.'
-                : 'Access your persistent workspace, campaign brief, or creator studio.'}
+                : 'Access your persistent workspace, campaign briefs, or creator studio.'}
             </p>
           </div>
 
           {/* Pending Action Callout Notice (if triggered by a protected action) */}
           {pendingActionNotice && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 14px',
-              background: 'rgba(33, 76, 53, 0.08)',
-              border: '1px solid rgba(33, 76, 53, 0.22)',
-              borderRadius: '10px',
-              color: '#214C35',
-              fontSize: '0.84rem',
-              fontWeight: 500,
-              marginBottom: '14px'
-            }}>
-              <ShieldCheck size={16} style={{ color: '#214C35', flexShrink: 0 }} />
+            <div className="alloy-pending-notice">
+              <ShieldCheck size={16} className="notice-icon" />
               <span>{pendingActionNotice}</span>
             </div>
           )}
@@ -185,7 +190,7 @@ export default function LoginModal({
             <button
               type="button"
               className={`auth-toggle-tab ${authMode === 'signin' ? 'is-active' : ''}`}
-              onClick={() => { setAuthMode('signin'); setErrorMsg(''); }}
+              onClick={() => { setAuthMode('signin'); setErrorMsg(''); setIsDemoFallbackOpen(false); }}
               id="auth-tab-signin"
             >
               Sign In
@@ -193,7 +198,7 @@ export default function LoginModal({
             <button
               type="button"
               className={`auth-toggle-tab ${authMode === 'signup' ? 'is-active' : ''}`}
-              onClick={() => { setAuthMode('signup'); setErrorMsg(''); }}
+              onClick={() => { setAuthMode('signup'); setErrorMsg(''); setIsDemoFallbackOpen(false); }}
               id="auth-tab-signup"
             >
               Create Account
@@ -201,44 +206,36 @@ export default function LoginModal({
           </div>
 
           {/* Role Preselection / Selector (Brand Studio vs Creator Studio) */}
-          <div style={{ marginBottom: '14px', textAlign: 'left' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '0.8rem', color: '#2A2622', fontWeight: 600 }}>
+          <div className="auth-role-select-group">
+            <div className="role-header-row">
+              <span className="role-header-title">
                 Select Workspace Role:
               </span>
-              <span style={{ fontSize: '0.74rem', color: '#767069' }}>
+              <span className="role-header-current">
                 {selectedRole === 'brand' ? 'Brand Studio' : 'Creator Studio'}
               </span>
             </div>
             
             <div className="auth-role-picker">
-              <label className={`role-pill-option ${selectedRole === 'brand' ? 'is-selected' : ''}`}>
-                <input 
-                  type="radio" 
-                  name="login-role" 
-                  value="brand" 
-                  checked={selectedRole === 'brand'} 
-                  onChange={() => setSelectedRole('brand')}
-                />
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <Briefcase size={14} />
-                  <span>Brand Studio</span>
-                </span>
-              </label>
+              <button
+                type="button"
+                className={`role-pill-btn ${selectedRole === 'brand' ? 'is-selected' : ''}`}
+                onClick={() => setSelectedRole('brand')}
+              >
+                <Briefcase size={14} />
+                <span>Brand Studio</span>
+                {selectedRole === 'brand' && <Check size={12} className="role-check" />}
+              </button>
 
-              <label className={`role-pill-option ${selectedRole === 'creator' ? 'is-selected' : ''}`}>
-                <input 
-                  type="radio" 
-                  name="login-role" 
-                  value="creator" 
-                  checked={selectedRole === 'creator'} 
-                  onChange={() => setSelectedRole('creator')}
-                />
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <Palette size={14} />
-                  <span>Creator Studio</span>
-                </span>
-              </label>
+              <button
+                type="button"
+                className={`role-pill-btn ${selectedRole === 'creator' ? 'is-selected' : ''}`}
+                onClick={() => setSelectedRole('creator')}
+              >
+                <Palette size={14} />
+                <span>Creator Studio</span>
+                {selectedRole === 'creator' && <Check size={12} className="role-check" />}
+              </button>
             </div>
           </div>
 
@@ -248,28 +245,10 @@ export default function LoginModal({
             id="google-signin-btn"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
-              padding: '11px 16px',
-              borderRadius: '10px',
-              background: '#FFFFFF',
-              color: '#191816',
-              border: '1.5px solid #D5CCC0',
-              fontWeight: 600,
-              fontSize: '0.88rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              marginBottom: '14px',
-              transition: 'all 0.18s ease',
-              boxShadow: '0 2px 6px rgba(26, 25, 24, 0.04)',
-              opacity: loading ? 0.7 : 1
-            }}
+            className="btn-google-oauth"
           >
             {loading ? (
-              <Loader size={16} className="auth-spinner" style={{ animation: 'spin 1s linear infinite' }} />
+              <Loader size={16} className="auth-spinner" />
             ) : (
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -287,45 +266,28 @@ export default function LoginModal({
             </span>
           </button>
 
-          {/* 1-Click Instant Demo Accounts (Sign In Mode) */}
-          {authMode === 'signin' && (
-            <div className="alloy-demo-panel">
-              <span className="demo-panel-title">Instant 1-Click Workspace Demo</span>
-              <div className="demo-card-grid">
+          {/* Elegant Local Demo Fallback Notice when Supabase is not configured */}
+          {isDemoFallbackOpen && (
+            <div className="demo-oauth-notice-banner">
+              <div className="notice-banner-text">
+                <strong>Google Authentication Note</strong>
+                <p>Live OAuth requires Supabase API keys in <code>.env</code>. You can enter instantly in evaluation demo mode.</p>
+              </div>
+              <div className="notice-banner-actions">
                 <button
                   type="button"
-                  className="demo-choice-card brand-choice"
-                  id="demo-login-brand-btn"
-                  onClick={() => {
-                    onLoginBrand();
-                  }}
+                  className="btn-demo-quick-action"
+                  onClick={() => handleQuickDemoEnter(selectedRole)}
                 >
-                  <div className="demo-icon-wrap brand-icon-wrap">
-                    <Briefcase size={16} />
-                  </div>
-                  <div className="demo-text-wrap">
-                    <span className="demo-name">Lumina Botanica</span>
-                    <span className="demo-role">Brand Campaign Studio</span>
-                  </div>
-                  <ArrowRight size={13} className="demo-arrow" />
+                  <span>Enter as Demo {selectedRole === 'brand' ? 'Brand' : 'Creator'} →</span>
                 </button>
-
                 <button
                   type="button"
-                  className="demo-choice-card creator-choice"
-                  id="demo-login-creator-btn"
-                  onClick={() => {
-                    onLoginCreator();
-                  }}
+                  className="btn-notice-dismiss"
+                  onClick={() => setIsDemoFallbackOpen(false)}
+                  aria-label="Dismiss notice"
                 >
-                  <div className="demo-icon-wrap creator-icon-wrap">
-                    <Palette size={16} />
-                  </div>
-                  <div className="demo-text-wrap">
-                    <span className="demo-name">Maya Chen</span>
-                    <span className="demo-role">AI Creator Studio</span>
-                  </div>
-                  <ArrowRight size={13} className="demo-arrow" />
+                  <X size={14} />
                 </button>
               </div>
             </div>
@@ -341,6 +303,9 @@ export default function LoginModal({
             <div className="auth-alert alert-error">
               <AlertCircle size={15} />
               <span>{errorMsg}</span>
+              <button type="button" onClick={() => setErrorMsg('')} className="alert-close-btn">
+                <X size={13} />
+              </button>
             </div>
           )}
           {successMsg && (
@@ -413,7 +378,7 @@ export default function LoginModal({
             <button type="submit" className="auth-submit-btn" disabled={loading} id="auth-submit-btn">
               {loading ? (
                 <>
-                  <Loader size={16} className="auth-spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                  <Loader size={16} className="auth-spinner" />
                   <span>Connecting...</span>
                 </>
               ) : (
@@ -425,8 +390,46 @@ export default function LoginModal({
             </button>
           </form>
 
+          {/* 1-Click Instant Demo Panel (Available for Quick Evaluation) */}
+          <div className="alloy-demo-panel">
+            <span className="demo-panel-title">Or Evaluate Instantly:</span>
+            <div className="demo-card-grid">
+              <button
+                type="button"
+                className="demo-choice-card brand-choice"
+                id="demo-login-brand-btn"
+                onClick={() => handleQuickDemoEnter('brand')}
+              >
+                <div className="demo-icon-wrap brand-icon-wrap">
+                  <Briefcase size={15} />
+                </div>
+                <div className="demo-text-wrap">
+                  <span className="demo-name">Lumina Botanica</span>
+                  <span className="demo-role">Brand Studio</span>
+                </div>
+                <ArrowRight size={13} className="demo-arrow" />
+              </button>
+
+              <button
+                type="button"
+                className="demo-choice-card creator-choice"
+                id="demo-login-creator-btn"
+                onClick={() => handleQuickDemoEnter('creator')}
+              >
+                <div className="demo-icon-wrap creator-icon-wrap">
+                  <Palette size={15} />
+                </div>
+                <div className="demo-text-wrap">
+                  <span className="demo-name">Maya Chen</span>
+                  <span className="demo-role">Creator Studio</span>
+                </div>
+                <ArrowRight size={13} className="demo-arrow" />
+              </button>
+            </div>
+          </div>
+
           {/* Footer Security Badge */}
-          <div className="alloy-auth-footer-badge" style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '0.74rem', color: '#8F8880' }}>
+          <div className="alloy-auth-footer-badge">
             <ShieldCheck size={13} className="badge-shield-icon" />
             <span>Isolated multi-tenant workspace security</span>
           </div>
@@ -439,8 +442,8 @@ export default function LoginModal({
         <div className="alloy-login-visual-col">
           <div className="visual-blended-frame">
             <img 
-              src="/assets/alloy-login-sculpture.png" 
-              alt="ALLOY Creative Fusion Artwork" 
+              src="/assets/alloy-login-artwork.webp" 
+              alt="Alloy Editorial Creative Masterpiece" 
               className="blended-sculpture-img"
             />
             

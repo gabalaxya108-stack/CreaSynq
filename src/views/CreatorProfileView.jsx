@@ -7,12 +7,16 @@ import {
   ArrowLeft, MapPin, Heart, Share2, Send, Sparkles, ArrowDown, Dna, 
   CheckCircle2, MessageSquare, Clock, ShieldCheck, AlertCircle, Bookmark, 
   BookmarkCheck, ExternalLink, Edit3, Eye, Layers, ChevronRight, Check,
-  Sparkle, Compass, UserCheck, ChevronDown, ChevronUp
+  Sparkle, Compass, UserCheck, Wrench, Cpu, FileCheck2, Award, Lock, FileText, Video,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import { getPublicCreatorProfile } from '../data/marketplaceStore';
 import { generateCreatorDNA } from '../intelligence/creatorDNA';
 import { calculateCreaMatch } from '../intelligence/matchingEngine';
 import { explainMatch } from '../intelligence/matchExplainer';
+import WorkflowTimeline from '../components/WorkflowTimeline';
+import { DEMO_WORKFLOWS } from '../data/workflowsData';
+import { STATUS_META, PROVENANCE_LEVELS } from '../data/trustVerificationData';
 
 export default function CreatorProfileView({ 
   creator, 
@@ -86,6 +90,17 @@ export default function CreatorProfileView({
   const isShortlisted = evaluatedCampaign 
     ? (shortlists[evaluatedCampaign.id] || []).includes(publicCreator.id)
     : false;
+
+  // Creative Workflows: Read-only, published workflows only
+  const publishedWorkflows = useMemo(() => {
+    const raw = (publicCreator.workflows && publicCreator.workflows.length > 0)
+      ? publicCreator.workflows
+      : DEMO_WORKFLOWS.filter(w => w.creatorId === publicCreator.id);
+    return raw.filter(w => (w.visibility === 'published' || w.status === 'Published') && w.visibility !== 'private');
+  }, [publicCreator]);
+
+  const [activeWorkflowId, setActiveWorkflowId] = useState(null);
+  const selectedWorkflow = publishedWorkflows.find(w => w.id === activeWorkflowId) || publishedWorkflows[0] || null;
 
   // Available categories for portfolio filtering
   const availableCategories = useMemo(() => {
@@ -702,6 +717,253 @@ export default function CreatorProfileView({
               </p>
             </div>
           )}
+        </section>
+
+
+        {/* ========================================================
+            B2. SECTION 02 • CREATIVE WORKFLOW — HOW THEY CREATE
+            ======================================================== */}
+        <section className="profile-workflow-section" id="creative-workflows-section" style={{ marginTop: '50px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <span className="section-label">Section 02 • Creative Workflow</span>
+              <h2 className="profile-section-title font-editorial">
+                How They Create — Production Pipelines
+              </h2>
+              <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                Standardized production methodologies, generative models, and human artistry verified in commercial practice.
+              </p>
+            </div>
+
+            {/* Workflow Switcher Pills if creator has multiple published workflows */}
+            {publishedWorkflows.length > 1 && (
+              <div className="portfolio-filters-group">
+                {publishedWorkflows.map(wf => (
+                  <button
+                    key={wf.id}
+                    type="button"
+                    className={`portfolio-filter-pill ${(selectedWorkflow && selectedWorkflow.id === wf.id) ? 'active' : ''}`}
+                    onClick={() => setActiveWorkflowId(wf.id)}
+                  >
+                    {wf.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Render Timeline or Clean Empty State */}
+          {selectedWorkflow ? (
+            <WorkflowTimeline 
+              workflow={selectedWorkflow}
+              isReadOnly={true}
+              onSelectProject={(projId) => {
+                const matchedProj = publishedProjects.find(p => p.id === projId);
+                if (matchedProj && onSelectProject) {
+                  onSelectProject(matchedProj, publicCreator);
+                }
+              }}
+            />
+          ) : (
+            /* Clean Empty State (strictly without fabricated content) */
+            <div className="portfolio-empty-state" style={{ padding: '48px 24px', textAlign: 'center', background: 'var(--bg-secondary)', borderRadius: '16px', border: '1px dashed var(--border-subtle)' }}>
+              <Compass size={40} style={{ color: 'var(--text-tertiary)', margin: '0 auto 12px' }} />
+              <h3 className="font-editorial" style={{ fontSize: '1.4rem', marginBottom: '6px' }}>
+                No published creative workflows yet
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto', fontSize: '0.9rem' }}>
+                This creator has not yet published step-by-step production pipelines to their public profile.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* ========================================================
+            B3. SECTION 03 • TRUST & VERIFICATION DOSSIER
+            ======================================================== */}
+        <section className="profile-trust-section" id="trust-verification-section" style={{ marginTop: '50px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <span className="section-label" style={{ color: '#059669' }}>Section 03 • Trust & Verification</span>
+              <h2 className="profile-section-title font-editorial">
+                Verified Credentials & Production Provenance
+              </h2>
+              <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                Audited evidence, cryptographically confirmed contact channels, and transparent AI tool disclosures.
+              </p>
+            </div>
+
+            {publicCreator.trustVerification?.isDemoProfile && (
+              <span style={{
+                fontSize: '0.74rem',
+                padding: '4px 12px',
+                borderRadius: '100px',
+                background: 'rgba(59, 130, 246, 0.1)',
+                color: '#2563EB',
+                fontWeight: 600
+              }}>
+                Demonstration Profile • Illustrative Evidence
+              </span>
+            )}
+          </div>
+
+          {/* Verification Badges Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+            {/* 1. Account & Email */}
+            <div style={{ padding: '18px 20px', borderRadius: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', color: '#059669', flexShrink: 0 }}>
+                <CheckCircle2 size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', fontWeight: 700 }}>
+                  Account Authentication
+                </div>
+                <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {publicCreator.trustVerification?.email?.status === 'verified' ? 'Verified Account' : 'Session Active'}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  {publicCreator.trustVerification?.email?.verifiedAt ? `Confirmed: ${publicCreator.trustVerification.email.verifiedAt}` : 'Contact channel confirmed'}
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Identity Standing */}
+            <div style={{ padding: '18px 20px', borderRadius: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.1)', color: '#7C3AED', flexShrink: 0 }}>
+                <UserCheck size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', fontWeight: 700 }}>
+                  Legal Personhood
+                </div>
+                <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {publicCreator.trustVerification?.identity?.status === 'verified' 
+                    ? 'Identity Verified' 
+                    : (publicCreator.trustVerification?.identity?.status === 'under_review' ? 'Under Compliance Review' : 'Identity Declaration')}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  {publicCreator.trustVerification?.identity?.issuingCountry ? `Jurisdiction: ${publicCreator.trustVerification.identity.issuingCountry}` : 'Stripe Identity / Compliance'}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Portfolio Evidence */}
+            <div style={{ padding: '18px 20px', borderRadius: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(217, 119, 6, 0.1)', color: '#D97706', flexShrink: 0 }}>
+                <FileCheck2 size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', fontWeight: 700 }}>
+                  Portfolio Authenticity
+                </div>
+                <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {(publicCreator.trustVerification?.portfolioEvidence || []).length} Evidence Packs
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Raw project files & ComfyUI seeds
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Platform Delivery History */}
+            <div style={{ padding: '18px 20px', borderRadius: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', color: '#059669', flexShrink: 0 }}>
+                <Award size={18} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', fontWeight: 700 }}>
+                  Platform Escrow History
+                </div>
+                <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {publicCreator.trustVerification?.platformHistory?.completedEngagementsCount || 0} Delivered Contracts
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  {publicCreator.trustVerification?.platformHistory?.hasHistory ? `${publicCreator.trustVerification.platformHistory.totalMilestonesDelivered} Verified Milestones` : 'New marketplace participant'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Trust Transparency Card */}
+          <div style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '16px',
+            padding: '24px 28px'
+          }}>
+            {/* AI Tools & Models Disclosures */}
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-primary)', fontWeight: 700 }}>
+                  Transparent AI Model & Tool Disclosures
+                </span>
+                <span style={{ fontSize: '0.76rem', color: 'var(--text-tertiary)' }}>
+                  Provenance: Audited vs. Evidence-Backed vs. Creator-Declared
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                {(publicCreator.trustVerification?.toolDeclarations || []).map(decl => {
+                  const provKey = decl.provenance?.toUpperCase() || 'CREATOR_DECLARED';
+                  const prov = PROVENANCE_LEVELS[provKey] || PROVENANCE_LEVELS.CREATOR_DECLARED;
+
+                  return (
+                    <div key={decl.id} style={{
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      background: '#FFFFFF',
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>{decl.toolName}</strong>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '2px 8px',
+                          borderRadius: '100px',
+                          background: prov.bg,
+                          color: prov.color,
+                          fontWeight: 700
+                        }}>
+                          {prov.label}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                        {decl.useCase}
+                      </p>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                        Application: <em>{decl.associatedWork}</em>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Commercial Licensing & Rights Warranty */}
+            {publicCreator.trustVerification?.licensing?.modelRightsDeclaration && (
+              <div style={{
+                paddingTop: '20px',
+                borderTop: '1px solid var(--border-subtle)',
+                display: 'flex',
+                gap: '16px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(202, 138, 4, 0.1)', color: '#CA8A04', flexShrink: 0 }}>
+                  <FileText size={18} />
+                </div>
+                <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Declared Commercial Licensing Scope: </strong>
+                  {publicCreator.trustVerification.licensing.modelRightsDeclaration}
+                  <div style={{ marginTop: '6px', fontSize: '0.76rem', color: 'var(--text-tertiary)' }}>
+                    License Terms: <strong>{publicCreator.trustVerification.licensing.licenseTypeGranted}</strong> • {publicCreator.trustVerification.licensing.exclusivityPeriod}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* ========================================================

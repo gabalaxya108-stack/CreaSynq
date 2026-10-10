@@ -1,0 +1,2098 @@
+/* ==========================================================================
+   ALLOY SUPER ADMIN & ALLOYTRUST COMMAND CENTER — MASTER STYLESHEET
+   Luxury Editorial Theme • Warm Ivory & Muted Bronze Aesthetic
+   Matches the ALLOY Main Landing Page Design System
+   ========================================================================== */
+
+/* --- ROOT DESIGN TOKENS (Scoped to Admin) --- */
+:root {
+  --admin-bg-primary: #F8F5F0;          /* Warm Ivory */
+  --admin-bg-surface: #FFFFFF;          /* Pure Warm White */
+  --admin-bg-subtle: #FAF7F2;           /* Soft Ivory Cream */
+  --admin-bg-muted: #F2E8DF;            /* Pale Beige / Travertine */
+  --admin-bg-alt: #EFE7DC;              /* Medium Neutral Beige */
+
+  --admin-text-primary: #191816;        /* Charcoal Black */
+  --admin-text-secondary: #77716A;      /* Warm Grey */
+  --admin-text-tertiary: #968F87;       /* Muted Stone */
+  --admin-text-inverted: #FAF8F5;       /* Inverted Off-White */
+
+  --admin-accent-bronze: #99714F;       /* Primary Muted Bronze */
+  --admin-accent-bronze-light: #F2E8DF; /* Subtle Pale Bronze Tint */
+  --admin-accent-bronze-hover: #7E5B3D; /* Deep Rich Bronze */
+  --admin-accent-forest: #214C35;       /* Editorial Deep Forest Green */
+  --admin-accent-gold: #C7A47B;         /* Metallic Champagne Gold */
+
+  --admin-border-light: #E4DDD4;        /* Soft Warm Beige Border */
+  --admin-border-medium: #D5CCC0;       /* Medium Warm Beige Border */
+  --admin-border-focus: rgba(153, 113, 79, 0.4);
+
+  --admin-shadow-xs: 0 1px 3px rgba(26, 25, 24, 0.03);
+  --admin-shadow-sm: 0 4px 16px rgba(26, 25, 24, 0.04);
+  --admin-shadow-md: 0 10px 28px rgba(26, 25, 24, 0.06);
+  --admin-shadow-lg: 0 20px 50px rgba(26, 25, 24, 0.08);
+
+  --admin-font-editorial: 'Instrument Serif', 'Cormorant Garamond', Georgia, serif;
+  --admin-font-sans: 'DM Sans', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --admin-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Scoped Utility Overrides inside Admin */
+.alloy-admin-dashboard-container .text-amber-400,
+.alloy-admin-login-page .text-amber-400,
+.alloy-admin-dashboard-container .text-amber,
+.alloy-admin-login-page .text-amber,
+.alloy-admin-dashboard-container .text-bronze,
+.alloy-admin-login-page .text-bronze {
+  color: var(--admin-accent-bronze) !important;
+}
+
+.alloy-admin-dashboard-container .title-accent-vision,
+.alloy-admin-login-page .title-accent-vision {
+  font-style: italic;
+  color: var(--admin-accent-bronze);
+  font-family: var(--admin-font-editorial);
+}
+
+/* --- ROOT ADMIN LAYOUT --- */
+.alloy-admin-dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--admin-bg-primary);
+  color: var(--admin-text-primary);
+  font-family: var(--admin-font-sans);
+  position: relative;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- SIDEBAR --- */
+.alloy-admin-sidebar {
+  width: 270px;
+  background: var(--admin-bg-surface);
+  border-right: 1px solid var(--admin-border-light);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 40;
+  flex-shrink: 0;
+  box-shadow: var(--admin-shadow-xs);
+}
+
+.alloy-admin-sidebar-header {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--admin-border-light);
+  background: var(--admin-bg-surface);
+}
+
+.alloy-admin-brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alloy-admin-sidebar-logo {
+  height: 24px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.alloy-admin-brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--admin-bg-muted);
+  border: 1px solid var(--admin-border-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--admin-accent-bronze);
+}
+
+.alloy-admin-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.alloy-admin-brand-name {
+  font-family: var(--admin-font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--admin-text-primary);
+}
+
+.alloy-admin-brand-badge {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+  color: var(--admin-accent-bronze);
+  background: var(--admin-bg-muted);
+  border: 1px solid rgba(153, 113, 79, 0.25);
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-family: var(--admin-font-mono);
+  display: inline-block;
+  align-self: flex-start;
+}
+
+.alloy-admin-system-pulse {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--admin-accent-forest);
+  background: rgba(33, 76, 53, 0.08);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(33, 76, 53, 0.2);
+}
+
+.alloy-admin-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--admin-accent-forest);
+  box-shadow: 0 0 6px rgba(33, 76, 53, 0.4);
+  animation: pulse-ring 2.4s infinite ease-in-out;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+/* Nav Menu */
+.alloy-admin-nav {
+  flex: 1;
+  padding: 20px 14px;
+  overflow-y: auto;
+}
+
+.alloy-admin-nav-group-title {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--admin-text-tertiary);
+  font-family: var(--admin-font-mono);
+  font-weight: 700;
+  padding: 0 10px 10px;
+}
+
+.alloy-admin-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alloy-admin-nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--admin-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+}
+
+.alloy-admin-nav-item:hover {
+  background: var(--admin-bg-subtle);
+  color: var(--admin-text-primary);
+  border-color: var(--admin-border-light);
+}
+
+.alloy-admin-nav-item.active {
+  background: var(--admin-bg-muted);
+  color: var(--admin-accent-bronze);
+  font-weight: 600;
+  border-color: rgba(153, 113, 79, 0.25);
+  box-shadow: var(--admin-shadow-xs);
+}
+
+.alloy-admin-nav-item.highlight-item.active {
+  background: var(--admin-bg-muted);
+  color: var(--admin-accent-bronze);
+  border-color: rgba(153, 113, 79, 0.35);
+}
+
+.alloy-admin-nav-icon {
+  flex-shrink: 0;
+}
+
+.alloy-admin-nav-label {
+  flex: 1;
+}
+
+.alloy-admin-nav-badge {
+  background: #b91c1c;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(185, 28, 28, 0.2);
+}
+
+/* Sidebar Footer */
+.alloy-admin-sidebar-footer {
+  padding: 16px 14px;
+  border-top: 1px solid var(--admin-border-light);
+  background: var(--admin-bg-subtle);
+}
+
+.alloy-admin-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+}
+
+.alloy-admin-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--admin-bg-muted);
+  border: 1.5px solid var(--admin-border-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--admin-accent-bronze);
+}
+
+.alloy-admin-profile-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.alloy-admin-profile-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alloy-admin-profile-role {
+  font-size: 10.5px;
+  color: var(--admin-text-secondary);
+  font-family: var(--admin-font-mono);
+}
+
+.alloy-admin-footer-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.alloy-admin-footer-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: var(--admin-bg-surface);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 6px;
+  color: var(--admin-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.alloy-admin-footer-btn:hover {
+  background: var(--admin-bg-muted);
+  color: var(--admin-text-primary);
+  border-color: var(--admin-border-medium);
+}
+
+.alloy-admin-footer-btn.logout:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+/* --- MAIN WORKSPACE STAGE --- */
+.alloy-admin-main-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-x: hidden;
+  background-color: var(--admin-bg-primary);
+}
+
+.alloy-admin-top-nav {
+  height: 64px;
+  border-bottom: 1px solid var(--admin-border-light);
+  background: rgba(248, 245, 240, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.alloy-admin-top-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.alloy-admin-breadcrumb-root {
+  color: var(--admin-text-secondary);
+  font-weight: 500;
+}
+
+.alloy-admin-breadcrumb-sep {
+  color: var(--admin-border-medium);
+}
+
+.alloy-admin-breadcrumb-active {
+  color: var(--admin-text-primary);
+  font-weight: 600;
+}
+
+.alloy-admin-top-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alloy-admin-synthetic-badge {
+  background: rgba(180, 133, 48, 0.12);
+  color: #926114;
+  border: 1px solid rgba(180, 133, 48, 0.3);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-family: var(--admin-font-mono);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.alloy-admin-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--admin-bg-surface);
+  border: 1px solid var(--admin-border-light);
+  color: var(--admin-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: var(--admin-shadow-xs);
+}
+
+.alloy-admin-icon-btn:hover {
+  background: var(--admin-bg-subtle);
+  border-color: var(--admin-border-medium);
+  color: var(--admin-text-primary);
+  transform: translateY(-1px);
+}
+
+.alloy-admin-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--admin-accent-forest);
+  background: rgba(33, 76, 53, 0.08);
+  padding: 5px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(33, 76, 53, 0.2);
+}
+
+.alloy-admin-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--admin-accent-forest);
+}
+
+.alloy-admin-content-viewport {
+  flex: 1;
+  padding: 32px;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.alloy-admin-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  gap: 16px;
+  color: var(--admin-text-secondary);
+  font-size: 13px;
+}
+
+/* --- OVERVIEW HERO BANNER --- */
+.alloy-admin-hero-banner {
+  background: linear-gradient(135deg, #ffffff 0%, #faf7f2 100%);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 16px;
+  padding: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.alloy-admin-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-family: var(--admin-font-mono);
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: var(--admin-accent-bronze);
+  background: var(--admin-bg-muted);
+  border: 1px solid rgba(153, 113, 79, 0.25);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  margin-bottom: 12px;
+}
+
+.alloy-admin-hero-badge.trust {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.25);
+}
+
+.alloy-admin-hero-title {
+  font-family: var(--admin-font-editorial);
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--admin-text-primary);
+  letter-spacing: -0.01em;
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
+
+.alloy-admin-hero-sub {
+  font-size: 13.5px;
+  color: var(--admin-text-secondary);
+  margin: 0;
+  max-width: 650px;
+  line-height: 1.55;
+}
+
+/* --- KPI GRID --- */
+.alloy-admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 1024px) {
+  .alloy-admin-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.alloy-admin-kpi-card {
+  background: var(--admin-bg-surface);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 14px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--admin-shadow-xs);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.alloy-admin-kpi-card:hover {
+  border-color: var(--admin-border-medium);
+  box-shadow: var(--admin-shadow-md);
+  transform: translateY(-2px);
+}
+
+.alloy-admin-kpi-card.urgent {
+  border-color: rgba(220, 38, 38, 0.3);
+  background: linear-gradient(180deg, #fffafa 0%, #ffffff 100%);
+}
+
+.alloy-admin-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.alloy-admin-kpi-title {
+  font-size: 11.5px;
+  color: var(--admin-text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.alloy-admin-kpi-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alloy-admin-kpi-icon.brand {
+  background: rgba(42, 72, 88, 0.08);
+  color: #2A4858;
+}
+
+.alloy-admin-kpi-icon.creator {
+  background: rgba(153, 113, 79, 0.1);
+  color: var(--admin-accent-bronze);
+}
+
+.alloy-admin-kpi-icon.escrow {
+  background: rgba(33, 76, 53, 0.08);
+  color: var(--admin-accent-forest);
+}
+
+.alloy-admin-kpi-icon.trust {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+}
+
+.alloy-admin-kpi-value {
+  font-size: 32px;
+  font-weight: 500;
+  color: var(--admin-text-primary);
+  font-family: var(--admin-font-sans);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 8px;
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+}
+
+/* Responsive: scale gracefully for smaller viewports */
+@media (max-width: 1280px) {
+  .alloy-admin-kpi-value {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 768px) {
+  .alloy-admin-kpi-value {
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+}
+
+.alloy-admin-kpi-meta {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.alloy-admin-kpi-meta.positive { color: var(--admin-accent-forest); font-weight: 600; }
+.alloy-admin-kpi-meta.neutral { color: var(--admin-text-secondary); }
+.alloy-admin-kpi-meta.warning { color: #b91c1c; font-weight: 600; }
+
+/* --- TWO COLUMN SECTION & PANELS --- */
+.alloy-admin-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .alloy-admin-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.alloy-admin-panel {
+  background: var(--admin-bg-surface);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: var(--admin-shadow-xs);
+}
+
+.alloy-admin-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.alloy-admin-panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  margin: 0;
+}
+
+.alloy-admin-panel-sub {
+  font-size: 12px;
+  color: var(--admin-text-secondary);
+  margin: 4px 0 0 0;
+}
+
+/* --- RISK DISTRIBUTION BARS --- */
+.alloy-admin-risk-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.alloy-admin-risk-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alloy-admin-risk-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.alloy-admin-risk-label { font-weight: 600; }
+.alloy-admin-risk-label.critical { color: #b91c1c; }
+.alloy-admin-risk-label.high { color: #c2410c; }
+.alloy-admin-risk-label.moderate { color: #926114; }
+.alloy-admin-risk-label.low { color: #214C35; }
+
+.alloy-admin-risk-count {
+  color: var(--admin-text-secondary);
+  font-family: var(--admin-font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+}
+.alloy-admin-risk-desc { font-size: 11px; color: var(--admin-text-tertiary); }
+
+.alloy-admin-bar-track {
+  height: 8px;
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.alloy-admin-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.alloy-admin-bar-fill.critical { background: #b91c1c; }
+.alloy-admin-bar-fill.high { background: #c2410c; }
+.alloy-admin-bar-fill.moderate { background: #926114; }
+.alloy-admin-bar-fill.low { background: #214C35; }
+
+/* --- URGENT FEED --- */
+.alloy-admin-urgent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.alloy-admin-urgent-item {
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 10px;
+  padding: 14px;
+  transition: border-color 0.15s ease;
+}
+
+.alloy-admin-urgent-item:hover {
+  border-color: var(--admin-border-medium);
+}
+
+.alloy-admin-urgent-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.alloy-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: var(--admin-font-mono);
+  border: 1px solid;
+}
+
+.alloy-admin-urgent-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--admin-text-tertiary);
+  font-family: var(--admin-font-mono);
+}
+
+.alloy-admin-urgent-entity {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  margin: 0 0 4px 0;
+}
+
+.alloy-admin-urgent-summary {
+  font-size: 12px;
+  color: var(--admin-text-secondary);
+  margin: 0 0 10px 0;
+  line-height: 1.45;
+}
+
+.alloy-admin-urgent-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--admin-border-light);
+  padding-top: 10px;
+}
+
+.alloy-admin-urgent-id {
+  font-size: 10px;
+  font-family: var(--admin-font-mono);
+  color: var(--admin-text-tertiary);
+}
+
+/* --- BUTTONS --- */
+/* Primary Action Button: Dark Charcoal Pill CTA matching landing page */
+.alloy-admin-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--admin-text-primary);
+  color: var(--admin-text-inverted);
+  font-weight: 600;
+  font-size: 12.5px;
+  border-radius: 9999px;
+  border: 1px solid var(--admin-text-primary);
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(25, 24, 22, 0.12);
+}
+
+.alloy-admin-btn-primary:hover {
+  background: #2D2A27;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(25, 24, 22, 0.18);
+}
+
+.alloy-admin-btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Secondary Action Button */
+.alloy-admin-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 18px;
+  background: var(--admin-bg-surface);
+  border: 1.5px solid var(--admin-border-medium);
+  color: var(--admin-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.alloy-admin-btn-secondary:hover {
+  background: var(--admin-bg-subtle);
+  border-color: #B8ADA0;
+}
+
+/* Danger Action Button */
+.alloy-admin-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 18px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.alloy-admin-btn-danger:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.alloy-admin-btn-secondary-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: var(--admin-bg-surface);
+  border: 1px solid var(--admin-border-light);
+  color: var(--admin-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.alloy-admin-btn-secondary-sm:hover {
+  background: var(--admin-bg-subtle);
+  color: var(--admin-text-primary);
+  border-color: var(--admin-border-medium);
+}
+
+.alloy-admin-btn-action-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--admin-accent-bronze);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.alloy-admin-btn-action-sm:hover {
+  color: var(--admin-accent-bronze-hover);
+  text-decoration: underline;
+}
+
+.alloy-admin-text-link {
+  background: none;
+  border: none;
+  color: var(--admin-accent-bronze);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alloy-admin-text-link:hover {
+  color: var(--admin-accent-bronze-hover);
+  text-decoration: underline;
+}
+
+/* --- SECTION HEADERS & CONTROLS --- */
+.alloy-admin-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.alloy-admin-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.alloy-admin-section-title {
+  font-family: var(--admin-font-editorial);
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--admin-text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.alloy-admin-section-sub {
+  font-size: 13px;
+  color: var(--admin-text-secondary);
+  margin: 4px 0 0 0;
+}
+
+.alloy-admin-counter-pill {
+  font-size: 11px;
+  font-family: var(--admin-font-mono);
+  font-weight: 600;
+  color: var(--admin-accent-bronze);
+  background: var(--admin-bg-muted);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid rgba(153, 113, 79, 0.25);
+}
+
+/* Filter Bar */
+.alloy-admin-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.alloy-admin-search-box {
+  flex: 1;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--admin-bg-surface);
+  border: 1.5px solid var(--admin-border-medium);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: var(--admin-text-tertiary);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.alloy-admin-search-box:focus-within {
+  border-color: var(--admin-accent-bronze);
+  box-shadow: 0 0 0 3px rgba(153, 113, 79, 0.12);
+}
+
+.alloy-admin-search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--admin-text-primary);
+  font-size: 13px;
+  outline: none;
+  font-family: var(--admin-font-sans);
+}
+
+.alloy-admin-search-box input::placeholder {
+  color: var(--admin-text-tertiary);
+}
+
+.alloy-admin-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alloy-admin-select {
+  background: var(--admin-bg-surface);
+  border: 1.5px solid var(--admin-border-medium);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: var(--admin-text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--admin-font-sans);
+  transition: border-color 0.18s ease;
+}
+
+.alloy-admin-select:focus {
+  border-color: var(--admin-accent-bronze);
+}
+
+/* Tables */
+.alloy-admin-table-container {
+  background: var(--admin-bg-surface);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--admin-shadow-xs);
+}
+
+.alloy-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.alloy-admin-table th {
+  background: var(--admin-bg-subtle);
+  border-bottom: 1px solid var(--admin-border-light);
+  padding: 14px 18px;
+  color: var(--admin-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.alloy-admin-table td {
+  padding: 16px 18px;
+  border-bottom: 1px solid #f0eae1;
+  color: var(--admin-text-primary);
+  vertical-align: middle;
+}
+
+.alloy-admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.alloy-admin-table tr:hover td {
+  background: #faf8f5;
+}
+
+.alloy-admin-empty-cell {
+  text-align: center;
+  padding: 40px !important;
+  color: var(--admin-text-secondary);
+}
+
+/* Table Entities & Badges */
+.alloy-admin-entity-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alloy-admin-brand-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2A4858;
+}
+
+.alloy-admin-brand-thumb.creator { color: var(--admin-accent-bronze); }
+.alloy-admin-brand-thumb.campaign { color: #926114; }
+.alloy-admin-brand-thumb.collab { color: var(--admin-accent-forest); }
+
+.alloy-admin-avatar-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--admin-border-medium);
+}
+
+.alloy-admin-entity-name {
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  font-size: 13px;
+}
+
+.alloy-admin-entity-id {
+  font-size: 11px;
+  color: var(--admin-text-tertiary);
+  font-family: var(--admin-font-mono);
+}
+
+.alloy-admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.alloy-admin-status-badge.verified {
+  background: rgba(33, 76, 53, 0.08);
+  color: var(--admin-accent-forest);
+  border: 1px solid rgba(33, 76, 53, 0.2);
+}
+
+.alloy-admin-status-badge.restricted {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.alloy-admin-status-badge.warning {
+  background: rgba(180, 133, 48, 0.12);
+  color: #926114;
+  border: 1px solid rgba(180, 133, 48, 0.25);
+}
+
+.alloy-admin-collab-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.alloy-admin-collab-badge.active {
+  background: rgba(42, 72, 88, 0.08);
+  color: #2A4858;
+  border: 1px solid rgba(42, 72, 88, 0.2);
+}
+
+.alloy-admin-collab-badge.approved {
+  background: rgba(33, 76, 53, 0.08);
+  color: var(--admin-accent-forest);
+  border: 1px solid rgba(33, 76, 53, 0.2);
+}
+
+.alloy-admin-collab-badge.disputed {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.alloy-admin-pill-budget {
+  font-family: var(--admin-font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--admin-accent-bronze);
+  background: var(--admin-bg-muted);
+  border: 1px solid rgba(153, 113, 79, 0.2);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.alloy-admin-pill-neutral {
+  font-size: 11px;
+  color: var(--admin-text-secondary);
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.alloy-admin-pill-code {
+  font-size: 11px;
+  font-family: var(--admin-font-mono);
+  color: var(--admin-accent-bronze);
+  background: var(--admin-bg-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.alloy-admin-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.alloy-admin-btn-table {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 6px;
+  color: var(--admin-text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.alloy-admin-btn-table:hover {
+  background: var(--admin-bg-muted);
+  border-color: var(--admin-border-medium);
+  color: var(--admin-accent-bronze);
+}
+
+.alloy-admin-btn-table.danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.alloy-admin-btn-table.success:hover {
+  background: #f0fdf4;
+  color: var(--admin-accent-forest);
+  border-color: #bbf7d0;
+}
+
+.alloy-admin-btn-table.highlight {
+  background: var(--admin-bg-muted);
+  color: var(--admin-accent-bronze);
+  border-color: rgba(153, 113, 79, 0.3);
+  font-weight: 600;
+}
+
+.alloy-admin-btn-table.highlight:hover {
+  background: #ebe0d5;
+}
+
+/* External Link */
+.alloy-admin-link-external {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--admin-text-secondary);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.alloy-admin-link-external:hover {
+  color: var(--admin-accent-bronze);
+}
+
+/* --- ALLOYTRUST SPECIALIZED COMMAND STYLES --- */
+.alloy-admin-trust-hero {
+  background: linear-gradient(135deg, #ffffff 0%, #faf7f2 100%);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 16px;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.alloy-admin-panel.catalog-strip {
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.alloy-admin-strip-title {
+  font-size: 11px;
+  font-family: var(--admin-font-mono);
+  color: var(--admin-text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.alloy-admin-signals-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.alloy-admin-signal-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.alloy-admin-signal-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #926114;
+}
+
+.alloy-admin-signal-pill .name {
+  color: var(--admin-text-primary);
+  font-weight: 500;
+}
+
+.alloy-admin-signal-pill .weight {
+  color: #926114;
+  font-family: var(--admin-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Score badge */
+.alloy-admin-score-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alloy-admin-score-badge {
+  font-size: 13px;
+  font-family: var(--admin-font-mono);
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+}
+
+.alloy-admin-score-tier {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--admin-font-mono);
+  text-transform: uppercase;
+}
+
+.row-critical td {
+  background: #fdf6f6;
+}
+
+/* Investigate Modal */
+.alloy-admin-investigate-score-box {
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.alloy-admin-investigate-score-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.alloy-admin-signals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alloy-admin-signal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.alloy-admin-signal-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  min-width: 220px;
+}
+
+.alloy-admin-signal-detail {
+  flex: 1;
+  color: var(--admin-text-secondary);
+}
+
+.alloy-admin-signal-pts {
+  font-family: var(--admin-font-mono);
+  color: #926114;
+  font-weight: 700;
+}
+
+.alloy-admin-textarea {
+  width: 100%;
+  background: var(--admin-bg-surface);
+  border: 1.5px solid var(--admin-border-medium);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--admin-text-primary);
+  font-size: 13px;
+  font-family: var(--admin-font-sans);
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.18s ease;
+}
+
+.alloy-admin-textarea:focus {
+  border-color: var(--admin-accent-bronze);
+}
+
+.alloy-admin-investigate-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.alloy-admin-btn-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid;
+}
+
+.alloy-admin-btn-action.clear {
+  background: rgba(33, 76, 53, 0.08);
+  color: var(--admin-accent-forest);
+  border-color: rgba(33, 76, 53, 0.25);
+}
+
+.alloy-admin-btn-action.clear:hover {
+  background: rgba(33, 76, 53, 0.16);
+}
+
+.alloy-admin-btn-action.monitor {
+  background: rgba(180, 133, 48, 0.12);
+  color: #926114;
+  border-color: rgba(180, 133, 48, 0.3);
+}
+
+.alloy-admin-btn-action.monitor:hover {
+  background: rgba(180, 133, 48, 0.2);
+}
+
+.alloy-admin-btn-action.restrict {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.25);
+}
+
+.alloy-admin-btn-action.restrict:hover {
+  background: rgba(220, 38, 38, 0.16);
+}
+
+/* --- CONTROLS SECTION --- */
+.alloy-admin-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .alloy-admin-controls-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.alloy-admin-control-card {
+  background: var(--admin-bg-surface);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--admin-shadow-xs);
+}
+
+.alloy-admin-control-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--admin-border-light);
+  padding-bottom: 14px;
+}
+
+.alloy-admin-control-card-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  margin: 0;
+}
+
+.alloy-admin-control-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.alloy-admin-control-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.alloy-admin-switch {
+  width: 40px;
+  height: 22px;
+  accent-color: var(--admin-accent-bronze);
+  cursor: pointer;
+}
+
+.alloy-admin-slider {
+  width: 100%;
+  accent-color: var(--admin-accent-bronze);
+  cursor: pointer;
+}
+
+.alloy-admin-controls-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.alloy-admin-success-banner {
+  background: rgba(33, 76, 53, 0.08);
+  border: 1px solid rgba(33, 76, 53, 0.25);
+  color: var(--admin-accent-forest);
+  padding: 12px 18px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+/* --- JSON VIEWER --- */
+.alloy-admin-json-viewer {
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 8px;
+  padding: 16px;
+  color: var(--admin-accent-forest);
+  font-family: var(--admin-font-mono);
+  font-size: 12px;
+  max-height: 400px;
+  overflow: auto;
+}
+
+/* --- MODALS --- */
+.alloy-admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(25, 24, 22, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.alloy-admin-modal-card {
+  background: var(--admin-bg-surface);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 18px;
+  width: 100%;
+  max-width: 620px;
+  padding: 28px;
+  box-shadow: var(--admin-shadow-lg);
+  color: var(--admin-text-primary);
+}
+
+.alloy-admin-modal-card.wide {
+  max-width: 760px;
+}
+
+.alloy-admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--admin-border-light);
+  padding-bottom: 14px;
+}
+
+.alloy-admin-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alloy-admin-dossier-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.alloy-admin-dossier-item {
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.alloy-admin-dossier-item .label {
+  font-size: 11px;
+  color: var(--admin-text-secondary);
+  text-transform: uppercase;
+  font-family: var(--admin-font-mono);
+  font-weight: 600;
+}
+
+.alloy-admin-dossier-item .val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  margin-top: 4px;
+}
+
+.alloy-admin-dossier-item .val.code {
+  font-family: var(--admin-font-mono);
+  font-size: 12px;
+  color: var(--admin-accent-bronze);
+}
+
+/* --- Creator Dossier — Two-Column Horizontal Layout --- */
+
+.alloy-dossier-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.alloy-dossier-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 12px;
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 14px;
+}
+
+.alloy-dossier-portrait-wrap {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--admin-accent-gold);
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.alloy-dossier-portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.alloy-dossier-portrait-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--admin-bg-muted);
+  color: var(--admin-text-secondary);
+}
+
+.alloy-dossier-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  font-family: var(--admin-font-editorial);
+  margin: 0;
+}
+
+.alloy-dossier-handle {
+  font-size: 12px;
+  color: var(--admin-text-secondary);
+  font-family: var(--admin-font-mono);
+  margin: 2px 0 0;
+}
+
+.alloy-dossier-bio {
+  font-size: 12px;
+  color: var(--admin-text-secondary);
+  line-height: 1.55;
+  margin-top: 12px;
+}
+
+.alloy-dossier-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.alloy-dossier-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Mobile: stack the two-column dossier vertically */
+@media (max-width: 640px) {
+  .alloy-dossier-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .alloy-dossier-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.alloy-admin-brief-box {
+  background: var(--admin-bg-subtle);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.alloy-admin-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ==========================================================================
+   --- STANDALONE ADMIN LOGIN PAGE ---
+   Warm Ivory, Editorial Typography, Muted Bronze, Luxury Marketplace Aesthetic
+   ========================================================================== */
+.alloy-admin-login-page {
+  min-height: 100vh;
+  background-color: var(--admin-bg-primary);
+  background-image: radial-gradient(circle at 50% 25%, #faf7f2 0%, #f8f5f0 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+  font-family: var(--admin-font-sans);
+}
+
+.alloy-admin-login-glow {
+  position: absolute;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(153, 113, 79, 0.06) 0%, transparent 68%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.alloy-admin-login-container {
+  width: 100%;
+  max-width: 440px;
+  position: relative;
+  z-index: 10;
+}
+
+.alloy-admin-login-header {
+  margin-bottom: 20px;
+}
+
+.alloy-admin-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--admin-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+  font-family: var(--admin-font-sans);
+}
+
+.alloy-admin-back-btn:hover {
+  color: var(--admin-text-primary);
+  transform: translateX(-2px);
+}
+
+.alloy-admin-login-card {
+  background: var(--admin-bg-surface);
+  border: 1px solid var(--admin-border-light);
+  border-radius: 20px;
+  padding: 38px 34px;
+  box-shadow: 0 20px 50px rgba(26, 25, 24, 0.06);
+}
+
+.alloy-admin-crest-section {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.alloy-admin-brand-lockup-center {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.alloy-admin-login-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.alloy-admin-shield-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--admin-bg-muted);
+  border: 1px solid var(--admin-border-medium);
+  color: var(--admin-accent-bronze);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.alloy-admin-crest-title {
+  font-family: var(--admin-font-sans);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--admin-text-primary);
+}
+
+.alloy-admin-crest-subtitle {
+  font-size: 13px;
+  color: var(--admin-text-secondary);
+  margin-top: 4px;
+}
+
+.alloy-admin-login-title {
+  font-family: var(--admin-font-editorial);
+  font-size: 27px;
+  font-weight: 400;
+  color: var(--admin-text-primary);
+  margin: 12px 0 4px;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.alloy-admin-login-subtitle {
+  font-size: 12.5px;
+  color: var(--admin-text-secondary);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.alloy-admin-env-pill {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-family: var(--admin-font-mono);
+  font-weight: 700;
+  color: var(--admin-accent-bronze);
+  background: var(--admin-bg-muted);
+  padding: 3px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(153, 113, 79, 0.25);
+  letter-spacing: 0.08em;
+}
+
+.alloy-admin-env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--admin-accent-forest);
+}
+
+.alloy-admin-alert-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.alloy-admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.alloy-admin-input-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  margin-bottom: 6px;
+}
+
+.alloy-admin-label-split {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alloy-admin-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.alloy-admin-field-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--admin-text-tertiary);
+}
+
+.alloy-admin-input-wrapper input {
+  width: 100%;
+  background: var(--admin-bg-surface);
+  border: 1.5px solid var(--admin-border-medium);
+  border-radius: 8px;
+  padding: 11px 14px 11px 40px;
+  color: var(--admin-text-primary);
+  font-size: 13px;
+  font-family: var(--admin-font-sans);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.alloy-admin-input-wrapper input::placeholder {
+  color: #9E968E;
+  font-size: 12px;
+}
+
+.alloy-admin-input-wrapper input:focus {
+  border-color: var(--admin-accent-bronze);
+  box-shadow: 0 0 0 3px rgba(153, 113, 79, 0.12);
+}
+
+.alloy-admin-eye-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--admin-text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+
+.alloy-admin-eye-toggle:hover {
+  color: var(--admin-text-primary);
+}
+
+/* Primary Submit CTA: Charcoal Pill Button */
+.alloy-admin-submit-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--admin-text-primary);
+  color: var(--admin-text-inverted);
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: 9999px;
+  border: 1px solid var(--admin-text-primary);
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(25, 24, 22, 0.12);
+  margin-top: 4px;
+}
+
+.alloy-admin-submit-btn:hover:not(:disabled) {
+  background: #2D2A27;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(25, 24, 22, 0.18);
+}
+
+.alloy-admin-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Offline Evaluator Box */
+.alloy-admin-demo-box {
+  margin-top: 24px;
+  background: var(--admin-bg-subtle);
+  border: 1.5px dashed var(--admin-border-medium);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+}
+
+.alloy-admin-demo-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--admin-accent-bronze);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.alloy-admin-demo-text {
+  font-size: 11.5px;
+  color: var(--admin-text-secondary);
+  margin: 6px 0 12px 0;
+  line-height: 1.45;
+}
+
+.alloy-admin-demo-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: var(--admin-bg-surface);
+  border: 1.5px solid var(--admin-accent-bronze);
+  border-radius: 9999px;
+  color: var(--admin-accent-bronze);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.alloy-admin-demo-btn:hover:not(:disabled) {
+  background: var(--admin-bg-muted);
+  transform: translateY(-1px);
+}
+
+.alloy-admin-card-footer {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--admin-text-tertiary);
+  line-height: 1.45;
+}

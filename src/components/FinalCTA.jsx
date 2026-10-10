@@ -1,7 +1,9 @@
 // src/components/FinalCTA.jsx
-// SECTION 3 — Compact Closing Section
-// Headline: "Better creative work starts with the right connection."
-// Buttons: "Find your creative match", "Join the ALLOY network"
+// SECTION 6 — Final Call To Action
+// Heading: "Your next great collaboration starts here."
+// Supporting copy: "Discover the creators, perspectives, and creative possibilities that bring your next idea to life."
+// Primary CTA: Explore Creators
+// Secondary CTA: I'm a Creator
 
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
@@ -10,45 +12,40 @@ export default function FinalCTA({ onFindCreator, onJoinCreator }) {
   return (
     <section className="alloy-closing-section" id="closing-cta">
       <div className="page-container alloy-closing-container">
-        <div className="alloy-closing-banner">
+        <div className="alloy-closing-card">
           
-          {/* Subtle metallic motif backdrop rings */}
-          <div className="closing-banner-motif" aria-hidden="true">
-            <div className="motif-ring ring-gold" />
-            <div className="motif-ring ring-bronze" />
+          <div className="section-pill-badge closing-badge">
+            <span className="pill-dot" />
+            <span>READY TO COLLABORATE?</span>
           </div>
 
-          <div className="closing-banner-content">
-            <span className="alloy-eyebrow-text closing-eyebrow">THE ALLOY NETWORK</span>
-            
-            <h2 className="alloy-closing-headline font-editorial">
-              Better creative work starts with the right connection.
-            </h2>
-            
-            <p className="alloy-closing-subtext">
-              Connect creative direction to exceptional AI creators and build campaigns that resonate.
-            </p>
+          <h2 className="closing-headline font-editorial">
+            Your next great collaboration starts here.
+          </h2>
 
-            <div className="alloy-closing-actions">
-              <button 
-                type="button" 
-                className="btn btn-primary btn-lg alloy-primary-cta"
-                onClick={onFindCreator}
-                id="final-find-creative-match"
-              >
-                <span>Find your creative match</span>
-                <ArrowRight size={16} />
-              </button>
+          <p className="closing-subtext">
+            Discover the creators, perspectives, and creative possibilities that bring your next idea to life.
+          </p>
 
-              <button 
-                type="button" 
-                className="btn btn-secondary btn-lg alloy-secondary-cta"
-                onClick={onJoinCreator}
-                id="final-join-alloy-network"
-              >
-                <span>Join the ALLOY network</span>
-              </button>
-            </div>
+          <div className="closing-editorial-actions">
+            <button 
+              type="button" 
+              className="btn-editorial-dark"
+              onClick={onFindCreator}
+              id="final-explore-creators-btn"
+            >
+              <span>Explore Creators</span>
+              <ArrowRight size={14} />
+            </button>
+
+            <button 
+              type="button" 
+              className="btn-editorial-outline"
+              onClick={onJoinCreator}
+              id="final-join-creator-btn"
+            >
+              <span>I'm a Creator</span>
+            </button>
           </div>
 
         </div>

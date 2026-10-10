@@ -1,12 +1,11 @@
 // src/components/Hero.jsx
-// ALLOY — Exact Reference Recreation with Continuous Revolving Motion
-// Recreating the exact visual composition:
-// - Left: Eyebrow pill, editorial serif headline with gold underline flourish, 3-line subtitle, buttons, stats row
-// - Right: Live revolving 3D metallic ALLOY sculpture with orbital rings and revolving cards matching the reference image!
+// ALLOY — Redesigned Editorial Hero Section with Original Campaign Artwork
+// Incorporates the newly generated original Alloy campaign masterpiece:
+// - Left: Eyebrow pill, editorial serif headline, refined copy, dual CTAs, verified stats
+// - Right: Prominent, high-resolution editorial campaign image with subtle depth
 
-import React, { useState } from 'react';
-import { ArrowRight, X } from 'lucide-react';
-import AlloySculpture from './AlloySculpture';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
 export default function Hero({ 
   onFindCreator, 
@@ -14,15 +13,7 @@ export default function Hero({
   onExploreWork,
   onSelectCreator
 }) {
-  const [activeVideoModal, setActiveVideoModal] = useState(null);
-
-  const handleOpenVideo = (title, creator, videoSrc) => {
-    setActiveVideoModal({
-      title,
-      creator,
-      videoSrc: videoSrc || '/assets/creasynq-universe.mp4'
-    });
-  };
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   return (
     <section className="alloy-editorial-hero" id="home">
@@ -35,42 +26,32 @@ export default function Hero({
           
           {/* Eyebrow Pill */}
           <div className="hero-eyebrow-pill">
-            <span>CREATORS × BRANDS × AI</span>
+            <span className="hero-eyebrow-dot" />
+            <span>THE AI CREATOR MARKETPLACE</span>
           </div>
 
           {/* Master Headline */}
           <h1 className="hero-title-editorial font-editorial">
-            Creativity<br />
-            made to<br />
-            work <span className="title-accent-together">
-              together.
-              <svg className="together-flourish-svg" viewBox="0 0 170 14" fill="none" preserveAspectRatio="none">
-                <path 
-                  d="M3 9.5C48 3.5 120 2.5 167 10" 
-                  stroke="#C7A47B" 
-                  strokeWidth="3.2" 
-                  strokeLinecap="round"
-                />
-              </svg>
+            Different minds.<br />
+            <span className="title-accent-vision">
+              One vision.
             </span>
           </h1>
 
-          {/* 3-Line Subtitle */}
+          {/* Supporting Description */}
           <p className="hero-desc-editorial">
-            Brands find their next campaign.<br />
-            AI-creators find their next opportunity.<br />
-            ALLOY pairs them.
+            Discover AI creators, explore distinctive creative work, and connect with the right talent to bring your next campaign to life.
           </p>
 
-          {/* Dual CTAs */}
+          {/* Dual Primary / Secondary CTAs */}
           <div className="hero-editorial-actions">
             <button 
               type="button" 
               className="btn-hire-creator"
-              onClick={onFindCreator}
-              id="hero-hire-creator-btn"
+              onClick={onExploreWork || onFindCreator}
+              id="hero-explore-creators-btn"
             >
-              <span>Hire a creator</span>
+              <span>Explore Creators</span>
               <ArrowRight size={14} />
             </button>
 
@@ -80,95 +61,76 @@ export default function Hero({
               onClick={onJoinCreator}
               id="hero-become-creator-btn"
             >
-              <span>Become a creator</span>
+              <span>I'm a Creator</span>
             </button>
           </div>
 
-          {/* Traction Stats Strip */}
+          {/* Verified Traction Stats Strip */}
           <div className="hero-stats-strip">
             <div className="stat-unit">
-              <span className="stat-digits font-editorial">190<span className="stat-plus">+</span></span>
-              <span className="stat-caption">CREATORS</span>
+              <span className="stat-digits font-editorial">14<span className="stat-plus">+</span></span>
+              <span className="stat-caption">VERIFIED CREATORS</span>
             </div>
 
             <div className="stat-separator" />
 
             <div className="stat-unit">
-              <span className="stat-digits font-editorial">936<span className="stat-plus">+</span></span>
-              <span className="stat-caption">PROJECTS PUBLISHED</span>
+              <span className="stat-digits font-editorial">48<span className="stat-plus">+</span></span>
+              <span className="stat-caption">PUBLISHED WORKS</span>
             </div>
 
             <div className="stat-separator" />
 
             <div className="stat-unit">
-              <span className="stat-digits font-editorial">130<span className="stat-plus">+</span></span>
-              <span className="stat-caption">BRANDS</span>
+              <span className="stat-digits font-editorial">6<span className="stat-plus">+</span></span>
+              <span className="stat-caption">DISCIPLINES</span>
             </div>
           </div>
 
         </div>
 
         {/* ============================================================
-            RIGHT COLUMN: The 3D Revolving Sculpture & Revolving Ecosystem
+            RIGHT COLUMN: The Original Editorial Campaign Centerpiece
             ============================================================ */}
         <div className="alloy-hero-right">
-          <AlloySculpture 
-            onOpenVideo={handleOpenVideo}
-            onExploreWork={onExploreWork}
-            onFindCreator={onFindCreator}
-          />
+          <div className={`hero-artwork-frame ${imageLoaded ? 'artwork-loaded' : ''}`}>
+            
+            <img 
+              src="/assets/alloy-creative-hero.webp" 
+              alt="Alloy Editorial Creative Campaign Composition — Haute couture, beauty, spatial CGI, and architectural artwork" 
+              className="hero-campaign-artwork"
+              onLoad={() => setImageLoaded(true)}
+              loading="eager"
+            />
+
+            {/* Subtle Editorial Caption Badge */}
+            <div className="artwork-editorial-badge">
+              <Sparkles size={12} className="badge-sparkle-icon" />
+              <span>Curated Creative Direction • 2026 Collection</span>
+            </div>
+
+          </div>
         </div>
 
       </div>
 
-      {/* ============================================================
-          CINEMATIC VIDEO MODAL (Plays on Clicking Any Video Card)
-          ============================================================ */}
-      {activeVideoModal && (
-        <div className="alloy-video-modal-backdrop" onClick={() => setActiveVideoModal(null)}>
-          <div className="alloy-video-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="video-modal-header">
-              <div className="video-meta-col">
-                <span className="video-tag">AI CAMPAIGN PREVIEW</span>
-                <h3 className="video-title font-editorial">{activeVideoModal.title}</h3>
-                <span className="video-creator">Directed by {activeVideoModal.creator}</span>
-              </div>
-              <button 
-                type="button" 
-                className="btn-modal-close"
-                onClick={() => setActiveVideoModal(null)}
-                aria-label="Close video"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="video-player-container">
-              <video 
-                src={activeVideoModal.videoSrc}
-                autoPlay 
-                controls 
-                loop 
-                className="active-modal-video"
-              />
-            </div>
-
-            <div className="video-modal-footer">
-              <button 
-                type="button" 
-                className="btn btn-primary"
-                onClick={() => {
-                  setActiveVideoModal(null);
-                  if (onFindCreator) onFindCreator();
-                }}
-              >
-                <span>Commission this creator</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
-          </div>
+      {/* Subtle Scroll Indicator */}
+      <div 
+        className="hero-scroll-indicator"
+        onClick={() => {
+          const el = document.getElementById('how-it-works') || document.querySelector('main > section:nth-of-type(2)');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }}
+        aria-label="Scroll to explore"
+      >
+        <div className="scroll-arrow-circle">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <polyline points="19 12 12 19 5 12"></polyline>
+          </svg>
         </div>
-      )}
+        <span className="scroll-caption-text">Scroll to explore</span>
+      </div>
 
     </section>
   );

@@ -748,16 +748,6 @@ export default function CreatorWorkspaceView({
           <button 
             type="button" 
             role="tab" 
-            aria-selected={activeTab === 'profile'}
-            className={`studio-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
-          >
-            <span>Profile & DNA</span>
-          </button>
-
-          <button 
-            type="button" 
-            role="tab" 
             aria-selected={activeTab === 'trust'}
             className={`studio-tab-btn ${activeTab === 'trust' ? 'active' : ''}`}
             onClick={() => setActiveTab('trust')}
@@ -2329,34 +2319,20 @@ export default function CreatorWorkspaceView({
                 </div>
               </div>
 
-              <div className="modal-actions-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+              <div className="modal-actions-row" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                 <button 
                   type="button" 
-                  className="link-subtle"
-                  onClick={() => {
-                    setIsEditProfileModalOpen(false);
-                    setActiveTab('profile');
-                  }}
-                  style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setIsEditProfileModalOpen(false)}
                 >
-                  Full Profile & DNA Settings →
+                  Cancel
                 </button>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setIsEditProfileModalOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary btn-sm"
-                  >
-                    Save Changes
-                  </button>
-                </div>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary btn-sm"
+                >
+                  Save Changes
+                </button>
               </div>
             </form>
           </div>

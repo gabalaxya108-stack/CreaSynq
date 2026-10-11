@@ -136,13 +136,14 @@ export default function Header({
               How It Works
             </li>
             <li 
-              className="nav-item"
-              onClick={() => handleLinkClick(() => onNavigate('discover'))}
+              className={`nav-item ${currentView === 'trust-center' ? 'active' : ''}`}
+              onClick={() => handleLinkClick(() => onNavigate('trust-center'))}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => onNavigate('discover'))}
+              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => onNavigate('trust-center'))}
+              style={{ fontWeight: 600, color: currentView === 'trust-center' ? '#7C3AED' : undefined }}
             >
-              Explore
+              Trust Centre
             </li>
           </ul>
         </nav>
@@ -301,8 +302,8 @@ export default function Header({
             <li onClick={() => handleLinkClick(() => scrollToSection('how-it-works'))}>
               <span>How It Works</span>
             </li>
-            <li onClick={() => handleLinkClick(() => onNavigate('discover'))}>
-              <span>Explore</span>
+            <li onClick={() => handleLinkClick(() => onNavigate('trust-center'))}>
+              <span style={{ fontWeight: 600, color: '#7C3AED' }}>Trust Centre</span>
             </li>
           </ul>
 

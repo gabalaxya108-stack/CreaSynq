@@ -69,7 +69,8 @@ export default function BrandWorkspaceView({
   initialTab = 'overview',
   pipelineFilter = null,
   onClearPipelineFilter,
-  onOpenPipelineTrace
+  onOpenPipelineTrace,
+  onOpenTrustCenter
 }) {
   // Navigation Tabs:
   // 'overview' | 'campaigns' | 'discover' | 'shortlists' | 'invitations' | 'collaborations' | 'deliverables' | 'messages' | 'brand-settings'
@@ -1313,6 +1314,27 @@ export default function BrandWorkspaceView({
                     {cat === 'all' ? 'All Specialties' : cat}
                   </button>
                 ))}
+
+                {onOpenTrustCenter && (
+                  <button
+                    type="button"
+                    className="filter-pill-btn"
+                    onClick={onOpenTrustCenter}
+                    style={{ 
+                      marginLeft: 'auto', 
+                      background: 'rgba(5, 150, 105, 0.08)', 
+                      borderColor: 'rgba(16, 185, 129, 0.3)',
+                      color: '#065F46',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                    title="Review Platform Trust & Provenance standards for creators"
+                  >
+                    <Shield size={12} color="#059669" />
+                    <span>Trust Centre Standards</span>
+                  </button>
+                )}
               </div>
             </div>
 

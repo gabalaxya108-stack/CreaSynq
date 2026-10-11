@@ -4,20 +4,41 @@
 // Strictly excludes any 'Invite this Creator' button.
 
 import React, { useState, useMemo } from 'react';
-import { X, ArrowRight, Sparkles, Layers, Maximize2, Minimize2, Play, Volume2, VolumeX, Eye, CheckCircle2, Sliders, Palette, Cpu, Film, GitCommit, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ArrowRight, Sparkles, Layers, Maximize2, Minimize2, Play, Volume2, VolumeX, Eye, CheckCircle2, Sliders, Palette, Cpu, Film, GitCommit, ChevronLeft, ChevronRight, ShieldCheck, Briefcase, Plus, FolderPlus, ArrowUpRight, Edit3, Loader2 } from 'lucide-react';
 import WorkflowTimeline from './WorkflowTimeline';
+import ProjectWorkflowTimeline from './ProjectWorkflowTimeline';
+import ProjectWorkflowEditor from './ProjectWorkflowEditor';
 import { DEMO_WORKFLOWS } from '../data/workflowsData';
+import { createDefaultWorkflowStages } from '../data/creatorSkillsData';
 
 export default function ProjectModal({ 
   project, 
   creator, 
   onClose, 
-  onViewCreatorProfile 
+  onViewCreatorProfile,
+  onCreateWorkspace,
+  onOpenCreatorStudio,
+  onSaveWorkflow,
+  isCreatorOwner = true
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+
+  // Workflow builder modal states
+  const [isWorkflowEditorOpen, setIsWorkflowEditorOpen] = useState(false);
+  const [localWorkflowData, setLocalWorkflowData] = useState(() => {
+    return {
+      title: project?.workflowTitle || project?.productionWorkflow?.title || '',
+      overview: project?.workflowOverview || project?.productionWorkflow?.overview || '',
+      steps: (project?.workflowStages && project.workflowStages.length > 0)
+        ? project.workflowStages
+        : []
+    };
+  });
+  const [isSavingWorkflow, setIsSavingWorkflow] = useState(false);
+  const [saveWorkflowFeedback, setSaveWorkflowFeedback] = useState(null); // { type: 'success' | 'error', message: string }
 
   const resolvedCreator = creator || {
     name: 'AI Creator',
@@ -286,8 +307,37 @@ export default function ProjectModal({
               </div>
             </div>
 
-            {/* Action Buttons (Excludes 'Invite Creator') */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {onCreateWorkspace && (
+                <button 
+                  type="button" 
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    onClose();
+                    onCreateWorkspace({
+                      project,
+                      creator: resolvedCreator,
+                      suggestedName: `${project.title} Production Workspace`,
+                      suggestedAesthetic: project.creativeStyle || project.style || 'Cinematic & Editorial'
+                    });
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'linear-gradient(135deg, #7C3AED 0%, #6366F1 100%)',
+                    borderColor: 'transparent',
+                    color: '#FFFFFF',
+                    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)'
+                  }}
+                  title="Create a dedicated collaboration workspace for this project"
+                >
+                  <FolderPlus size={15} />
+                  <span>Create Workspace</span>
+                </button>
+              )}
+
               {onViewCreatorProfile && resolvedCreator.id && (
                 <button 
                   type="button" 
@@ -312,6 +362,72 @@ export default function ProjectModal({
               </button>
             </div>
           </div>
+
+          {/* Quick Workspace Callout Option Strip */}
+          {onCreateWorkspace && (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.05) 0%, rgba(99, 102, 241, 0.08) 100%)',
+              border: '1px solid rgba(124, 58, 237, 0.2)',
+              borderRadius: '14px',
+              padding: '14px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'rgba(124, 58, 237, 0.12)',
+                  color: '#7C3AED',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Briefcase size={16} />
+                </span>
+                <div>
+                  <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Inspired by this work? Spin up a dedicated project workspace.
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Collaborate directly with <strong>{resolvedCreator.name}</strong>, coordinate deliverables, and track AI workflow milestones.
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  onClose();
+                  onCreateWorkspace({
+                    project,
+                    creator: resolvedCreator,
+                    suggestedName: `${project.title} Production Workspace`,
+                    suggestedAesthetic: project.creativeStyle || project.style || 'Cinematic & Editorial'
+                  });
+                }}
+                style={{
+                  color: '#6D28D9',
+                  borderColor: 'rgba(124, 58, 237, 0.3)',
+                  background: '#FFFFFF',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <span>Launch Workspace</span>
+                <ArrowUpRight size={13} />
+              </button>
+            </div>
+          )}
 
           {/* 3. Concept & Brief Overview Callout Block */}
           <div style={{ background: 'linear-gradient(135deg, rgba(253, 247, 237, 0.85) 0%, rgba(246, 240, 232, 0.6) 100%)', border: '1px solid rgba(235, 110, 75, 0.25)', borderRadius: '16px', padding: '22px 26px' }}>
@@ -398,22 +514,259 @@ export default function ProjectModal({
             </div>
           </div>
 
-          {/* Associated Creative Workflow (if linked) */}
-          {associatedWorkflow && (
-            <div style={{ marginTop: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                <span className="live-pulse-dot" />
-                <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--accent-primary, #EB6E4B)', fontWeight: 700 }}>
-                  Associated Production Workflow • How This Work Was Created
-                </span>
+          {/* Individual AI Production Workflow belonging to this Project */}
+          <div style={{ marginTop: '6px' }}>
+            {saveWorkflowFeedback && (
+              <div style={{
+                marginBottom: '12px',
+                padding: '10px 14px',
+                borderRadius: '10px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: saveWorkflowFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                border: `1px solid ${saveWorkflowFeedback.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                color: saveWorkflowFeedback.type === 'success' ? '#059669' : '#DC2626'
+              }}>
+                {saveWorkflowFeedback.type === 'success' ? <CheckCircle2 size={15} /> : <ShieldCheck size={15} />}
+                <span>{saveWorkflowFeedback.message}</span>
               </div>
-              <WorkflowTimeline 
-                workflow={associatedWorkflow} 
-                isReadOnly={true}
-                compact={false}
-              />
+            )}
+
+            <ProjectWorkflowTimeline
+              workflowStages={(localWorkflowData?.steps && localWorkflowData.steps.length > 0)
+                ? localWorkflowData.steps
+                : ((project.workflowStages && project.workflowStages.length > 0)
+                    ? project.workflowStages
+                    : (associatedWorkflow?.steps ? associatedWorkflow.steps.map((st, i) => ({
+                        id: st.id || `st-${i}`,
+                        order: i + 1,
+                        stageNumber: i + 1,
+                        stepName: st.title || st.stepName,
+                        description: st.description,
+                        tools: st.tools || [],
+                        notes: st.notes || st.processNotes || st.humanInvolvementNotes
+                      })) : []))}
+              workflowTitle={localWorkflowData?.title || project.workflowTitle || ''}
+              workflowOverview={localWorkflowData?.overview || project.workflowOverview || ''}
+              projectTitle={project.title}
+              canCreateWorkflow={isCreatorOwner}
+              onCreateWorkflow={() => {
+                if (!isCreatorOwner) {
+                  // Non-owner (e.g. brand) safeguard
+                  setSaveWorkflowFeedback({
+                    type: 'error',
+                    message: 'Only the creator who produced this piece can author its official production workflow. Use "Create Workspace" above to propose a collaboration.'
+                  });
+                  setTimeout(() => setSaveWorkflowFeedback(null), 5000);
+                  return;
+                }
+                // Open empty structured editor for this specific project
+                setIsWorkflowEditorOpen(true);
+              }}
+              onEditWorkflow={isCreatorOwner ? () => setIsWorkflowEditorOpen(true) : null}
+            />
+          </div>
+
+          {/* Workflow Creation & Editing Modal Backdrop */}
+          {isWorkflowEditorOpen && (
+            <div 
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(15, 23, 42, 0.7)',
+                backdropFilter: 'blur(6px)',
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px'
+              }}
+              onClick={() => setIsWorkflowEditorOpen(false)}
+            >
+              <div 
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: '20px',
+                  maxWidth: '780px',
+                  width: '100%',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  padding: '28px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                  border: '1px solid var(--border-light, #E2E8F0)'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                  <div>
+                    <span style={{
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      color: 'var(--accent-lavender-deep, #7C3AED)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}>
+                      <Layers size={13} />
+                      Individual AI Production Workflow
+                    </span>
+                    <h3 style={{ margin: '4px 0 2px', fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Document Workflow for: {project.title}
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                      Detail your step-by-step generative pipeline, models, and craft methodology.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsWorkflowEditorOpen(false)}
+                    style={{
+                      background: 'rgba(0,0,0,0.05)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: '#64748B'
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Pre-fill Summary Tags */}
+                <div style={{
+                  background: 'var(--bg-secondary, #FAF8F5)',
+                  borderRadius: '12px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <span><strong>Project ID:</strong> {project.id}</span>
+                  {project.creativeStyle && <span><strong>Style:</strong> {project.creativeStyle}</span>}
+                  {project.tools && <span><strong>Declared Tools:</strong> {project.tools}</span>}
+                  {project.format && <span><strong>Format:</strong> {project.format}</span>}
+                </div>
+
+                {/* Reusable Stage Editor Component */}
+                <ProjectWorkflowEditor
+                  workflowData={localWorkflowData}
+                  workflowStages={localWorkflowData?.steps || []}
+                  workflowTitle={localWorkflowData?.title || ''}
+                  workflowOverview={localWorkflowData?.overview || ''}
+                  projectId={project.id}
+                  projectTitle={project.title}
+                  onChange={(updatedData) => setLocalWorkflowData(updatedData)}
+                  isSaving={isSavingWorkflow}
+                  onCancel={() => setIsWorkflowEditorOpen(false)}
+                  onSave={async (savedData, steps) => {
+                    setIsSavingWorkflow(true);
+                    try {
+                      if (onSaveWorkflow) {
+                        await onSaveWorkflow(project.id, savedData);
+                      }
+                      setLocalWorkflowData(savedData);
+                      setSaveWorkflowFeedback({
+                        type: 'success',
+                        message: `Workflow successfully saved with ${steps.length} production ${steps.length === 1 ? 'step' : 'steps'}.`
+                      });
+                      setIsWorkflowEditorOpen(false);
+                      setTimeout(() => setSaveWorkflowFeedback(null), 4000);
+                    } catch (saveErr) {
+                      console.error('Failed to save project workflow:', saveErr);
+                      setSaveWorkflowFeedback({
+                        type: 'error',
+                        message: `Failed to persist workflow: ${saveErr.message || 'Network error'}`
+                      });
+                    } finally {
+                      setIsSavingWorkflow(false);
+                    }
+                  }}
+                />
+              </div>
             </div>
           )}
+
+          {/* Relevant Technical Skills Demonstrated */}
+          {resolvedCreator.technicalSkills && resolvedCreator.technicalSkills.length > 0 && (
+            <div style={{
+              background: 'rgba(240, 253, 250, 0.6)',
+              border: '1px solid rgba(6, 182, 212, 0.25)',
+              borderRadius: '14px',
+              padding: '16px 20px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Cpu size={14} style={{ color: '#0891B2' }} />
+                <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#0E7490', fontWeight: 700 }}>
+                  Relevant Technical Skills & AI Disciplines
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {resolvedCreator.technicalSkills.map((ts, i) => (
+                  <span key={i} style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    background: '#FFFFFF',
+                    border: '1px solid rgba(6, 182, 212, 0.3)',
+                    color: '#0F766E'
+                  }}>
+                    {ts}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Commercial Usage & Licensing Disclosures */}
+          <div style={{
+            background: 'var(--bg-card-subtle, #F8FAFC)',
+            border: '1px solid var(--border-light, #E2E8F0)',
+            borderRadius: '14px',
+            padding: '16px 20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <ShieldCheck size={18} style={{ color: '#059669', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Commercial Usage & Generative Rights Clearance
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Tools utilized ({toolsText}) declared under commercial licensing terms for brand deliverables.
+                </div>
+              </div>
+            </div>
+            <span style={{
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              padding: '3px 10px',
+              borderRadius: '100px',
+              background: 'rgba(16, 185, 129, 0.12)',
+              color: '#059669'
+            }}>
+              Commercial Clearance Declared
+            </span>
+          </div>
 
           {/* 6. Verified Capabilities & Craft Tags */}
           {tagsList && tagsList.length > 0 && (

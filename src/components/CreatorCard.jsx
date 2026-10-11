@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ArrowUpRight, Heart, Sparkles, HelpCircle } from 'lucide-react';
+import { ArrowUpRight, Heart, Sparkles, HelpCircle, ShieldCheck } from 'lucide-react';
 import { calculateCreaMatch } from '../intelligence/matchingEngine';
+import { getCreatorTrustBadges } from '../data/trustVerificationData';
 
 export default function CreatorCard({ 
   creator, 
@@ -21,6 +22,10 @@ export default function CreatorCard({
   const cardHeroImage = (publishedProjects.find(p => p.featured)?.image) 
     || (publishedProjects[0]?.image) 
     || creator.heroWork;
+
+  // Trust Centre verification credentials
+  const trustBadges = getCreatorTrustBadges(creator);
+  const verifiedCount = trustBadges.filter(b => b.status === 'verified').length;
 
   return (
     <article 
@@ -53,6 +58,23 @@ export default function CreatorCard({
             {publishedProjects.length > 0 && (
               <div className="creator-card-badge" style={{ background: 'rgba(0, 0, 0, 0.65)', color: '#FFFFFF' }}>
                 <span>{publishedProjects.length} {publishedProjects.length === 1 ? 'Project' : 'Projects'}</span>
+              </div>
+            )}
+            {verifiedCount > 0 && (
+              <div 
+                className="creator-card-badge" 
+                style={{ 
+                  background: 'rgba(5, 150, 105, 0.85)', 
+                  color: '#FFFFFF',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  backdropFilter: 'blur(4px)'
+                }}
+                title={`${verifiedCount} Trust & Provenance credentials verified`}
+              >
+                <ShieldCheck size={11} strokeWidth={2.4} />
+                <span>{verifiedCount} Verified</span>
               </div>
             )}
           </div>

@@ -70,6 +70,24 @@ export const CREATORS = [
     industries: ["Beauty & Skincare", "Luxury & High Fashion", "Entertainment & Music"],
     capabilities: ["AI Video", "Visual Storytelling", "Product Campaigns", "Atmospheric Advertising", "Creative Direction"],
     tools: ["Runway Gen-3", "Midjourney v6.1", "ComfyUI", "Luma Dream Machine", "Premiere Pro"],
+    technicalSkills: [
+      "AI video generation",
+      "Image-to-video generation",
+      "Prompt engineering",
+      "ControlNet and reference-image conditioning",
+      "ComfyUI node workflows",
+      "Upscaling and frame interpolation",
+      "Video compositing and post-processing"
+    ],
+    creativeSkills: [
+      "Visual storytelling",
+      "Cinematic composition",
+      "Art direction",
+      "World-building",
+      "Color grading",
+      "Lighting and visual aesthetics",
+      "Storyboarding"
+    ],
     platforms: ["Vimeo Staff Picks", "Instagram", "Film Festivals"],
     experience: "4 years AI-native cinema",
     turnaround: "48h concept boards",
@@ -85,7 +103,63 @@ export const CREATORS = [
         creativeDirection: "Warm 35mm anamorphic lenses with golden volumetric dust beams and slow mechanical camera tracking.",
         capabilities: ["Narrative Cinema", "Volumetric Lighting", "Sound-Design Sync"],
         clientType: "Heritage Luxury House",
-        style: "Cinematic / Editorial"
+        style: "Cinematic / Editorial",
+        workflowStages: [
+          {
+            id: "sol-stage-1",
+            stageNumber: 1,
+            stageName: "Creative Brief / Objective",
+            title: "Heritage Narrative Brief & Architectural Framework",
+            description: "Direct a 60-second cinematic brand film capturing the timeless transition of sunbeams across bronze and botanical glass for a luxury heritage maison.",
+            tools: ["Notion", "Miro"],
+            processNotes: "Client mandate: Avoid synthetic plastic AI aesthetics; replicate physical Cooke Anamorphic lens distortion and dust halation."
+          },
+          {
+            id: "sol-stage-2",
+            stageNumber: 2,
+            stageName: "Concept & Pre-production",
+            title: "Anamorphic Lookbook & Refraction Moodboards",
+            description: "Curated 60+ physical film reference plates focusing on warm tungsten highlights, suspended dust motes, and patinated bronze architecture.",
+            tools: ["Midjourney v6.1", "Photoshop"],
+            processNotes: "Prompt matrix tuned for 35mm anamorphic bokeh with heavy attention to natural atmospheric haze."
+          },
+          {
+            id: "sol-stage-3",
+            stageNumber: 3,
+            stageName: "AI Tools & Models",
+            title: "Model Pipeline & Weight Configuration",
+            description: "Composed custom ComfyUI multi-checkpoint pipeline combining Flux.1 Pro for high-frequency textural keyframes and Runway Gen-3 Alpha for camera translation passes.",
+            tools: ["ComfyUI", "Flux.1 Pro", "Runway Gen-3 Alpha", "ControlNet Depth"],
+            processNotes: "Depth map conditioning ensured architectural perspective stability across 12 tracking shots."
+          },
+          {
+            id: "sol-stage-4",
+            stageNumber: 4,
+            stageName: "Generation Process",
+            title: "Latent Motion Interpolation & Parallax Steering",
+            description: "Executed image-to-video latent interpolation with high motion brush control over camera parallax and window refractions.",
+            tools: ["Runway Gen-3 Alpha", "Luma Dream Machine"],
+            processNotes: "Over 140 motion passes evaluated to select 18 pristine temporal sequences without morphing artifacts."
+          },
+          {
+            id: "sol-stage-5",
+            stageNumber: 5,
+            stageName: "Post-production",
+            title: "Temporal Stabilization, 4K Upscale & Color Poetry",
+            description: "Conformed sequence in Premiere Pro, applied Topaz Video AI 4K temporal interpolation (60fps), and graded with custom 35mm film grain emulations in DaVinci Resolve.",
+            tools: ["DaVinci Resolve Studio", "Topaz Video AI", "Premiere Pro"],
+            processNotes: "Split-tone color grade with warm amber shadows and cool teal rim lighting."
+          },
+          {
+            id: "sol-stage-6",
+            stageNumber: 6,
+            stageName: "Final Output",
+            title: "Commercial Deliverable & Master Packaging",
+            description: "Exported ProRes 4444 master timeline, 4K UHD 16:9 theatrical cut, and social cutdowns with full commercial rights clearance declaration.",
+            tools: ["ProRes 4444", "Rec.709 Master"],
+            processNotes: "Full commercial rights clearance verified for digital and OOH distribution."
+          }
+        ]
       },
       {
         id: "maya-proj-2",

@@ -13,7 +13,10 @@ import {
   getPublicCreatorProfile,
   saveWorkflowRecord,
   deleteWorkflowRecord,
-  toggleWorkflowPublishRecord
+  toggleWorkflowPublishRecord,
+  getVerificationClaimsRecord,
+  submitVerificationClaimRecord,
+  reviewVerificationClaimRecord
 } from '../data/marketplaceStore.js';
 import { CREATORS } from '../data/creatorsData.js';
 
@@ -538,6 +541,8 @@ export function normalizeSupabaseCreator(row) {
     tools: row.tools || [],
     platforms: row.platforms || [],
     categoryTags: row.category_tags || [],
+    technicalSkills: row.technical_skills || row.technicalSkills || [],
+    creativeSkills: row.creative_skills || row.creativeSkills || [],
     status: row.status,
     visibility: row.visibility,
     isDemo: !!row.is_demo,
@@ -560,6 +565,10 @@ export function normalizeSupabaseCreator(row) {
       capabilities: p.capabilities || [],
       media: p.media || [],
       workflowId: p.workflow_id,
+      workflowStages: p.workflow_stages || p.workflowStages || [],
+      productionWorkflow: p.production_workflow || p.productionWorkflow || null,
+      workflowTitle: p.workflow_title || p.workflowTitle || p.production_workflow?.title || '',
+      workflowOverview: p.workflow_overview || p.workflowOverview || p.production_workflow?.overview || '',
       visibility: p.visibility,
       featured: !!p.featured,
       displayOrder: p.display_order,
@@ -853,6 +862,8 @@ export async function saveCreator(creatorData, userId = null) {
         tools: creatorData.tools || [],
         platforms: creatorData.platforms || [],
         category_tags: creatorData.categoryTags || [],
+        technical_skills: creatorData.technicalSkills || creatorData.technical_skills || [],
+        creative_skills: creatorData.creativeSkills || creatorData.creative_skills || [],
         status: creatorData.status || 'Published',
         visibility: creatorData.visibility || 'published',
         is_demo: !!creatorData.isDemo,
@@ -919,6 +930,8 @@ export async function savePortfolioProject(creatorId, project) {
           video: project.video || null,
           media: project.media || [],
           workflow_id: project.workflowId || null,
+          workflow_stages: project.workflowStages || project.workflow_stages || [],
+          production_workflow: project.productionWorkflow || project.production_workflow || {},
           aspect: project.aspect || '16:9',
           role: project.role,
           client_type: project.clientType,
@@ -2285,3 +2298,210 @@ export function subscribeToActivityLogs(callback) {
     return () => {};
   }
 }
+
+// ============================================================================
+// 12. TRUST CENTRE & VERIFICATION SERVICE METHODS
+// Dual-engine: attempts /api/trust or Supabase table, with local store fallback
+// ============================================================================
+
+export async function fetchVerificationClaims(creatorId = null, currentUser = null) {
+  const isAdmin = currentUser?.profile?.role === 'admin' || currentUser?.role === 'admin';
+  const roleHeader = isAdmin ? 'admin' : (currentUser?.profile?.role || currentUser?.role || 'creator');
+  
+  // 1. Try local/internal backend endpoint
+  try {
+    const query = new URLSearchParams();
+    if (creatorId) query.set('creatorId', creatorId);
+    if (roleHeader) query.set('role', roleHeader);
+    if (currentUser?.id) query.set('userId', currentUser.id);
+
+    const res = await fetch(`/api/trust/claims?${query.toString()}`, {
+      headers: {
+        'x-user-role': roleHeader,
+        ...(isAdmin ? { 'x-reviewer-auth': 'alloy-admin-verified' } : {})
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.ok && Array.isArray(data.claims)) {
+        return data.claims;
+      }
+    }
+  } catch (apiErr) {
+    // API server not reachable or offline; fall back to cloud DB or local store
+  }
+
+  // 2. Try Supabase cloud table if configured
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      let query = supabase.from('verification_claims').select('*');
+      if (creatorId) {
+        query = query.eq('creator_id', creatorId);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return data.map(d => ({
+          id: d.id,
+          creatorId: d.creator_id,
+          claimType: d.claim_type,
+          claimTitle: d.claim_title,
+          status: d.status,
+          evidenceType: d.evidence_type,
+          evidenceUrl: d.evidence_url,
+          evidenceDetails: d.evidence_details,
+          isPrivate: d.is_private,
+          reviewerNotes: d.reviewer_notes,
+          reviewedBy: d.reviewed_by,
+          reviewedAt: d.reviewed_at,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at
+        }));
+      }
+    } catch (dbErr) {
+      console.warn('[CreaSync Trust] Cloud table query note:', dbErr);
+    }
+  }
+
+  // 3. Fallback to localStorage synchronous record store
+  return getVerificationClaimsRecord(creatorId);
+}
+
+export async function submitVerificationClaim(claimData, currentUser = null) {
+  const userRole = currentUser?.profile?.role || currentUser?.role || 'creator';
+
+  // 1. Try internal backend API
+  try {
+    const res = await fetch('/api/trust/claims', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-role': userRole
+      },
+      body: JSON.stringify(claimData)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.ok && data.claim) {
+        // Also update local cache for synchronous reactivity
+        submitVerificationClaimRecord(data.claim);
+        return data.claim;
+      }
+    }
+  } catch (apiErr) {
+    // Fallback below
+  }
+
+  // 2. Try Supabase if configured
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const claimRow = {
+        id: claimData.id || `claim-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        creator_id: claimData.creatorId,
+        claim_type: claimData.claimType,
+        claim_title: claimData.claimTitle,
+        status: (claimData.status === 'self_declared') ? 'self_declared' : 'pending_review',
+        evidence_type: claimData.evidenceType || 'Submitted Documentation',
+        evidence_url: claimData.evidenceUrl || null,
+        evidence_details: claimData.evidenceDetails || {},
+        is_private: !!claimData.isPrivate,
+        created_at: new Date().toISOString()
+      };
+      await supabase.from('verification_claims').upsert(claimRow);
+    } catch (dbErr) {
+      console.warn('[CreaSync Trust] Cloud upsert note:', dbErr);
+    }
+  }
+
+  // 3. Synchronous local store save
+  return submitVerificationClaimRecord(claimData);
+}
+
+export async function reviewVerificationClaim({ claimId, decision, notes = '', reviewerName = 'Platform Auditor', currentUser = null }) {
+  const isAdmin = currentUser?.profile?.role === 'admin' || currentUser?.role === 'admin';
+  const roleHeader = isAdmin ? 'admin' : (currentUser?.profile?.role || currentUser?.role || 'admin');
+
+  // 1. Try internal backend API (enforces permissions on backend)
+  try {
+    const res = await fetch('/api/trust/review', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-role': roleHeader,
+        'x-reviewer-auth': 'alloy-admin-verified'
+      },
+      body: JSON.stringify({
+        claimId,
+        decision,
+        notes,
+        reviewerName
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.ok && data.claim) {
+        reviewVerificationClaimRecord({ claimId, decision, notes, reviewerName });
+        return data;
+      }
+    }
+  } catch (apiErr) {
+    // Fallback below
+  }
+
+  // 2. Try Supabase if configured
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      let newStatus = 'verified';
+      if (decision === 'REJECT') newStatus = 'unable_to_verify';
+      else if (decision === 'REQUEST_INFO' || decision === 'NEEDS_RENEWAL') newStatus = 'needs_renewal';
+
+      const now = new Date().toISOString();
+      await supabase.from('verification_claims').update({
+        status: newStatus,
+        reviewer_notes: notes,
+        reviewed_by: reviewerName,
+        reviewed_at: now,
+        updated_at: now
+      }).eq('id', claimId);
+
+      await supabase.from('verification_audit_log').insert({
+        id: `aud-${Date.now()}`,
+        claim_id: claimId,
+        creator_id: 'maya-chen',
+        reviewer_name: reviewerName,
+        action: decision === 'APPROVE' ? 'APPROVED' : (decision === 'REJECT' ? 'REJECTED' : 'REQUEST_INFO'),
+        notes,
+        created_at: now
+      });
+    } catch (dbErr) {
+      console.warn('[CreaSync Trust] Cloud review note:', dbErr);
+    }
+  }
+
+  // 3. Synchronous local store review
+  return reviewVerificationClaimRecord({ claimId, decision, notes, reviewerName });
+}
+
+export async function fetchVerificationAuditLog(creatorId = null) {
+  try {
+    const res = await fetch(`/api/trust/audit${creatorId ? `?creatorId=${creatorId}` : ''}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.ok && Array.isArray(data.auditLogs)) {
+        return data.auditLogs;
+      }
+    }
+  } catch (apiErr) {
+    // Fallback
+  }
+
+  const state = getInitialMarketplaceState();
+  let logs = state.verificationAuditLogs || [];
+  if (creatorId) {
+    logs = logs.filter(l => l.creatorId === creatorId);
+  }
+  return logs;
+}
+

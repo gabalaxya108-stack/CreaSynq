@@ -15,6 +15,8 @@ import WorkflowTimeline from '../components/WorkflowTimeline';
 import WorkflowEditorModal from '../components/WorkflowEditorModal';
 import TrustCenter from '../components/TrustCenter';
 import MultiFormatUploader from '../components/MultiFormatUploader';
+import CreatorSkillsManager from '../components/CreatorSkillsManager';
+import ProjectWorkflowEditor from '../components/ProjectWorkflowEditor';
 import { createInitialTrustVerification } from '../data/trustVerificationData';
 
 function formatInvitationField(...values) {
@@ -111,6 +113,7 @@ export default function CreatorWorkspaceView({
     role: 'Lead Visual Artist',
     clientType: 'Commercial Campaign',
     workflowId: '',
+    workflowStages: [],
     media: []
   });
   const [projectFormErrors, setProjectFormErrors] = useState({});
@@ -321,21 +324,8 @@ export default function CreatorWorkspaceView({
 
   // --- Handlers: Creative Workflows ---
   const handleOpenCreateWorkflow = (templateSpec = null) => {
-    if (templateSpec) {
-      const template = DEMO_WORKFLOWS.find(w => w.specialization.toLowerCase().includes(templateSpec.toLowerCase())) || DEMO_WORKFLOWS[0];
-      const cloned = {
-        ...JSON.parse(JSON.stringify(template)),
-        id: `wf-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        creatorId: activeCreator?.id || 'maya-chen',
-        status: 'Draft',
-        visibility: 'draft',
-        isDemo: false,
-        updatedAt: 'Just now'
-      };
-      setEditingWorkflow(cloned);
-    } else {
-      setEditingWorkflow(createBlankWorkflow(activeCreator?.id || 'maya-chen', activeCreator?.specialty));
-    }
+    const blank = createBlankWorkflow(activeCreator?.id || 'maya-chen', templateSpec || activeCreator?.specialty);
+    setEditingWorkflow(blank);
     setIsWorkflowEditorOpen(true);
   };
 
@@ -429,6 +419,9 @@ export default function CreatorWorkspaceView({
         role: existing.role || 'Lead Visual Artist',
         clientType: existing.clientType || 'Commercial Campaign',
         workflowId: existing.workflowId || '',
+        workflowStages: existing.workflowStages || [],
+        workflowTitle: existing.workflowTitle || existing.productionWorkflow?.title || '',
+        workflowOverview: existing.workflowOverview || existing.productionWorkflow?.overview || '',
         media: initialMedia
       });
     } else {
@@ -448,11 +441,26 @@ export default function CreatorWorkspaceView({
         role: 'Lead Visual Artist',
         clientType: 'Commercial Campaign',
         workflowId: '',
+        workflowStages: [],
+        workflowTitle: '',
+        workflowOverview: '',
         media: []
       });
     }
     setProjectFormErrors({});
     setIsAddProjectModalOpen(true);
+  };
+
+  const handleUpdateSkills = ({ technicalSkills, creativeSkills }) => {
+    const updated = {
+      ...activeCreator,
+      technicalSkills,
+      creativeSkills
+    };
+    setActiveCreator(updated);
+    if (onUpdateCreator) {
+      onUpdateCreator(updated);
+    }
   };
 
   const handleSaveProject = (e) => {
@@ -479,6 +487,7 @@ export default function CreatorWorkspaceView({
 
     const projectPayload = {
       ...projectForm,
+      workflowStages: projectForm.workflowStages || [],
       image: finalImage || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85",
       video: finalVideo,
       media: mediaList
@@ -1031,6 +1040,13 @@ export default function CreatorWorkspaceView({
                 </div>
               </div>
             </div>
+
+            {/* Technical & Creative Skills Disciplines Block */}
+            <CreatorSkillsManager 
+              creator={activeCreator} 
+              onUpdateSkills={handleUpdateSkills} 
+              isEditable={true} 
+            />
 
             {/* Middle Section: Recent Portfolio Highlights */}
             <div className="overview-section-block">
@@ -2671,6 +2687,27 @@ export default function CreatorWorkspaceView({
                   }}
                 />
                 {projectFormErrors.image && <span className="error-text">{projectFormErrors.image}</span>}
+              </div>
+
+              {/* Dedicated AI Production Workflow for this Project */}
+              <div className="form-group">
+                <ProjectWorkflowEditor
+                  workflowData={{
+                    title: projectForm.workflowTitle || '',
+                    overview: projectForm.workflowOverview || '',
+                    steps: projectForm.workflowStages || []
+                  }}
+                  workflowStages={projectForm.workflowStages || []}
+                  workflowTitle={projectForm.workflowTitle || ''}
+                  workflowOverview={projectForm.workflowOverview || ''}
+                  projectTitle={projectForm.title}
+                  onChange={(wfData, stepsList) => setProjectForm(prev => ({
+                    ...prev,
+                    workflowStages: stepsList || wfData.steps || [],
+                    workflowTitle: wfData.title || '',
+                    workflowOverview: wfData.overview || ''
+                  }))}
+                />
               </div>
 
               <div className="modal-actions-row">

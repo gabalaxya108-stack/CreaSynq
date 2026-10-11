@@ -72,10 +72,6 @@ export default function WorkflowEditorModal({
 
   // Deleting a step
   const handleDeleteStep = (index) => {
-    if (formData.steps.length <= 1) {
-      alert('A workflow must have at least one step.');
-      return;
-    }
     const updated = formData.steps
       .filter((_, i) => i !== index)
       .map((s, i) => ({

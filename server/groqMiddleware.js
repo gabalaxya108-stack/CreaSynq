@@ -42,16 +42,25 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
+import { 
+  getVerificationClaims, 
+  submitVerificationClaim, 
+  reviewVerificationClaim, 
+  getVerificationAuditLog 
+} from './trustService.js';
+
 export function createGroqMiddleware() {
   return async function groqMiddleware(req, res, next) {
     const url = req.url ? req.url.split('?')[0] : '';
+    const queryStr = req.url && req.url.includes('?') ? req.url.split('?')[1] : '';
+    const queryParams = new URLSearchParams(queryStr);
 
     // Handle CORS preflight
-    if (req.method === 'OPTIONS' && (url.startsWith('/api/ai') || url.startsWith('/api/pipeline'))) {
+    if (req.method === 'OPTIONS' && (url.startsWith('/api/ai') || url.startsWith('/api/pipeline') || url.startsWith('/api/trust'))) {
       res.statusCode = 204;
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-role, x-reviewer-auth');
       return res.end();
     }
 
@@ -81,6 +90,64 @@ export function createGroqMiddleware() {
           code: 'PIPELINE_EXECUTION_ERROR',
           error: 'An unexpected error occurred while executing the backend filtering pipeline.'
         });
+      }
+    }
+
+    // =========================================================================
+    // TRUST & VERIFICATION BACKEND ENDPOINTS
+    // =========================================================================
+    if (url.startsWith('/api/trust')) {
+      try {
+        const reqRole = req.headers['x-user-role'] || queryParams.get('role');
+        const authHeader = req.headers['authorization'] || '';
+        const reviewerAuth = req.headers['x-reviewer-auth'] || '';
+        const isAuthorizedReviewer = reqRole === 'admin' || reviewerAuth === 'alloy-admin' || reviewerAuth === 'alloy-admin-verified' || authHeader.includes('alloy-admin');
+
+        // GET /api/trust/claims
+        if (url === '/api/trust/claims' && req.method === 'GET') {
+          const creatorId = queryParams.get('creatorId');
+          const claims = getVerificationClaims({
+            creatorId,
+            isAdmin: isAuthorizedReviewer,
+            currentUserId: queryParams.get('userId')
+          });
+          return sendJson(res, 200, { ok: true, claims });
+        }
+
+        // POST /api/trust/claims (Creator submitting verification claim)
+        if (url === '/api/trust/claims' && req.method === 'POST') {
+          const body = await parseJsonBody(req);
+          const newClaim = submitVerificationClaim(body, reqRole);
+          return sendJson(res, 201, { ok: true, claim: newClaim });
+        }
+
+        // POST /api/trust/review (Authorized reviewer only!)
+        if (url === '/api/trust/review' && req.method === 'POST') {
+          const body = await parseJsonBody(req);
+          const { claimId, decision, notes, reviewerName } = body;
+          
+          const result = reviewVerificationClaim({
+            claimId,
+            decision,
+            notes,
+            reviewerName: reviewerName || 'Authorized Platform Auditor',
+            isAuthorized: isAuthorizedReviewer
+          });
+          return sendJson(res, 200, { ok: true, ...result });
+        }
+
+        // GET /api/trust/audit (Audit trail log)
+        if (url === '/api/trust/audit' && req.method === 'GET') {
+          const creatorId = queryParams.get('creatorId');
+          const logs = getVerificationAuditLog({ creatorId });
+          return sendJson(res, 200, { ok: true, auditLogs: logs });
+        }
+
+        return sendJson(res, 404, { ok: false, error: `Trust endpoint ${url} not found.` });
+      } catch (err) {
+        console.error('[Trust API Error]:', err.message);
+        const code = err.statusCode || 500;
+        return sendJson(res, code, { ok: false, error: err.message });
       }
     }
 

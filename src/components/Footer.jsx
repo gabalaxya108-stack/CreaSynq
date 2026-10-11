@@ -68,6 +68,16 @@ export default function Footer({
               <button 
                 type="button" 
                 className="alloy-footer-link"
+                onClick={() => onNavigate && onNavigate('trust-center')}
+                style={{ fontWeight: 600, color: '#7C3AED' }}
+              >
+                Trust Centre
+              </button>
+            </li>
+            <li>
+              <button 
+                type="button" 
+                className="alloy-footer-link"
                 onClick={() => scrollTo('for-brands')}
               >
                 For Brands

@@ -16,6 +16,24 @@ import { fetchSupabaseCreators, getSupabaseConfig } from './supabaseCreators.js'
 import { createClient } from '@supabase/supabase-js';
 
 function parseJsonBody(req) {
+  if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'object') return Promise.resolve(req.body);
+    if (typeof req.body === 'string') {
+      try {
+        return Promise.resolve(req.body.trim() ? JSON.parse(req.body) : {});
+      } catch (err) {
+        return Promise.reject(new Error('Invalid JSON'));
+      }
+    }
+    if (Buffer.isBuffer(req.body)) {
+      try {
+        const str = req.body.toString('utf8');
+        return Promise.resolve(str.trim() ? JSON.parse(str) : {});
+      } catch (err) {
+        return Promise.reject(new Error('Invalid JSON'));
+      }
+    }
+  }
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => {

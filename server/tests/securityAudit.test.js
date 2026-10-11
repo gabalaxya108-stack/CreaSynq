@@ -91,6 +91,40 @@ async function runSecurityTestSuite() {
     assert([401, 503].includes(res.status), `Expected 401 or 503 for forged token, got ${res.status}`);
   });
 
+  await test('Reject unauthenticated caller attempting admin email injection via query parameter with 401', async () => {
+    const res = await makeRequest('/api/admin/overview?email=judge@alloy.market');
+    assert.strictEqual(res.status, 401, `Expected 401, got ${res.status}`);
+    assert.strictEqual(res.data.ok, false);
+  });
+
+  await test('Reject unauthenticated caller attempting admin email injection via custom headers with 401', async () => {
+    const res = await makeRequest('/api/admin/overview', {
+      headers: {
+        'X-Admin-Email': 'judge@alloy.market',
+        'X-User-Email': 'admin@alloy.market'
+      }
+    });
+    assert.strictEqual(res.status, 401, `Expected 401, got ${res.status}`);
+    assert.strictEqual(res.data.ok, false);
+  });
+
+  await test('Reject unauthenticated caller attempting admin email injection via request body with 401', async () => {
+    const res = await makeRequest('/api/admin/verify', {
+      method: 'POST',
+      body: { email: 'judge@alloy.market', role: 'super_admin' }
+    });
+    assert.strictEqual(res.status, 401, `Expected 401, got ${res.status}`);
+    assert.strictEqual(res.data.ok, false);
+  });
+
+  await test('Reject forged token combined with admin email query parameter with 401 or 503', async () => {
+    const res = await makeRequest('/api/admin/overview?email=judge@alloy.market', {
+      headers: { 'Authorization': 'Bearer forged.token.signature' }
+    });
+    assert([401, 503].includes(res.status), `Expected 401 or 503, got ${res.status}`);
+    assert.strictEqual(res.data.ok, false);
+  });
+
   // --- 2. AUDIT LOG IMMUTABILITY & METHOD RESTRICTION ---
   console.log('\n--- Test Group 2: Audit Trail Immutability & Method Controls ---');
 

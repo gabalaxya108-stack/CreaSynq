@@ -35,6 +35,8 @@ import RoleSelectModal from './components/RoleSelectModal';
 import LoginModal from './components/LoginModal';
 import RoleConflictModal from './components/RoleConflictModal';
 import MessagesLoginWall from './components/MessagesLoginWall';
+import JudgeDemoWalkthrough from './components/JudgeDemoWalkthrough';
+import { Sparkles } from 'lucide-react';
 
 import { CREATORS } from './data/creatorsData';
 import PipelineTraceModal from './components/PipelineTraceModal';
@@ -143,6 +145,17 @@ export default function App() {
   });
   const [initialBrandTab, setInitialBrandTab] = useState('overview');
   const [initialCreatorTab, setInitialCreatorTab] = useState('overview');
+
+  // Judge Demo Walkthrough state with persistent completion/dismissal memory
+  const [isJudgeTourOpen, setIsJudgeTourOpen] = useState(() => {
+    try {
+      const completed = localStorage.getItem('alloy_judge_tour_completed');
+      const dismissed = localStorage.getItem('alloy_judge_tour_dismissed');
+      return !completed && !dismissed;
+    } catch {
+      return false;
+    }
+  });
 
   // --- Filtering Pipeline Trace States ---
   const [pipelineTrace, setPipelineTrace] = useState(null);
@@ -1124,6 +1137,8 @@ export default function App() {
         }
       } else if (hash === 'discover') {
         setCurrentView('discover');
+      } else if (hash === 'trust-center' || hash === '/trust-center') {
+        setCurrentView('trust-center');
       } else if (hash === '/brand/onboard') {
         setCurrentView('brand-onboard');
       } else if (hash === '/brand') {
@@ -1276,6 +1291,8 @@ export default function App() {
       window.location.hash = `/creator/${extraId}`;
     } else if (view === 'discover') {
       window.location.hash = 'discover';
+    } else if (view === 'trust-center') {
+      window.location.hash = '/trust-center';
     } else if (view === 'brand-onboard') {
       window.location.hash = '/brand/onboard';
     } else if (view === 'creator-join') {
@@ -2084,6 +2101,7 @@ export default function App() {
           onOpenForBrandsModal={() => setIsForBrandsOpen(true)}
           onOpenForCreatorsModal={() => setIsForCreatorsOpen(true)}
           onOpenMessages={handleOpenMessages}
+          onOpenJudgeTour={() => setIsJudgeTourOpen(true)}
           activeCampaign={activeCampaign}
           createdCreatorProfile={myCreator}
           currentUser={currentUser}
@@ -2102,6 +2120,7 @@ export default function App() {
               onJoinCreator={handleCreatorAction}
               onExploreWork={() => navigateTo('discover')}
               onSelectCreator={handleOpenCreatorProfile}
+              onStartJudgeTour={() => setIsJudgeTourOpen(true)}
             />
 
             {/* 2. Curated Creative Portfolio Showcase ("Meet creativity in every direction.") */}
@@ -2888,6 +2907,66 @@ export default function App() {
           navigateTo('brand-workspace');
         }}
       />
+
+      {/* Interactive Judge Demo Guided Walkthrough */}
+      <JudgeDemoWalkthrough
+        isOpen={isJudgeTourOpen}
+        onClose={() => setIsJudgeTourOpen(false)}
+        onNavigate={(view, extraId) => {
+          if (view === 'creator-profile' && extraId) {
+            handleOpenCreatorProfile(extraId);
+          } else {
+            navigateTo(view, extraId);
+          }
+        }}
+        onOpenMessages={() => {
+          setIsMessagingDrawerOpen(true);
+        }}
+        onEnableDemoCreator={() => {
+          const active = currentUserRef.current || currentUser;
+          if (!active) {
+            const demoCreatorUser = {
+              id: 'elena-rostova',
+              email: 'elena.demo@alloy.market',
+              role: 'creator',
+              display_name: 'Elena Rostova',
+              isDemoOnly: true,
+              profile: {
+                id: 'elena-rostova',
+                email: 'elena.demo@alloy.market',
+                role: 'creator',
+                display_name: 'Elena Rostova',
+                isDemoOnly: true
+              }
+            };
+            try {
+              localStorage.setItem('creasync_active_user', JSON.stringify(demoCreatorUser));
+              localStorage.setItem('creasync_active_role', 'creator');
+            } catch (e) { }
+            updateActiveUser(demoCreatorUser);
+          }
+          if (!marketplaceData.myCreatorId) {
+            const demoId = marketplaceData.creators?.[0]?.id || 'elena-rostova';
+            setMarketplaceData(prev => ({ ...prev, myCreatorId: demoId }));
+          }
+        }}
+        currentView={currentView}
+      />
+
+      {/* Persistent floating launcher to reopen the Judge Demo tour at any time */}
+      {!isJudgeTourOpen && currentView !== 'admin-login' && currentView !== 'admin-dashboard' && (
+        <button
+          type="button"
+          className="judge-tour-launcher-btn"
+          id="judge-tour-floating-launcher"
+          onClick={() => setIsJudgeTourOpen(true)}
+          aria-label="Open Judge Demo Tour"
+          title="Take the interactive Judge Demo tour"
+        >
+          <Sparkles size={14} className="text-bronze" />
+          <span>Judge Demo Tour</span>
+        </button>
+      )}
     </div>
   );
 }

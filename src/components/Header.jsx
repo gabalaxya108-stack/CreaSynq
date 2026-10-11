@@ -3,7 +3,7 @@
 // Minimal, elevated, typography-first header supporting both authenticated users & guests
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, LogIn, LogOut, ChevronRight } from 'lucide-react';
+import { Menu, X, ArrowRight, LogIn, LogOut, ChevronRight, Sparkles } from 'lucide-react';
 
 export default function Header({ 
   currentView, 
@@ -15,6 +15,7 @@ export default function Header({
   onOpenForBrandsModal,
   onOpenForCreatorsModal,
   onOpenMessages,
+  onOpenJudgeTour,
   activeCampaign,
   createdCreatorProfile,
   currentUser = null,
@@ -159,6 +160,20 @@ export default function Header({
 
         {/* Right Nav: Actions */}
         <div className="nav-actions">
+          {onOpenJudgeTour && (
+            <button 
+              type="button" 
+              className="header-tour-btn"
+              onClick={onOpenJudgeTour}
+              aria-label="Start Judge Demo Tour"
+              id="header-judge-tour-btn"
+              title="Interactive Judge Demo Walkthrough"
+            >
+              <Sparkles size={13} className="text-bronze" />
+              <span>Judge Demo</span>
+            </button>
+          )}
+
           {currentUser ? (
             <div className="header-auth-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {/* User Identity Pill / Workspace Link */}
@@ -320,6 +335,18 @@ export default function Header({
           </ul>
 
           <div className="mobile-drawer-footer">
+            {onOpenJudgeTour && (
+              <button
+                type="button"
+                className="header-tour-btn w-full"
+                onClick={() => handleLinkClick(onOpenJudgeTour)}
+                style={{ justifyContent: 'center', padding: '10px 16px', marginBottom: '10px' }}
+                id="mobile-judge-tour-btn"
+              >
+                <Sparkles size={14} className="text-bronze" />
+                <span>Start Judge Demo Tour</span>
+              </button>
+            )}
             {currentUser ? (
               <>
                 <button

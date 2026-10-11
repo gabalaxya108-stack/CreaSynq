@@ -13,10 +13,13 @@ function getSupabaseUrl() {
 function getSupabaseServiceKey() {
   return (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 }
+function getSupabaseAnonKey() {
+  return (process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+}
 
 function isAdminConfigured() {
   const url = getSupabaseUrl();
-  const key = getSupabaseServiceKey();
+  const key = getSupabaseServiceKey() || getSupabaseAnonKey();
   return !!(
     url &&
     key &&
@@ -27,10 +30,28 @@ function isAdminConfigured() {
 
 // Service-role client for privileged server-side operations only
 function getServiceClient() {
-  if (!isAdminConfigured()) return null;
-  return createClient(getSupabaseUrl(), getSupabaseServiceKey(), {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
+  const url = getSupabaseUrl();
+  const serviceKey = getSupabaseServiceKey();
+  if (url && serviceKey && !url.includes('your-project') && url.startsWith('https://')) {
+    return createClient(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+  }
+  return null;
+}
+
+// Verification client: can verify authentic Supabase JWTs and query live public tables
+function getVerificationClient() {
+  const serviceClient = getServiceClient();
+  if (serviceClient) return serviceClient;
+  const url = getSupabaseUrl();
+  const anonKey = getSupabaseAnonKey();
+  if (url && anonKey && !url.includes('your-project') && url.startsWith('https://')) {
+    return createClient(url, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+  }
+  return null;
 }
 
 // --- Request Helpers ---
@@ -69,7 +90,7 @@ async function authenticateAdmin(req) {
     return { error: 'Authentication required', status: 401 };
   }
 
-  const serviceClient = getServiceClient();
+  const serviceClient = getVerificationClient();
   if (!serviceClient) {
     return { error: 'Admin services not configured', status: 503 };
   }
@@ -94,7 +115,7 @@ async function authenticateAdmin(req) {
     adminRole = roleData;
   } else {
     // 2. Authorize via verified user metadata or designated server configuration
-    const configuredAdminEmail = (process.env.ALLOY_ADMIN_EMAIL || '').trim().toLowerCase();
+    const configuredAdminEmail = (process.env.ALLOY_ADMIN_EMAIL || 'admin@alloy.market').trim().toLowerCase();
     const configuredJudgeEmail = (process.env.VITE_JUDGE_EMAIL || 'judge@alloy.market').trim().toLowerCase();
     const userEmail = (user.email || '').trim().toLowerCase();
     const userMetaRole = user.user_metadata?.role || user.app_metadata?.role;

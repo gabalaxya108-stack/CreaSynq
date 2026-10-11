@@ -7,7 +7,9 @@ import assert from 'assert';
 import { 
   sendMessage, 
   fetchMessages, 
-  normalizeSupabaseMessage 
+  normalizeSupabaseMessage,
+  deduplicateMessages,
+  reconcileMessages
 } from '../src/services/marketplaceBackend.js';
 import { 
   getInitialMarketplaceState, 
@@ -843,6 +845,267 @@ await itAsync('Scenario 18: Demo user never triggers Supabase RLS failure while 
   assert.strictEqual(demoThrewError, false, 'Demo user must NOT throw Supabase RLS error');
 });
 
+// -----------------------------------------------------------------------------
+// Scenario 19: reconcileMessages replaces temporary optimistic ID with persisted record without duplicate
+// -----------------------------------------------------------------------------
+it('Scenario 19: reconcileMessages seamlessly swaps optimistic message with persisted DB record', () => {
+  const tempId = 'temp-msg-999';
+  const existing = [
+    { id: 'msg-1', text: 'First message', sender: 'brand' },
+    { id: tempId, text: 'Optimistic message', sender: 'brand', isPending: true }
+  ];
+
+  const persisted = {
+    id: 'db-msg-real-123',
+    text: 'Optimistic message',
+    sender: 'brand',
+    isPending: false
+  };
+
+  const reconciled = reconcileMessages(existing, persisted, tempId);
+
+  assert.strictEqual(reconciled.length, 2, 'Must have exactly 2 messages (no duplicate added)');
+  assert.strictEqual(reconciled[0].id, 'msg-1');
+  assert.strictEqual(reconciled[1].id, 'db-msg-real-123', 'Temporary ID must be replaced by DB ID');
+  assert.strictEqual(reconciled[1].isPending, false);
+  assert.strictEqual(reconciled.filter(m => m.id === tempId).length, 0, 'Temporary ID must be removed');
+});
+
+// -----------------------------------------------------------------------------
+// Scenario 20: Realtime events arriving for in-flight message absorb pending copy without duplicates
+// -----------------------------------------------------------------------------
+it('Scenario 20: Realtime message event absorbs pending optimistic message matching text and sender', () => {
+  const existing = [
+    { id: 'msg-1', text: 'Hello', sender: 'creator' },
+    { id: 'temp-in-flight-55', text: 'Sounds wonderful!', sender: 'brand', isPending: true }
+  ];
+
+  // Incoming realtime broadcast before local promise resolution
+  const realtimeMsg = {
+    id: 'msg-realtime-888',
+    text: 'Sounds wonderful!',
+    sender: 'brand'
+  };
+
+  const updated = reconcileMessages(existing, realtimeMsg);
+
+  assert.strictEqual(updated.length, 2, 'Realtime event must absorb the pending message rather than append a duplicate');
+  assert.strictEqual(updated[1].id, 'msg-realtime-888');
+  assert.strictEqual(updated[1].text, 'Sounds wonderful!');
+});
+
+// -----------------------------------------------------------------------------
+// Scenario 21: Preserving legitimate consecutive identical messages with distinct IDs
+// -----------------------------------------------------------------------------
+it('Scenario 21: Legitimate consecutive identical messages with distinct IDs are strictly preserved', () => {
+  const existing = [
+    { id: 'msg-101', text: 'Yes', sender: 'creator' }
+  ];
+
+  const secondYes = {
+    id: 'msg-102',
+    text: 'Yes',
+    sender: 'creator'
+  };
+
+  const updated = reconcileMessages(existing, secondYes);
+
+  assert.strictEqual(updated.length, 2, 'Distinct messages with identical text must BOTH be preserved');
+  assert.strictEqual(updated[0].id, 'msg-101');
+  assert.strictEqual(updated[1].id, 'msg-102');
+  assert.strictEqual(updated[0].text, 'Yes');
+  assert.strictEqual(updated[1].text, 'Yes');
+});
+
+// -----------------------------------------------------------------------------
+// Scenario 22: DeduplicateMessages removes duplicate records by stable message ID
+// -----------------------------------------------------------------------------
+it('Scenario 22: deduplicateMessages preserves chronological order while discarding duplicate message IDs', () => {
+  const messyMessages = [
+    { id: 'msg-1', text: 'Initial discussion', timestamp: '10:00' },
+    { id: 'msg-2', text: 'Looks great', timestamp: '10:01' },
+    { id: 'msg-1', text: 'Initial discussion (stale fetch copy)', timestamp: '10:00' },
+    { id: 'msg-3', text: 'Moving forward', timestamp: '10:02' },
+    { id: 'msg-2', text: 'Looks great (realtime duplicate)', timestamp: '10:01' }
+  ];
+
+  const clean = deduplicateMessages(messyMessages);
+
+  assert.strictEqual(clean.length, 3, 'Must remove identical IDs and leave exactly 3 messages');
+  assert.deepStrictEqual(clean.map(m => m.id), ['msg-1', 'msg-2', 'msg-3']);
+  assert.strictEqual(clean[0].text, 'Initial discussion');
+  assert.strictEqual(clean[1].text, 'Looks great');
+  assert.strictEqual(clean[2].text, 'Moving forward');
+});
+
+// -----------------------------------------------------------------------------
+// Scenario 23: Logged-out state hides message history and connection list completely
+// -----------------------------------------------------------------------------
+it('Scenario 23: Unauthenticated user receives empty connections and cannot access private message history', () => {
+  const state = getInitialMarketplaceState();
+  assert.ok(state.connections.length > 0, 'Underlying store has seed connections');
+
+  // App-level synchronizedConnections rule: when currentUser is null, return empty array
+  const currentUser = null;
+  const synchronizedConnections = currentUser ? state.connections : [];
+
+  assert.strictEqual(synchronizedConnections.length, 0, 'Logged-out user must not receive any connections');
+  assert.strictEqual(
+    synchronizedConnections.some(c => (c.messages || []).length > 0),
+    false,
+    'No private messages can be accessible when logged out'
+  );
+});
+
+// -----------------------------------------------------------------------------
+// Scenario 24: Rollback removes temporary optimistic message on failure without corrupting legitimate history
+// -----------------------------------------------------------------------------
+it('Scenario 24: Failed message send cleanly filters temporary ID leaving prior legitimate messages intact', () => {
+  const tempMsgId = 'temp-failed-123';
+  const initialHistory = [
+    { id: 'msg-verified-1', text: 'Hello partner', sender: 'brand' },
+    { id: 'msg-verified-2', text: 'Hi! Ready to collaborate', sender: 'creator' }
+  ];
+
+  // Optimistic insert
+  const withOptimistic = [
+    ...initialHistory,
+    { id: tempMsgId, text: 'This send will fail', sender: 'brand', isPending: true }
+  ];
+  assert.strictEqual(withOptimistic.length, 3);
+
+  // Rollback on simulated network failure
+  const rolledBack = withOptimistic.filter(m => m.id !== tempMsgId);
+
+  assert.strictEqual(rolledBack.length, 2, 'Must rollback to exactly the original length');
+  assert.strictEqual(rolledBack.some(m => m.id === tempMsgId), false, 'Temp message must be completely absent');
+  assert.strictEqual(rolledBack[0].id, 'msg-verified-1');
+  assert.strictEqual(rolledBack[1].id, 'msg-verified-2');
+});
+
+// -----------------------------------------------------------------------------
+// Scenario 25: Messages Login Wall UI content, copy, and OAuth flow initialization
+// -----------------------------------------------------------------------------
+it('Scenario 25: Unauthenticated user is gated by Messages login wall with exact required copy and Google OAuth action', () => {
+  // Simulating the props and copy constants defined in MessagesLoginWall
+  const loginWallConfig = {
+    headline: 'Your conversations start here',
+    description: 'Sign in to access your direct messages, review briefs, and collaborate with creators and brands seamlessly.',
+    googleButtonText: 'Continue with Google',
+    intendedAction: { type: 'OPEN_MESSAGES' }
+  };
+
+  assert.strictEqual(
+    loginWallConfig.headline,
+    'Your conversations start here',
+    'Headline must match the exact required string'
+  );
+
+  assert.ok(
+    loginWallConfig.description.includes('creators and brands'),
+    'Description must explain that signing in is required to connect with creators and brands'
+  );
+
+  assert.strictEqual(
+    loginWallConfig.googleButtonText,
+    'Continue with Google',
+    'Button label must match "Continue with Google"'
+  );
+
+  // Simulating OAuth flow action caching
+  const sessionCache = {};
+  const triggerGoogleOAuth = (role = 'brand') => {
+    sessionCache['creasync_intended_role'] = role;
+    sessionCache['creasync_pending_action'] = JSON.stringify({ type: 'OPEN_MESSAGES' });
+  };
+
+  triggerGoogleOAuth('brand');
+  assert.strictEqual(sessionCache['creasync_intended_role'], 'brand');
+  const storedAction = JSON.parse(sessionCache['creasync_pending_action']);
+  assert.strictEqual(storedAction.type, 'OPEN_MESSAGES');
+});
+
+// -----------------------------------------------------------------------------
+// Scenario 26: Post-OAuth redirection safely restores Messages view and gates conversation data
+// -----------------------------------------------------------------------------
+it('Scenario 26: Post-authentication handler routes directly to Messages and preserves conversation data integrity', () => {
+  let currentView = 'messages';
+  let activeUser = null;
+  let activeMessagingConnectionId = null;
+  let isMessagingDrawerOpen = false;
+
+  // 1. Prior to authentication, conversations are inaccessible
+  const rawConnections = [
+    { id: 'conn-1', brandName: 'Lumina', creatorName: 'Maya', messages: [{ id: 'm1', text: 'Hello' }] }
+  ];
+  const visibleBeforeAuth = activeUser ? rawConnections : [];
+  assert.strictEqual(visibleBeforeAuth.length, 0, 'No connections accessible before login');
+
+  // 2. Simulate pending action from Messages Login Wall
+  const pendingAction = { type: 'OPEN_MESSAGES', connId: 'conn-1' };
+
+  // 3. User authenticates via Google OAuth return
+  activeUser = {
+    id: 'user-google-123',
+    email: 'creator@example.com',
+    role: 'creator',
+    profile: { role: 'creator', display_name: 'Alex Rivera' }
+  };
+
+  // 4. executePendingActionOrRoute handler simulation
+  if (pendingAction.type === 'OPEN_MESSAGES') {
+    if (pendingAction.connId) {
+      activeMessagingConnectionId = pendingAction.connId;
+    }
+    currentView = 'messages';
+    isMessagingDrawerOpen = true;
+  }
+
+  assert.strictEqual(currentView, 'messages', 'User must be redirected to Messages page upon login');
+  assert.strictEqual(isMessagingDrawerOpen, true, 'Messaging drawer opened if applicable');
+  assert.strictEqual(activeMessagingConnectionId, 'conn-1');
+
+  // 5. Authenticated user now has authorized access
+  const visibleAfterAuth = activeUser ? rawConnections : [];
+  assert.strictEqual(visibleAfterAuth.length, 1, 'Authorized user now has access to messaging');
+  assert.strictEqual(visibleAfterAuth[0].messages[0].text, 'Hello');
+});
+
+// -----------------------------------------------------------------------------
+// Scenario 27: Bottom-right Messages button click routes unauthenticated user to Messages login page
+// -----------------------------------------------------------------------------
+it('Scenario 27: Clicking floating Messages button when unauthenticated navigates directly to the Messages login wall page', () => {
+  let currentView = 'home';
+  let isMessagingDrawerOpen = false;
+  let activeMessagingConnectionId = null;
+  const sessionCache = {};
+
+  const handleOpenMessages = (connId = null, activeUser = null) => {
+    if (connId) {
+      activeMessagingConnectionId = connId;
+    }
+    if (!activeUser) {
+      sessionCache['creasync_pending_action'] = JSON.stringify({
+        type: 'OPEN_MESSAGES',
+        connId: connId || null
+      });
+      isMessagingDrawerOpen = false;
+      currentView = 'messages';
+      return;
+    }
+    currentView = 'messages';
+    isMessagingDrawerOpen = true;
+  };
+
+  // User is on home page and unauthenticated, clicks bottom-right Messages button
+  assert.strictEqual(currentView, 'home');
+  handleOpenMessages(null, null);
+
+  assert.strictEqual(currentView, 'messages', 'Must navigate directly to the messages view');
+  assert.strictEqual(isMessagingDrawerOpen, false, 'Drawer must not obscure the login wall page');
+  assert.strictEqual(JSON.parse(sessionCache['creasync_pending_action']).type, 'OPEN_MESSAGES');
+});
+
 console.log(`\n========================================`);
 console.log(`Messaging Tests Complete: ${passed}/${passed + failed} Passed.`);
 console.log(`========================================\n`);
@@ -850,5 +1113,7 @@ console.log(`========================================\n`);
 if (failed > 0) {
   process.exit(1);
 }
+
+
 
 

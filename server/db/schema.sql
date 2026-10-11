@@ -543,3 +543,75 @@ CREATE POLICY "Activity logs read" ON public.activity_logs FOR SELECT
 CREATE POLICY "Activity logs insert" ON public.activity_logs FOR INSERT
   WITH CHECK (true);
 
+-- ----------------------------------------------------------------------------
+-- 14. MESSAGES RLS POLICIES & PARTICIPANT VALIDATION
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.is_conversation_participant(
+  p_conversation_id TEXT,
+  p_user_id UUID,
+  p_sender TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.invitations inv
+    JOIN public.brands b ON b.id = inv.brand_id
+    JOIN public.creator_profiles c ON c.id = inv.creator_id
+    WHERE (
+      (inv.campaign_id IS NOT NULL AND p_conversation_id = ('conn-' || inv.campaign_id || '-' || inv.creator_id))
+      OR p_conversation_id = ('conn-' || inv.brand_id || '-' || inv.creator_id)
+      OR p_conversation_id = inv.id
+    )
+    AND (
+      CASE 
+        WHEN p_sender = 'brand' THEN b.user_id = p_user_id
+        WHEN p_sender = 'creator' THEN c.user_id = p_user_id
+        ELSE (b.user_id = p_user_id OR c.user_id = p_user_id)
+      END
+    )
+
+    UNION ALL
+
+    SELECT 1 FROM public.collaborations col
+    JOIN public.brands b ON b.id = col.brand_id
+    JOIN public.creator_profiles c ON c.id = col.creator_id
+    WHERE (
+      (col.campaign_id IS NOT NULL AND p_conversation_id = ('conn-' || col.campaign_id || '-' || col.creator_id))
+      OR p_conversation_id = ('conn-' || col.brand_id || '-' || col.creator_id)
+      OR p_conversation_id = col.id
+    )
+    AND (
+      CASE 
+        WHEN p_sender = 'brand' THEN b.user_id = p_user_id
+        WHEN p_sender = 'creator' THEN c.user_id = p_user_id
+        ELSE (b.user_id = p_user_id OR c.user_id = p_user_id)
+      END
+    )
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_conversation_participant(TEXT, UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_conversation_participant(TEXT, UUID, TEXT) TO authenticated;
+
+DROP POLICY IF EXISTS "Messages participant read" ON public.messages;
+DROP POLICY IF EXISTS "Messages participant insert" ON public.messages;
+
+CREATE POLICY "Messages participant read" ON public.messages FOR SELECT
+  USING (
+    auth.uid() IS NOT NULL
+    AND public.is_conversation_participant(conversation_id, auth.uid(), NULL)
+  );
+
+CREATE POLICY "Messages participant insert" ON public.messages FOR INSERT
+  WITH CHECK (
+    auth.uid() IS NOT NULL
+    AND LENGTH(TRIM(text)) > 0
+    AND sender IN ('creator', 'brand')
+    AND public.is_conversation_participant(conversation_id, auth.uid(), sender)
+  );
+
+

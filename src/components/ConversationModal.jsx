@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Sparkles, CheckCircle2, ArrowUpRight } from 'lucide-react';
+import { deduplicateMessages } from '../services/marketplaceBackend';
 
 export default function ConversationModal({
   isOpen,
@@ -137,7 +138,7 @@ export default function ConversationModal({
 
         {/* Message Stream */}
         <div className="conversation-messages-stream">
-          {(connection.messages || []).map((msg) => {
+          {deduplicateMessages(connection.messages || []).map((msg) => {
             const isMe = msg.sender === currentUserRole;
             return (
               <div 

@@ -341,6 +341,7 @@ export const DEMO_WORKFLOWS = [
 
 /**
  * Returns a blank workflow template for creator editing
+ * Completely empty fields for user-filled workflow definition.
  */
 export function createBlankWorkflow(creatorId, creatorSpecialty = "AI Beauty & Skincare") {
   return {
@@ -356,52 +357,6 @@ export function createBlankWorkflow(creatorId, creatorSpecialty = "AI Beauty & S
     isDemo: false,
     humanInvolvementNotes: "",
     updatedAt: "Just now",
-    steps: [
-      {
-        id: `step-${Date.now()}-1`,
-        stepNumber: "01",
-        title: "Brief Analysis & Scope",
-        description: "Understand the campaign objective, target audience, brand aesthetic guidelines, and deliverable specifications.",
-        tools: ["Creative Brief", "Notion"],
-        evidence: "",
-        humanRole: "Creative interpretation and scope alignment"
-      },
-      {
-        id: `step-${Date.now()}-2`,
-        stepNumber: "02",
-        title: "Concept Development & Moodboarding",
-        description: "Establish the creative direction, visual compositions, lighting references, and artistic palette.",
-        tools: ["Moodboard Suite", "Midjourney"],
-        evidence: "",
-        humanRole: "Art direction and visual curation"
-      },
-      {
-        id: `step-${Date.now()}-3`,
-        stepNumber: "03",
-        title: "Generative Production & AI Pipeline",
-        description: "Generate initial assets using selected generative models and custom latent workflows.",
-        tools: ["Midjourney v6", "ComfyUI"],
-        evidence: "",
-        humanRole: "Prompt engineering, seed exploration, and latent curation"
-      },
-      {
-        id: `step-${Date.now()}-4`,
-        stepNumber: "04",
-        title: "Refinement & Human-in-the-Loop Polish",
-        description: "Refine compositions, inpaint localized elements, and retouch micro-details.",
-        tools: ["Photoshop", "Inpainting"],
-        evidence: "",
-        humanRole: "Precision manual retouching and color calibration"
-      },
-      {
-        id: `step-${Date.now()}-5`,
-        stepNumber: "05",
-        title: "Final Delivery & Quality Review",
-        description: "Inspect against client specifications and export high-resolution master deliverables.",
-        tools: ["Adobe Suite", "Cloud Storage"],
-        evidence: "",
-        humanRole: "Quality assurance and client package handoff"
-      }
-    ]
+    steps: []
   };
 }

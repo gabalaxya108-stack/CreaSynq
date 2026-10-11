@@ -18,6 +18,7 @@ import BrandWorkspaceView from './views/BrandWorkspaceView';
 import BrandOnboardingView from './views/BrandOnboardingView';
 import CreatorOnboardingView from './views/CreatorOnboardingView';
 import CreatorWorkspaceView from './views/CreatorWorkspaceView';
+import TrustCenterView from './views/TrustCenterView';
 
 import ProjectModal from './components/ProjectModal';
 import CampaignModal from './components/CampaignModal';
@@ -1524,6 +1525,139 @@ export default function App() {
     setSelectedProjectCreator(creator);
   };
 
+  const handleCreateWorkspaceFromProject = ({ project, creator, suggestedName, suggestedAesthetic }) => {
+    // If user is brand, create/launch a brand workspace or pre-fill campaign/collaboration workspace
+    const targetBrand = currentBrand || visibleBrands[0];
+    const userRole = resolveUserRole(currentUser);
+
+    if (userRole === 'creator') {
+      // Navigate to creator studio projects/collaborations
+      setInitialCreatorTab('projects');
+      navigateTo('creator-workspace');
+      return;
+    }
+
+    // Launch Brand Studio workspace with pre-populated project collaboration context
+    if (targetBrand) {
+      // Create new campaign or activate workspace
+      const newCampaign = {
+        id: `camp-proj-${Date.now()}`,
+        ownerBrandId: targetBrand.id,
+        title: suggestedName || `${project.title} Production Collaboration`,
+        brandName: targetBrand.name,
+        brandAvatar: targetBrand.logo,
+        status: 'active',
+        budget: '$8,000 - $14,000',
+        timeline: '3-4 Weeks Production',
+        objective: `Commission and produce creative deliverables based on ${project.title}.`,
+        aesthetic: suggestedAesthetic || project.creativeStyle || 'Cinematic & Editorial',
+        deliverables: project.format || '4K Master Video & Stills Suite',
+        tools: project.tools || 'Midjourney v6, Runway Gen-3',
+        description: project.description || 'Dedicated commercial production workspace.',
+        createdAt: 'Just now'
+      };
+
+      setMarketplaceData(prev => ({
+        ...prev,
+        campaigns: [newCampaign, ...(prev.campaigns || [])],
+        activeCampaignId: newCampaign.id
+      }));
+
+      saveBackendCampaign(newCampaign, targetBrand, currentUser?.id).catch(err => {
+        console.warn('[CreaSync] Background campaign sync deferred:', err);
+      });
+
+      setInitialBrandTab('overview');
+      navigateTo('brand-workspace');
+    } else {
+      setInitialBrandTab('overview');
+      navigateTo('brand-workspace');
+    }
+  };
+
+  // Authorize & save dedicated AI production workflow for a specific portfolio project
+  const handleSaveProjectWorkflow = async (projectId, stages) => {
+    const creatorId = selectedProjectCreator?.id || myCreator?.id || 'maya-chen';
+
+    // Normalize incoming workflow data
+    const isObjectWorkflow = stages && typeof stages === 'object' && !Array.isArray(stages);
+    const stepsArray = isObjectWorkflow ? (stages.steps || []) : (Array.isArray(stages) ? stages : []);
+    const wfTitle = isObjectWorkflow ? (stages.title || '') : '';
+    const wfOverview = isObjectWorkflow ? (stages.overview || '') : '';
+
+    // 1. Update project in marketplaceData creators
+    setMarketplaceData(prev => {
+      const updatedCreators = (prev.creators || CREATORS).map(c => {
+        if (c.id === creatorId) {
+          const updatedProjects = (c.projects || []).map(p => {
+            if (p.id === projectId) {
+              return {
+                ...p,
+                workflowStages: stepsArray,
+                workflowTitle: wfTitle || p.workflowTitle || '',
+                workflowOverview: wfOverview || p.workflowOverview || '',
+                productionWorkflow: {
+                  ...(p.productionWorkflow || {}),
+                  title: wfTitle || p.productionWorkflow?.title || '',
+                  overview: wfOverview || p.productionWorkflow?.overview || '',
+                  steps: stepsArray
+                },
+                updatedAt: 'Just now'
+              };
+            }
+            return p;
+          });
+          return {
+            ...c,
+            projects: updatedProjects
+          };
+        }
+        return c;
+      });
+
+      return {
+        ...prev,
+        creators: updatedCreators
+      };
+    });
+
+    // 2. Also update selectedProject state in-memory so modal view updates instantly
+    setSelectedProject(prev => {
+      if (prev && prev.id === projectId) {
+        return {
+          ...prev,
+          workflowStages: stepsArray,
+          workflowTitle: wfTitle || prev.workflowTitle || '',
+          workflowOverview: wfOverview || prev.workflowOverview || '',
+          productionWorkflow: {
+            ...(prev.productionWorkflow || {}),
+            title: wfTitle || prev.productionWorkflow?.title || '',
+            overview: wfOverview || prev.productionWorkflow?.overview || '',
+            steps: stepsArray
+          }
+        };
+      }
+      return prev;
+    });
+
+    // 3. Persist to Supabase backend through savePortfolioProject
+    const targetProject = (selectedProjectCreator?.projects || []).find(p => p.id === projectId) || selectedProject;
+    if (targetProject) {
+      await saveBackendProject(creatorId, {
+        ...targetProject,
+        workflowStages: stepsArray,
+        workflowTitle: wfTitle || targetProject.workflowTitle || '',
+        workflowOverview: wfOverview || targetProject.workflowOverview || '',
+        productionWorkflow: {
+          ...(targetProject.productionWorkflow || {}),
+          title: wfTitle || targetProject.productionWorkflow?.title || '',
+          overview: wfOverview || targetProject.productionWorkflow?.overview || '',
+          steps: stepsArray
+        }
+      });
+    }
+  };
+
   const handleOpenInviteModal = (creator) => {
     requireAuth(
       { type: 'INVITE_CREATOR', creator, role: 'brand', notice: `Please sign in to invite ${creator?.name || 'this creator'}` },
@@ -1712,6 +1846,7 @@ export default function App() {
                 setIsPipelineTraceModalOpen(true);
               }
             }}
+            onOpenTrustCenter={() => setCurrentView('trust-center')}
           />
         )}
 
@@ -1832,6 +1967,18 @@ export default function App() {
               </button>
             </div>
           </div>
+        )}
+
+        {/* VIEW 7: DEDICATED TRUST CENTRE */}
+        {currentView === 'trust-center' && (
+          <TrustCenterView
+            creators={creatorsList}
+            activeCreatorId={activeCreator?.id || myCreator?.id || 'maya-chen'}
+            currentUser={currentUser}
+            onUpdateCreator={handleUpdateCreator}
+            onViewCreatorProfile={handleOpenCreatorProfile}
+            onBackToMarketplace={() => navigateTo('discover')}
+          />
         )}
       </main>
 
@@ -2201,6 +2348,14 @@ export default function App() {
             setSelectedProjectCreator(null);
           }}
           onViewCreatorProfile={handleOpenCreatorProfile}
+          onCreateWorkspace={handleCreateWorkspaceFromProject}
+          onSaveWorkflow={handleSaveProjectWorkflow}
+          isCreatorOwner={
+            // Creator owns project if logged in as creator and matches creator id, or in demo creator mode
+            resolveUserRole(currentUser) === 'creator' ||
+            (myCreator && myCreator.id === selectedProjectCreator?.id) ||
+            (!currentUser && currentView === 'creator-workspace')
+          }
         />
       )}
 

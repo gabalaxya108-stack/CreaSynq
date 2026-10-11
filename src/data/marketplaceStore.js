@@ -384,15 +384,47 @@ export function getInitialMarketplaceState() {
           if (!Array.isArray(parsed.workflows) || parsed.workflows.length === 0) {
             parsed.workflows = DEMO_WORKFLOWS;
           }
-          // Ensure creators array is present and normalized with workflows and trust verification
+          // Ensure creators array is present and normalized with workflows, trust verification, skills, and project workflows
           parsed.creators = parsed.creators.map(c => {
             let updatedC = { ...c };
+            const seedCreator = CREATORS.find(sc => sc.id === updatedC.id) || null;
+
             if (!Array.isArray(updatedC.workflows) || updatedC.workflows.length === 0) {
               const matchedWfs = (parsed.workflows || DEMO_WORKFLOWS).filter(w => w.creatorId === updatedC.id);
               updatedC.workflows = matchedWfs;
             }
             if (!updatedC.trustVerification) {
               updatedC.trustVerification = createInitialTrustVerification(updatedC);
+            }
+            if (!Array.isArray(updatedC.technicalSkills) || updatedC.technicalSkills.length === 0) {
+              updatedC.technicalSkills = seedCreator?.technicalSkills || [
+                'AI video generation',
+                'Prompt engineering',
+                'ControlNet and reference-image conditioning',
+                'Upscaling and frame interpolation',
+                'ComfyUI node workflows'
+              ];
+            }
+            if (!Array.isArray(updatedC.creativeSkills) || updatedC.creativeSkills.length === 0) {
+              updatedC.creativeSkills = seedCreator?.creativeSkills || [
+                'Visual storytelling',
+                'Cinematic composition',
+                'Art direction',
+                'Color grading',
+                'Lighting and visual aesthetics'
+              ];
+            }
+            // Ensure projects retain or merge workflowStages
+            if (Array.isArray(updatedC.projects)) {
+              updatedC.projects = updatedC.projects.map(p => {
+                const seedProj = seedCreator?.projects?.find(sp => sp.id === p.id);
+                return {
+                  ...p,
+                  workflowStages: Array.isArray(p.workflowStages) && p.workflowStages.length > 0
+                    ? p.workflowStages
+                    : (seedProj?.workflowStages || [])
+                };
+              });
             }
             return updatedC;
           });
@@ -407,7 +439,25 @@ export function getInitialMarketplaceState() {
   const initialCreators = CREATORS.map(c => ({
     ...c,
     workflows: DEMO_WORKFLOWS.filter(w => w.creatorId === c.id),
-    trustVerification: createInitialTrustVerification(c)
+    trustVerification: createInitialTrustVerification(c),
+    technicalSkills: c.technicalSkills || [
+      'AI video generation',
+      'Prompt engineering',
+      'ControlNet and reference-image conditioning',
+      'Upscaling and frame interpolation',
+      'ComfyUI node workflows'
+    ],
+    creativeSkills: c.creativeSkills || [
+      'Visual storytelling',
+      'Cinematic composition',
+      'Art direction',
+      'Color grading',
+      'Lighting and visual aesthetics'
+    ],
+    projects: (c.projects || []).map(p => ({
+      ...p,
+      workflowStages: p.workflowStages || []
+    }))
   }));
 
   return {
@@ -440,7 +490,12 @@ export function getInitialMarketplaceState() {
 export function getPublicCreatorProfile(creator) {
   if (!creator) return null;
   const isDraft = creator.status === 'Draft' || creator.visibility === 'draft' || creator.visibility === 'private';
-  const publishedProjects = (creator.projects || []).filter(p => p.visibility !== 'private');
+  const publishedProjects = (creator.projects || [])
+    .filter(p => p.visibility !== 'private')
+    .map(p => ({
+      ...p,
+      workflowStages: p.workflowStages || []
+    }));
   // Brands have read-only access to published workflows only
   const publishedWorkflows = (creator.workflows || []).filter(w => 
     (w.visibility === 'published' || w.status === 'Published') && w.visibility !== 'private'
@@ -469,7 +524,9 @@ export function getPublicCreatorProfile(creator) {
     isDraft,
     projects: publishedProjects,
     workflows: publishedWorkflows,
-    trustVerification: sanitizedTrust
+    trustVerification: sanitizedTrust,
+    technicalSkills: creator.technicalSkills || [],
+    creativeSkills: creator.creativeSkills || []
   };
 }
 
@@ -893,5 +950,313 @@ export function getPublicCreatorOpportunities(state) {
   const additionalOpps = initialOpps.filter(o => !campaignIdsSeen.has(o.campaignId));
   return [...publishedCampaignOpps, ...additionalOpps];
 }
+
+// ============================================================================
+// TRUST CENTRE STORE RECORD MUTATORS (Local State & Broadcast)
+// ============================================================================
+
+export function getVerificationClaimsRecord(creatorId = null) {
+  const state = getInitialMarketplaceState();
+  let claims = state.verificationClaims || [];
+  
+  // If claims not yet initialized in state, seed with Maya Chen's demo claims
+  if (claims.length === 0) {
+    const maya = (state.creators || []).find(c => c.id === 'maya-chen') || state.creators?.[0];
+    const tv = maya?.trustVerification || {};
+    claims = [
+      {
+        id: 'claim-maya-email',
+        creatorId: 'maya-chen',
+        creatorName: 'Maya Chen',
+        claimType: 'identity',
+        claimTitle: 'Email Verification (maya.chen@alloy.market)',
+        status: tv.email?.status || 'verified',
+        evidenceType: 'Supabase Auth OTP Challenge',
+        evidenceUrl: null,
+        evidenceDetails: { method: 'cryptographic_magic_link' },
+        isPrivate: false,
+        reviewerNotes: tv.email?.notes || 'Cryptographically confirmed via Supabase Auth email challenge.',
+        reviewedBy: 'System Automated Auth',
+        reviewedAt: '2026-09-14T10:00:00Z',
+        createdAt: '2026-09-14T09:30:00Z'
+      },
+      {
+        id: 'claim-maya-id',
+        creatorId: 'maya-chen',
+        creatorName: 'Maya Chen',
+        claimType: 'identity',
+        claimTitle: 'Government Identity Verification (UK Passport)',
+        status: tv.identity?.status || 'pending_review',
+        evidenceType: 'Passport (United Kingdom)',
+        evidenceUrl: 'https://vault.alloy.market/private/identity/doc_maya_enc.pdf',
+        evidenceDetails: { legalName: 'Maya Li-Wei Chen', jurisdiction: 'United Kingdom (GB)', maskedNumber: '•••••• 8941' },
+        isPrivate: true,
+        reviewerNotes: 'Government document queued for compliance verification in encrypted storage.',
+        reviewedBy: null,
+        reviewedAt: null,
+        createdAt: '2026-10-02T14:15:00Z'
+      },
+      {
+        id: 'claim-maya-solarium',
+        creatorId: 'maya-chen',
+        creatorName: 'Maya Chen',
+        claimType: 'portfolio',
+        claimTitle: 'Portfolio Authenticity: Echoes of the Solarium',
+        status: 'verified',
+        evidenceType: 'ComfyUI JSON Graph & 4K ProRes Master',
+        evidenceUrl: 'https://vault.alloy.market/audit/solarium_comfy_v4.json',
+        evidenceDetails: { projectId: 'maya-proj-1', projectTitle: 'Echoes of the Solarium', seed: 48921104, format: 'ProRes 4444' },
+        isPrivate: false,
+        reviewerNotes: 'Inspected original node graph and verified seed reproducibility against finished 4K render.',
+        reviewedBy: 'Elena Rostova (Lead Visual Auditor)',
+        reviewedAt: '2026-10-06T14:22:00Z',
+        createdAt: '2026-10-04T11:00:00Z'
+      },
+      {
+        id: 'claim-maya-lumina',
+        creatorId: 'maya-chen',
+        creatorName: 'Maya Chen',
+        claimType: 'portfolio',
+        claimTitle: 'Portfolio Authenticity: Lumina Botanica Serums',
+        status: 'pending_review',
+        evidenceType: 'ControlNet Depth Passes & Raw PSD Layers',
+        evidenceUrl: 'https://vault.alloy.market/audit/lumina_depth_passes.zip',
+        evidenceDetails: { projectId: 'maya-proj-2', projectTitle: 'Lumina Botanica Serums', model: 'Midjourney v6.1 + ControlNet' },
+        isPrivate: false,
+        reviewerNotes: 'Queued for visual inspection of fluid droplet depth layers.',
+        reviewedBy: null,
+        reviewedAt: null,
+        createdAt: '2026-10-08T09:40:00Z'
+      },
+      {
+        id: 'claim-maya-runway',
+        creatorId: 'maya-chen',
+        creatorName: 'Maya Chen',
+        claimType: 'ai_tools',
+        claimTitle: 'AI Model Claim: Runway Gen-3 Alpha Kinetic Motion',
+        status: 'verified',
+        evidenceType: 'Master Timeline Generation Timestamps',
+        evidenceUrl: null,
+        evidenceDetails: { toolName: 'Runway Gen-3 Alpha', useCase: 'Primary kinetic motion synthesis' },
+        isPrivate: false,
+        reviewerNotes: 'Timestamp metadata in ProRes timeline confirms direct Runway export integration.',
+        reviewedBy: 'Elena Rostova (Lead Visual Auditor)',
+        reviewedAt: '2026-10-06T15:10:00Z',
+        createdAt: '2026-10-04T11:00:00Z'
+      },
+      {
+        id: 'claim-maya-licensing',
+        creatorId: 'maya-chen',
+        creatorName: 'Maya Chen',
+        claimType: 'commercial_rights',
+        claimTitle: 'Commercial Buyout & Model Terms Warranty',
+        status: 'verified',
+        evidenceType: 'Model Terms of Service Disclosure',
+        evidenceUrl: null,
+        evidenceDetails: { licenseTypeGranted: 'Full Commercial Buyout', exclusivityPeriod: '12 Months Category Exclusivity' },
+        isPrivate: false,
+        reviewerNotes: 'Confirmed commercial foundational model tier permits unrestricted commercial deliverables.',
+        reviewedBy: 'Platform Legal Operations',
+        reviewedAt: '2026-09-15T16:00:00Z',
+        createdAt: '2026-09-15T14:00:00Z'
+      }
+    ];
+  }
+
+  if (creatorId) {
+    return claims.filter(c => c.creatorId === creatorId);
+  }
+  return claims;
+}
+
+export function submitVerificationClaimRecord(claimData) {
+  const state = getInitialMarketplaceState();
+  const currentClaims = getVerificationClaimsRecord();
+  
+  const newClaim = {
+    id: claimData.id || `claim-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    creatorId: claimData.creatorId,
+    creatorName: claimData.creatorName || claimData.creatorId,
+    claimType: claimData.claimType,
+    claimTitle: claimData.claimTitle,
+    status: (claimData.status === 'self_declared') ? 'self_declared' : 'pending_review',
+    evidenceType: claimData.evidenceType || 'Submitted Documentation',
+    evidenceUrl: claimData.evidenceUrl || null,
+    evidenceDetails: claimData.evidenceDetails || {},
+    isPrivate: !!claimData.isPrivate,
+    reviewerNotes: 'Queued for compliance review.',
+    reviewedBy: null,
+    reviewedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  const existingIdx = currentClaims.findIndex(c => c.id === newClaim.id);
+  let updatedClaims;
+  if (existingIdx >= 0) {
+    updatedClaims = currentClaims.map((c, i) => i === existingIdx ? newClaim : c);
+  } else {
+    updatedClaims = [newClaim, ...currentClaims];
+  }
+
+  const updatedState = {
+    ...state,
+    verificationClaims: updatedClaims
+  };
+
+  // Sync to creator's trustVerification structure
+  if (state.creators && claimData.creatorId) {
+    updatedState.creators = state.creators.map(cr => {
+      if (cr.id === claimData.creatorId) {
+        const tv = { ...(cr.trustVerification || {}) };
+        if (claimData.claimType === 'portfolio') {
+          tv.portfolioEvidence = [
+            ...(tv.portfolioEvidence || []).filter(p => p.id !== newClaim.id),
+            {
+              id: newClaim.id,
+              projectId: claimData.evidenceDetails?.projectId,
+              projectTitle: claimData.claimTitle,
+              evidenceType: newClaim.evidenceType,
+              description: claimData.evidenceDetails?.description || newClaim.claimTitle,
+              artifactUrl: newClaim.evidenceUrl,
+              status: newClaim.status,
+              submittedAt: 'Just now'
+            }
+          ];
+        } else if (claimData.claimType === 'ai_tools') {
+          tv.toolDeclarations = [
+            ...(tv.toolDeclarations || []).filter(t => t.id !== newClaim.id),
+            {
+              id: newClaim.id,
+              toolName: claimData.evidenceDetails?.toolName || claimData.claimTitle,
+              useCase: claimData.evidenceDetails?.useCase || '',
+              associatedWork: claimData.evidenceDetails?.associatedWork || 'Commercial Deliverables',
+              provenance: 'evidence_attached',
+              status: newClaim.status
+            }
+          ];
+        } else if (claimData.claimType === 'commercial_rights') {
+          tv.licensing = {
+            ...(tv.licensing || {}),
+            modelRightsDeclaration: claimData.evidenceDetails?.modelRightsDeclaration || claimData.claimTitle,
+            licenseTypeGranted: claimData.evidenceDetails?.licenseTypeGranted || 'Full Commercial Buyout',
+            exclusivityPeriod: claimData.evidenceDetails?.exclusivityPeriod || '12 Months Category Exclusivity',
+            status: newClaim.status
+          };
+        } else if (claimData.claimType === 'identity') {
+          tv.identity = {
+            ...(tv.identity || {}),
+            legalName: claimData.evidenceDetails?.legalName || '',
+            issuingCountry: claimData.evidenceDetails?.jurisdiction || '',
+            documentType: claimData.evidenceType || 'Passport',
+            status: newClaim.status,
+            isPrivate: true
+          };
+        }
+        return { ...cr, trustVerification: tv };
+      }
+      return cr;
+    });
+  }
+
+  saveMarketplaceState(updatedState);
+  return newClaim;
+}
+
+export function reviewVerificationClaimRecord({ claimId, decision, notes = '', reviewerName = 'Platform Auditor' }) {
+  const state = getInitialMarketplaceState();
+  const currentClaims = getVerificationClaimsRecord();
+  
+  const target = currentClaims.find(c => c.id === claimId);
+  if (!target) return null;
+
+  let newStatus = 'verified';
+  let auditAction = 'APPROVED';
+  if (decision === 'REJECT') {
+    newStatus = 'unable_to_verify';
+    auditAction = 'REJECTED';
+  } else if (decision === 'REQUEST_INFO' || decision === 'NEEDS_RENEWAL') {
+    newStatus = 'needs_renewal';
+    auditAction = 'REQUEST_INFO';
+  }
+
+  const now = new Date().toISOString();
+  const updatedClaim = {
+    ...target,
+    status: newStatus,
+    reviewerNotes: notes || (decision === 'APPROVE' ? 'Evidence inspected and confirmed authentic.' : 'Additional evidence requested.'),
+    reviewedBy: reviewerName,
+    reviewedAt: now,
+    updatedAt: now
+  };
+
+  const updatedClaims = currentClaims.map(c => c.id === claimId ? updatedClaim : c);
+
+  // Append to audit log
+  const currentAuditLogs = state.verificationAuditLogs || [];
+  const newAuditEntry = {
+    id: `aud-${Date.now()}`,
+    claimId: target.id,
+    creatorId: target.creatorId,
+    reviewerName,
+    action: auditAction,
+    notes: updatedClaim.reviewerNotes,
+    createdAt: now
+  };
+
+  const updatedState = {
+    ...state,
+    verificationClaims: updatedClaims,
+    verificationAuditLogs: [newAuditEntry, ...currentAuditLogs]
+  };
+
+  // Reflect on creator profile
+  if (updatedState.creators && target.creatorId) {
+    updatedState.creators = updatedState.creators.map(cr => {
+      if (cr.id === target.creatorId) {
+        const tv = { ...(cr.trustVerification || {}) };
+        if (target.claimType === 'portfolio') {
+          tv.portfolioEvidence = (tv.portfolioEvidence || []).map(p => 
+            p.id === target.id || p.projectId === target.evidenceDetails?.projectId
+              ? { ...p, status: newStatus, reviewedAt: now, reviewerNotes: notes }
+              : p
+          );
+        } else if (target.claimType === 'ai_tools') {
+          tv.toolDeclarations = (tv.toolDeclarations || []).map(t =>
+            t.id === target.id
+              ? { ...t, status: newStatus }
+              : t
+          );
+        } else if (target.claimType === 'commercial_rights') {
+          tv.licensing = {
+            ...(tv.licensing || {}),
+            status: newStatus
+          };
+        } else if (target.claimType === 'identity') {
+          tv.identity = {
+            ...(tv.identity || {}),
+            status: newStatus,
+            reviewedAt: now,
+            reviewedBy: reviewerName,
+            notes: notes
+          };
+        } else if (target.claimType === 'workflow') {
+          tv.workflowVerification = {
+            ...(tv.workflowVerification || {}),
+            status: newStatus,
+            auditedAt: now,
+            auditorSummary: notes
+          };
+        }
+        return { ...cr, trustVerification: tv };
+      }
+      return cr;
+    });
+  }
+
+  saveMarketplaceState(updatedState);
+  return { claim: updatedClaim, auditEntry: newAuditEntry };
+}
+
 
 

@@ -7,7 +7,7 @@ import {
   ArrowLeft, MapPin, Heart, Share2, Send, Sparkles, ArrowDown, Dna, 
   CheckCircle2, MessageSquare, Clock, ShieldCheck, AlertCircle, Bookmark, 
   BookmarkCheck, ExternalLink, Edit3, Eye, Layers, ChevronRight, Check,
-  Sparkle, Compass, UserCheck, Wrench, Cpu, FileCheck2, Award, Lock, FileText, Video,
+  Sparkle, Compass, UserCheck, Wrench, Cpu, Palette, GitCommit, FileCheck2, Award, Lock, FileText, Video,
   ChevronDown, ChevronUp
 } from 'lucide-react';
 import { getPublicCreatorProfile } from '../data/marketplaceStore';
@@ -16,7 +16,12 @@ import { calculateCreaMatch } from '../intelligence/matchingEngine';
 import { explainMatch } from '../intelligence/matchExplainer';
 import WorkflowTimeline from '../components/WorkflowTimeline';
 import { DEMO_WORKFLOWS } from '../data/workflowsData';
-import { STATUS_META, PROVENANCE_LEVELS } from '../data/trustVerificationData';
+import { 
+  STATUS_META, 
+  PROVENANCE_LEVELS, 
+  VERIFICATION_STATUSES, 
+  getCreatorTrustBadges 
+} from '../data/trustVerificationData';
 
 export default function CreatorProfileView({ 
   creator, 
@@ -39,6 +44,7 @@ export default function CreatorProfileView({
   const [copied, setCopied] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedProjectIds, setExpandedProjectIds] = useState([]);
+  const [selectedTrustBadge, setSelectedTrustBadge] = useState(null);
 
   const toggleExpandProject = (e, projectId) => {
     e.stopPropagation();
@@ -51,6 +57,11 @@ export default function CreatorProfileView({
 
   // Strict Single Source of Truth: Filter out private portfolio items for brand view
   const publicCreator = useMemo(() => getPublicCreatorProfile(creator), [creator]);
+
+  // Derive 6 specific trust verification badges
+  const trustBadges = useMemo(() => {
+    return publicCreator ? getCreatorTrustBadges(publicCreator) : [];
+  }, [publicCreator]);
 
   if (!publicCreator) return null;
 
@@ -264,6 +275,44 @@ export default function CreatorProfileView({
                   ))}
                 </div>
               )}
+
+              {/* Verified Credentials & Trust Badges Strip (Clickable with Scoped Details) */}
+              <div style={{ marginTop: '18px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <ShieldCheck size={13} style={{ color: '#7C3AED' }} />
+                  Trust Badges:
+                </span>
+                {trustBadges.map(badge => {
+                  const meta = STATUS_META[badge.status] || STATUS_META[VERIFICATION_STATUSES.NOT_SUBMITTED];
+                  return (
+                    <button
+                      key={badge.id}
+                      type="button"
+                      onClick={() => setSelectedTrustBadge(badge)}
+                      title={`Click to inspect ${badge.title} (${meta.label})`}
+                      style={{
+                        background: '#FFFFFF',
+                        border: `1px solid ${meta.border || 'var(--border-subtle)'}`,
+                        borderRadius: '100px',
+                        padding: '4px 11px',
+                        fontSize: '0.76rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: meta.color }} />
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{badge.title}</span>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: meta.color, background: meta.bg, padding: '1px 6px', borderRadius: '100px' }}>
+                        {meta.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* Brand Actions — Stable Positions & No Horizontal Shift */}
               <div className="profile-hero-actions" style={{ marginTop: '24px' }}>
@@ -552,6 +601,157 @@ export default function CreatorProfileView({
               </div>
             </div>
 
+            {/* Verified Capabilities Breakdown: Technical & Creative Skills */}
+            <div style={{ 
+              marginTop: '28px', 
+              padding: '24px', 
+              background: 'var(--bg-secondary)', 
+              borderRadius: '14px', 
+              border: '1px solid var(--border-subtle)' 
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sparkles size={16} style={{ color: 'var(--accent-lavender-deep)' }} />
+                    Creator Capabilities & Skill Taxonomy
+                  </h3>
+                  <p style={{ margin: '3px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    Self-reported technical tooling and creative capabilities documented by this creator.
+                  </p>
+                </div>
+                <span style={{ 
+                  fontSize: '0.74rem', 
+                  color: 'var(--text-tertiary)', 
+                  background: 'var(--bg-card)', 
+                  padding: '3px 10px', 
+                  borderRadius: '100px', 
+                  border: '1px solid var(--border-subtle)' 
+                }}>
+                  Self-Declared Profile Skills
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                {/* Technical Skills Box */}
+                <div style={{ 
+                  background: '#FFFFFF', 
+                  padding: '16px 18px', 
+                  borderRadius: '12px', 
+                  border: '1px solid rgba(6, 182, 212, 0.25)',
+                  boxShadow: '0 1px 4px rgba(6, 182, 212, 0.04)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ 
+                        width: '26px', 
+                        height: '26px', 
+                        borderRadius: '6px', 
+                        background: 'rgba(6, 182, 212, 0.12)', 
+                        color: '#0891B2', 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center' 
+                      }}>
+                        <Cpu size={14} />
+                      </span>
+                      <strong style={{ fontSize: '0.88rem', color: '#0E7490' }}>Technical Skills & AI Stack</strong>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: '#0891B2', fontWeight: 600 }}>
+                      {(publicCreator.technicalSkills || []).length} Skills
+                    </span>
+                  </div>
+
+                  {(publicCreator.technicalSkills && publicCreator.technicalSkills.length > 0) ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                      {publicCreator.technicalSkills.map((skill, sIdx) => (
+                        <span 
+                          key={sIdx}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: 'rgba(6, 182, 212, 0.08)',
+                            color: '#0E7490',
+                            border: '1px solid rgba(6, 182, 212, 0.2)',
+                            padding: '4px 10px',
+                            borderRadius: '100px',
+                            fontSize: '0.78rem',
+                            fontWeight: 600
+                          }}
+                        >
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#0891B2' }} />
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                      No technical skills documented yet.
+                    </p>
+                  )}
+                </div>
+
+                {/* Creative Skills Box */}
+                <div style={{ 
+                  background: '#FFFFFF', 
+                  padding: '16px 18px', 
+                  borderRadius: '12px', 
+                  border: '1px solid rgba(124, 58, 237, 0.25)',
+                  boxShadow: '0 1px 4px rgba(124, 58, 237, 0.04)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ 
+                        width: '26px', 
+                        height: '26px', 
+                        borderRadius: '6px', 
+                        background: 'rgba(124, 58, 237, 0.12)', 
+                        color: '#7C3AED', 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center' 
+                      }}>
+                        <Palette size={14} />
+                      </span>
+                      <strong style={{ fontSize: '0.88rem', color: '#6D28D9' }}>Creative Skills & Art Direction</strong>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: '#7C3AED', fontWeight: 600 }}>
+                      {(publicCreator.creativeSkills || []).length} Skills
+                    </span>
+                  </div>
+
+                  {(publicCreator.creativeSkills && publicCreator.creativeSkills.length > 0) ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+                      {publicCreator.creativeSkills.map((skill, sIdx) => (
+                        <span 
+                          key={sIdx}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: 'rgba(124, 58, 237, 0.08)',
+                            color: '#6D28D9',
+                            border: '1px solid rgba(124, 58, 237, 0.2)',
+                            padding: '4px 10px',
+                            borderRadius: '100px',
+                            fontSize: '0.78rem',
+                            fontWeight: 600
+                          }}
+                        >
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#7C3AED' }} />
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                      No creative skills documented yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Footer Trust Guarantee */}
             <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>
               <ShieldCheck size={16} style={{ color: 'var(--accent-lavender-deep)', flexShrink: 0 }} />
@@ -691,13 +891,55 @@ export default function CreatorProfileView({
                         </div>
                       )}
 
-                      <div className="portfolio-showcase-actions" style={{ marginTop: '20px' }}>
+                      {/* Workflow indicator & Technical tags */}
+                      <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                        {proj.workflowStages && proj.workflowStages.length > 0 ? (
+                          <span style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '5px', 
+                            fontSize: '0.74rem', 
+                            fontWeight: 600, 
+                            color: '#0891B2', 
+                            background: 'rgba(6, 182, 212, 0.08)', 
+                            border: '1px solid rgba(6, 182, 212, 0.22)',
+                            padding: '3px 9px', 
+                            borderRadius: '100px' 
+                          }}>
+                            <GitCommit size={12} />
+                            <span>{proj.workflowStages.length} Production Stages Documented</span>
+                          </span>
+                        ) : (
+                          <span style={{ 
+                            fontSize: '0.72rem', 
+                            color: 'var(--text-tertiary)', 
+                            fontStyle: 'italic' 
+                          }}>
+                            Standard portfolio piece
+                          </span>
+                        )}
+
+                        {proj.commercialRights && (
+                          <span style={{ 
+                            fontSize: '0.7rem', 
+                            color: '#059669', 
+                            fontWeight: 600, 
+                            background: 'rgba(16, 185, 129, 0.08)', 
+                            padding: '2px 8px', 
+                            borderRadius: '4px' 
+                          }}>
+                            Commercial Rights Verified
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="portfolio-showcase-actions" style={{ marginTop: '16px' }}>
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
                           onClick={() => onSelectProject && onSelectProject(proj, publicCreator)}
                         >
-                          <span>Open Case Study</span>
+                          <span>Open Case Study & AI Workflow</span>
                           <ExternalLink size={13} />
                         </button>
                       </div>
@@ -1094,6 +1336,87 @@ export default function CreatorProfileView({
           </div>
         </div>
       </div>
+
+      {/* ========================================================
+          MODAL: TRUST BADGE VERIFICATION DETAILS & TRUTHFUL SCOPE
+          ======================================================== */}
+      {selectedTrustBadge && (
+        <div className="modal-backdrop" onClick={() => setSelectedTrustBadge(null)}>
+          <div className="creator-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(5, 150, 105, 0.1)', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <h3 className="font-editorial" style={{ margin: 0, fontSize: '1.3rem' }}>
+                    {selectedTrustBadge.title}
+                  </h3>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>
+                    {selectedTrustBadge.category}
+                  </span>
+                </div>
+              </div>
+              <button type="button" className="modal-close-btn" onClick={() => setSelectedTrustBadge(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Current Status Pill */}
+            <div style={{ marginBottom: '16px' }}>
+              <span style={{
+                padding: '4px 12px',
+                borderRadius: '100px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                background: STATUS_META[selectedTrustBadge.status]?.bg,
+                color: STATUS_META[selectedTrustBadge.status]?.color
+              }}>
+                Current Status: {STATUS_META[selectedTrustBadge.status]?.label}
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '16px' }}>
+              {selectedTrustBadge.description}
+            </p>
+
+            <div style={{ background: 'var(--bg-secondary)', borderRadius: '12px', padding: '16px', fontSize: '0.82rem', display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-primary)', marginBottom: '2px' }}>
+                  What Was Checked:
+                </strong>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {selectedTrustBadge.whatWasChecked}
+                </span>
+              </div>
+
+              <div>
+                <strong style={{ display: 'block', color: 'var(--text-primary)', marginBottom: '2px' }}>
+                  Audit Criteria:
+                </strong>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {selectedTrustBadge.criteria}
+                </span>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '8px' }}>
+                <strong style={{ display: 'block', color: '#D97706', marginBottom: '2px' }}>
+                  Specific Limitations & Truthful Disclaimers:
+                </strong>
+                <span style={{ color: 'var(--text-tertiary)', fontSize: '0.76rem' }}>
+                  {selectedTrustBadge.limitations}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setSelectedTrustBadge(null)}>
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

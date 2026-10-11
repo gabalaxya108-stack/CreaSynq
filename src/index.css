@@ -19744,4 +19744,467 @@ img, video {
   }
 }
 
+/* ============================================================================
+   ALLOY — JUDGE DEMO WALKTHROUGH COMPONENT STYLES
+   ============================================================================ */
+
+@keyframes slideUpTour {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.judge-tour-card-container {
+  position: fixed;
+  bottom: 28px;
+  left: 28px;
+  z-index: 1050;
+  width: 440px;
+  max-width: calc(100vw - 40px);
+  background: rgba(22, 21, 20, 0.96);
+  border: 1px solid rgba(212, 163, 115, 0.35);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border-radius: 18px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  color: #F7F5F0;
+  overflow: hidden;
+  animation: slideUpTour 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.judge-tour-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.judge-tour-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.judge-tour-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #D4A373;
+  background: rgba(212, 163, 115, 0.12);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(212, 163, 115, 0.25);
+}
+
+.judge-tour-step-counter {
+  font-size: 0.74rem;
+  color: #A8A29E;
+  font-weight: 500;
+}
+
+.judge-tour-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.judge-tour-header-btn {
+  background: transparent;
+  border: none;
+  color: #A8A29E;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.judge-tour-header-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #F7F5F0;
+}
+
+.judge-tour-progress-bar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 18px 0;
+}
+
+.judge-tour-progress-dot {
+  flex: 1;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.25s ease;
+}
+
+.judge-tour-progress-dot.active {
+  background: #D4A373;
+  box-shadow: 0 0 8px rgba(212, 163, 115, 0.5);
+}
+
+.judge-tour-progress-dot.completed {
+  background: rgba(212, 163, 115, 0.6);
+}
+
+.judge-tour-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.judge-tour-step-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.judge-tour-step-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(212, 163, 115, 0.15);
+  border: 1px solid rgba(212, 163, 115, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #E5C39E;
+  flex-shrink: 0;
+}
+
+.judge-tour-step-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #D4A373;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.judge-tour-step-title {
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: #F7F5F0;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.judge-tour-step-desc {
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: #D6D3D1;
+  margin: 0;
+}
+
+.judge-tour-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.judge-tour-highlight-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #E7E5E4;
+  line-height: 1.4;
+}
+
+.judge-tour-check-icon {
+  color: #D4A373;
+}
+
+.judge-tour-feature-action-box {
+  margin-top: 4px;
+}
+
+.judge-tour-feature-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #2E2924 0%, #1D1B18 100%);
+  border: 1px solid rgba(212, 163, 115, 0.45);
+  border-radius: 10px;
+  color: #F7F5F0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.judge-tour-feature-btn:hover {
+  background: linear-gradient(135deg, #3D352E 0%, #292420 100%);
+  border-color: rgba(212, 163, 115, 0.7);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.judge-tour-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.judge-tour-skip-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.78rem;
+  color: #A8A29E;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+
+.judge-tour-skip-btn:hover {
+  color: #E7E5E4;
+}
+
+.judge-tour-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.judge-tour-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.judge-tour-prev-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #D6D3D1;
+}
+
+.judge-tour-prev-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #F7F5F0;
+}
+
+.judge-tour-prev-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.judge-tour-next-btn {
+  background: #D4A373;
+  border: 1px solid #D4A373;
+  color: #171615;
+}
+
+.judge-tour-next-btn:hover {
+  background: #E5C39E;
+  border-color: #E5C39E;
+  transform: translateY(-1px);
+}
+
+/* Minimized Floating Pill */
+.judge-tour-minimized-pill {
+  position: fixed;
+  bottom: 28px;
+  left: 28px;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 10px;
+  background: rgba(22, 21, 20, 0.94);
+  border: 1px solid rgba(212, 163, 115, 0.4);
+  border-radius: 9999px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  cursor: pointer;
+  animation: slideUpTour 0.2s ease;
+  transition: all 0.2s ease;
+}
+
+.judge-tour-minimized-pill:hover {
+  border-color: rgba(212, 163, 115, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+.judge-tour-min-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(212, 163, 115, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.judge-tour-min-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.judge-tour-min-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #D4A373;
+  letter-spacing: 0.04em;
+}
+
+.judge-tour-min-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #F7F5F0;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.judge-tour-min-expand-btn {
+  background: transparent;
+  border: none;
+  color: #A8A29E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.judge-tour-min-expand-btn:hover {
+  color: #F7F5F0;
+}
+
+/* Floating Tour Launcher Button (when closed/completed) */
+.judge-tour-launcher-btn {
+  position: fixed;
+  bottom: 28px;
+  left: 28px;
+  z-index: 1040;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: rgba(22, 21, 20, 0.92);
+  border: 1px solid rgba(212, 163, 115, 0.4);
+  border-radius: 9999px;
+  color: #F7F5F0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.judge-tour-launcher-btn:hover {
+  border-color: rgba(212, 163, 115, 0.75);
+  background: rgba(30, 28, 26, 0.96);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+}
+
+/* Header Tour Button */
+.header-tour-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  background: rgba(212, 163, 115, 0.12);
+  border: 1px solid rgba(212, 163, 115, 0.35);
+  border-radius: 9999px;
+  color: #D4A373;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.header-tour-btn:hover {
+  background: rgba(212, 163, 115, 0.2);
+  border-color: rgba(212, 163, 115, 0.55);
+  color: #E5C39E;
+  transform: translateY(-1px);
+}
+
+/* Hero Tour Button */
+.btn-hero-tour {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  background: rgba(250, 243, 234, 0.92);
+  border: 1px solid rgba(212, 163, 115, 0.4);
+  color: #8F663B;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.btn-hero-tour:hover {
+  background: #FAF3EA;
+  border-color: #8F663B;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(143, 102, 59, 0.18);
+}
+
+@media (max-width: 640px) {
+  .judge-tour-card-container {
+    left: 12px;
+    right: 12px;
+    bottom: 16px;
+    width: auto;
+    max-width: none;
+  }
+
+  .judge-tour-minimized-pill,
+  .judge-tour-launcher-btn {
+    left: 14px;
+    bottom: 16px;
+  }
+}
+
 

@@ -11,7 +11,8 @@ export default function Hero({
   onFindCreator, 
   onJoinCreator, 
   onExploreWork,
-  onSelectCreator
+  onSelectCreator,
+  onStartJudgeTour
 }) {
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -63,6 +64,19 @@ export default function Hero({
             >
               <span>I'm a Creator</span>
             </button>
+
+            {onStartJudgeTour && (
+              <button 
+                type="button" 
+                className="btn-hero-tour"
+                onClick={onStartJudgeTour}
+                id="hero-judge-tour-btn"
+                aria-label="Start Judge Demo Tour"
+              >
+                <Sparkles size={14} className="text-bronze" />
+                <span>Start Judge Demo</span>
+              </button>
+            )}
           </div>
 
           {/* Verified Traction Stats Strip */}

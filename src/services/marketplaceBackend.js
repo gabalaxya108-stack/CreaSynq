@@ -1510,13 +1510,17 @@ export async function sendInvitation(invitationData, actorName = null, userId = 
   if (isSupabaseConfigured() && supabase) {
     try {
       if (invRecord.brandId) {
-        await supabase.from('brands').upsert({
+        const brandPayload = {
           id: invRecord.brandId,
           name: invRecord.brandName || 'Brand Partner',
           logo: invRecord.brandLogo || null,
-          is_demo: true,
+          is_demo: !userId,
           updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
+        };
+        if (userId) {
+          brandPayload.user_id = userId;
+        }
+        await supabase.from('brands').upsert(brandPayload, { onConflict: 'id' });
       }
 
       const { data, error } = await supabase
@@ -1558,11 +1562,65 @@ export async function sendInvitation(invitationData, actorName = null, userId = 
         userId
       });
 
-      // Synchronize local cache
+      // Persist initial invitation message to Supabase messages table if summary exists
+      const canonicalConnId = invRecord.campaignId
+        ? `conn-${invRecord.campaignId}-${invRecord.creatorId}`
+        : `conn-${invRecord.brandId || 'brand-general'}-${invRecord.creatorId}`;
+
+      if (invRecord.summary) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData?.session?.user) {
+            await supabase.from('messages').insert({
+              id: `msg-inv-${invRecord.id}`,
+              conversation_id: canonicalConnId,
+              sender: 'brand',
+              sender_name: invRecord.brandName || 'Brand Partner',
+              text: invRecord.summary,
+              created_at: new Date().toISOString()
+            });
+          }
+        } catch (msgErr) {
+          console.warn('[Supabase] Initial message persistence deferred:', msgErr.message);
+        }
+      }
+
+      // Synchronize local cache with both invitation and canonical connection thread
       const state = getInitialMarketplaceState();
+      const existingConnIndex = (state.connections || []).findIndex(c => 
+        c.id === canonicalConnId || (c.creatorId === invRecord.creatorId && c.campaignId === invRecord.campaignId)
+      );
+      const initialMessageObj = {
+        id: `msg-inv-${invRecord.id}`,
+        conversationId: canonicalConnId,
+        sender: 'brand',
+        senderName: invRecord.brandName || 'Brand Partner',
+        text: invRecord.summary || `Direct invitation from ${invRecord.brandName || 'Brand Partner'} to collaborate.`,
+        timestamp: 'Just now'
+      };
+      const connRecord = {
+        id: canonicalConnId,
+        brandId: invRecord.brandId,
+        creatorId: invRecord.creatorId,
+        creatorName: invRecord.creatorName,
+        creatorRole: "Creative Partner",
+        creatorAvatar: invRecord.creatorAvatar,
+        campaignId: invRecord.campaignId,
+        campaignTitle: invRecord.campaignTitle,
+        brandName: invRecord.brandName,
+        status: 'connected',
+        createdAt: 'Just now',
+        connectedAt: 'Just now',
+        messages: [initialMessageObj]
+      };
+      const nextConnections = existingConnIndex >= 0
+        ? state.connections.map((c, i) => i === existingConnIndex ? { ...c, ...connRecord, messages: (c.messages && c.messages.length > 0) ? c.messages : [initialMessageObj] } : c)
+        : [connRecord, ...(state.connections || [])];
+
       saveMarketplaceState({
         ...state,
-        invitations: [normalizeSupabaseInvitation(data), ...(state.invitations || [])]
+        invitations: [normalizeSupabaseInvitation(data), ...(state.invitations || [])],
+        connections: nextConnections
       });
 
       return normalizeSupabaseInvitation(data);
@@ -1573,10 +1631,45 @@ export async function sendInvitation(invitationData, actorName = null, userId = 
   }
 
   // Local fallback
+  const canonicalConnId = invRecord.campaignId
+    ? `conn-${invRecord.campaignId}-${invRecord.creatorId}`
+    : `conn-${invRecord.brandId || 'brand-general'}-${invRecord.creatorId}`;
+
   const state = getInitialMarketplaceState();
+  const existingConnIndex = (state.connections || []).findIndex(c => 
+    c.id === canonicalConnId || (c.creatorId === invRecord.creatorId && c.campaignId === invRecord.campaignId)
+  );
+  const initialMessageObj = {
+    id: `msg-inv-${invRecord.id}`,
+    conversationId: canonicalConnId,
+    sender: 'brand',
+    senderName: invRecord.brandName || 'Brand Partner',
+    text: invRecord.summary || `Direct invitation from ${invRecord.brandName || 'Brand Partner'} to collaborate.`,
+    timestamp: 'Just now'
+  };
+  const connRecord = {
+    id: canonicalConnId,
+    brandId: invRecord.brandId,
+    creatorId: invRecord.creatorId,
+    creatorName: invRecord.creatorName,
+    creatorRole: "Creative Partner",
+    creatorAvatar: invRecord.creatorAvatar,
+    campaignId: invRecord.campaignId,
+    campaignTitle: invRecord.campaignTitle,
+    brandName: invRecord.brandName,
+    status: 'connected',
+    createdAt: 'Just now',
+    connectedAt: 'Just now',
+    messages: [initialMessageObj]
+  };
+  const nextConnections = existingConnIndex >= 0
+    ? state.connections.map((c, i) => i === existingConnIndex ? { ...c, ...connRecord, messages: (c.messages && c.messages.length > 0) ? c.messages : [initialMessageObj] } : c)
+    : [connRecord, ...(state.connections || [])];
+
   const nextState = {
     ...state,
-    invitations: [invRecord, ...(state.invitations || [])]
+    invitations: [invRecord, ...(state.invitations || [])],
+    connections: nextConnections
   };
   saveMarketplaceState(nextState);
   return invRecord;
@@ -2334,3 +2427,247 @@ export function subscribeToActivityLogs(callback) {
     return () => {};
   }
 }
+
+// ============================================================================
+// 10. MESSAGING SYSTEM (Persistent Cloud & Local Store with Realtime Sync)
+// ============================================================================
+
+export function normalizeSupabaseMessage(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    sender: row.sender,
+    senderName: row.sender_name,
+    text: row.text,
+    createdAt: row.created_at,
+    timestamp: formatMessageTimestamp(row.created_at)
+  };
+}
+
+function formatMessageTimestamp(isoString) {
+  if (!isoString) return 'Just now';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return 'Just now';
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return timeStr;
+    const isYesterday = (now.getTime() - d.getTime()) < 86400000 * 2;
+    if (isYesterday) return `Yesterday, ${timeStr}`;
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + `, ${timeStr}`;
+  } catch {
+    return 'Just now';
+  }
+}
+
+/**
+ * Fetches chronological messages for a conversation
+ */
+export async function fetchMessages(conversationIdOrTarget) {
+  const targetId = typeof conversationIdOrTarget === 'string'
+    ? conversationIdOrTarget
+    : (conversationIdOrTarget?.conversationId || conversationIdOrTarget?.connectionId || conversationIdOrTarget?.id);
+  if (!targetId) return [];
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', targetId)
+          .order('created_at', { ascending: true });
+
+        if (!error && Array.isArray(data) && data.length > 0) {
+          return data.map(normalizeSupabaseMessage);
+        }
+      }
+    } catch (err) {
+      console.warn('[Supabase] Could not fetch messages from cloud:', err.message);
+    }
+  }
+
+  // Local fallback: read from marketplace connections
+  const state = getInitialMarketplaceState();
+  const conn = (state.connections || []).find(c => c.id === targetId || (c.campaignId && c.creatorId && targetId === `conn-${c.campaignId}-${c.creatorId}`));
+  return conn?.messages || [];
+}
+
+/**
+ * Sends a message in a conversation.
+ * Validates input, persists to Supabase (or local fallback), updates cache, and returns the message.
+ */
+export async function sendMessage({ conversationId, connectionId, sender, senderName, text, timestamp, userId = null, actorName = null }) {
+  const targetConversationId = conversationId || connectionId;
+  if (!targetConversationId) {
+    throw new Error('Conversation ID is required to send a message.');
+  }
+  const trimmed = (text || '').trim();
+  if (!trimmed) {
+    throw new Error('Message cannot be empty or whitespace-only.');
+  }
+
+  const validSender = (sender === 'brand' || sender === 'creator') ? sender : 'brand';
+  const msgId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const nowIso = new Date().toISOString();
+
+  const msgPayload = {
+    id: msgId,
+    conversationId: targetConversationId,
+    sender: validSender,
+    senderName: senderName || (validSender === 'brand' ? 'Brand Partner' : 'Creator'),
+    text: trimmed,
+    timestamp: timestamp || 'Just now',
+    createdAt: nowIso
+  };
+
+  if (isSupabaseConfigured() && supabase) {
+    let authUser = null;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      authUser = sessionData?.session?.user || null;
+    } catch (sessionErr) {
+      authUser = null;
+    }
+
+    // Only route to Supabase if a valid authenticated cloud session exists and caller is not a mock demo ID
+    if (authUser && userId && !String(userId).startsWith('maya-chen') && !String(userId).startsWith('demo-')) {
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .insert({
+            id: msgPayload.id,
+            conversation_id: targetConversationId,
+            sender: msgPayload.sender,
+            sender_name: msgPayload.senderName,
+            text: msgPayload.text,
+            created_at: nowIso
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        await logActivity({
+          actorRole: validSender,
+          actorName: actorName || msgPayload.senderName,
+          actionType: 'MESSAGE_SENT',
+          entityType: 'message',
+          entityId: msgPayload.id,
+          metadata: {
+            conversationId: targetConversationId,
+            textLength: trimmed.length
+          },
+          userId: authUser.id
+        });
+
+        // Update local cache
+        const state = getInitialMarketplaceState();
+        const updatedConns = (state.connections || []).map(conn => {
+          if (conn.id === targetConversationId || (conn.campaignId && conn.creatorId && targetConversationId === `conn-${conn.campaignId}-${conn.creatorId}`)) {
+            const currentMsgs = conn.messages || [];
+            const exists = currentMsgs.some(m => m.id === msgPayload.id);
+            return {
+              ...conn,
+              updatedAt: nowIso,
+              messages: exists ? currentMsgs : [...currentMsgs, normalizeSupabaseMessage(data)]
+            };
+          }
+          return conn;
+        });
+        saveMarketplaceState({ ...state, connections: updatedConns });
+
+        return normalizeSupabaseMessage(data);
+      } catch (err) {
+        console.error('[Supabase] Database error sending message:', err);
+        throw new Error(`Failed to send message: ${err.message}`);
+      }
+    } else {
+      // In unauthenticated demo mode, route directly to local marketplace store without failing Supabase RLS
+      console.info('[Messaging] Unauthenticated demo session: persisting message directly to local store.');
+    }
+  }
+
+  // Local persistent fallback for demo mode
+  const state = getInitialMarketplaceState();
+  let connFound = false;
+  const updatedConns = (state.connections || []).map(conn => {
+    if (conn.id === targetConversationId || (conn.campaignId && conn.creatorId && targetConversationId === `conn-${conn.campaignId}-${conn.creatorId}`)) {
+      connFound = true;
+      const currentMsgs = conn.messages || [];
+      return {
+        ...conn,
+        updatedAt: nowIso,
+        messages: [...currentMsgs, msgPayload]
+      };
+    }
+    return conn;
+  });
+
+  if (!connFound) {
+    // If conversation wasn't in state.connections, create a connection entry
+    updatedConns.unshift({
+      id: targetConversationId,
+      status: 'connected',
+      updatedAt: nowIso,
+      messages: [msgPayload]
+    });
+  }
+
+  saveMarketplaceState({ ...state, connections: updatedConns });
+  return msgPayload;
+}
+
+/**
+ * Subscribes to real-time message events for a conversation
+ */
+export function subscribeToMessages(conversationIdOrTarget, callback) {
+  if (!isSupabaseConfigured() || !supabase || typeof callback !== 'function') {
+    return () => {};
+  }
+
+  const targetId = typeof conversationIdOrTarget === 'string'
+    ? conversationIdOrTarget
+    : (conversationIdOrTarget?.conversationId || conversationIdOrTarget?.connectionId || null);
+
+  try {
+    const channelName = targetId ? `public:messages:${targetId}` : 'public:messages';
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages'
+      }, payload => {
+        try {
+          if (payload.new) {
+            if (!targetId || payload.new.conversation_id === targetId) {
+              callback(normalizeSupabaseMessage(payload.new));
+            }
+          }
+        } catch (e) {
+          console.warn('[Realtime] Message event callback error:', e);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {}
+    };
+  } catch (err) {
+    console.warn('[Realtime] Could not subscribe to messages:', err);
+    return () => {};
+  }
+}
+
+export {
+  sendMessage as sendBackendMessage,
+  fetchMessages as fetchBackendMessages
+};
+
+

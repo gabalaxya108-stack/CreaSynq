@@ -223,7 +223,10 @@ export default function CreatorWorkspaceView({
   const [creatorConnections, setCreatorConnections] = useState(() => {
     return connections.length > 0 ? connections : [
       {
-        id: "conn-lumina-skincare",
+        id: "conn-maya-skincare",
+        brandId: "brand-demo-lumina",
+        creatorId: "maya-chen",
+        campaignId: "camp-summer-skincare",
         campaignTitle: "Summer Skincare & Radiant Hydration Launch",
         brandName: "Lumina Botanica",
         status: "connected",
@@ -2151,14 +2154,25 @@ export default function CreatorWorkspaceView({
                 </div>
 
                 <form onSubmit={handleSendChatMessage} className="chat-compose-form">
-                  <input 
-                    type="text" 
+                  <textarea 
                     className="form-input chat-input" 
-                    placeholder={`Message ${activeConnection?.brandName}...`}
+                    placeholder={`Message ${activeConnection?.brandName || 'partner'}... (Enter to send, Shift+Enter for newline)`}
                     value={chatInputText}
                     onChange={(e) => setChatInputText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendChatMessage(e);
+                      }
+                    }}
+                    rows={1}
+                    style={{ resize: 'none', minHeight: '38px', padding: '8px 12px', fontFamily: 'inherit' }}
                   />
-                  <button type="submit" className="btn btn-primary btn-sm chat-send-btn">
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary btn-sm chat-send-btn"
+                    disabled={!chatInputText.trim()}
+                  >
                     <Send size={15} />
                     <span>Send</span>
                   </button>

@@ -13,6 +13,8 @@ export default function ConversationModal({
   onViewProfile
 }) {
   const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -21,21 +23,49 @@ export default function ConversationModal({
     }
   }, [isOpen, connection?.messages]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !connection) return null;
 
-  const handleSend = (e) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const handleSend = async (e) => {
+    if (e) e.preventDefault();
+    const trimmed = inputText.trim();
+    if (!trimmed || isSending) return;
 
-    if (onSendMessage) {
-      onSendMessage(connection.id, {
-        sender: currentUserRole,
-        senderName: currentUserRole === 'brand' ? connection.brandName : connection.creatorName,
-        text: inputText.trim(),
-        timestamp: 'Just now'
-      });
+    setIsSending(true);
+    setErrorMsg(null);
+
+    try {
+      if (onSendMessage) {
+        await onSendMessage(connection.id, {
+          sender: currentUserRole,
+          senderName: currentUserRole === 'brand' ? connection.brandName : connection.creatorName,
+          text: trimmed,
+          timestamp: 'Just now'
+        });
+      }
+      setInputText('');
+    } catch (err) {
+      console.error('[ConversationModal] Send failed:', err);
+      setErrorMsg(err.message || 'Failed to send message.');
+    } finally {
+      setIsSending(false);
     }
-    setInputText('');
+  };
+
+  const handleTextareaKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   const otherPartyName = currentUserRole === 'brand' ? connection.creatorName : connection.brandName;
@@ -131,26 +161,40 @@ export default function ConversationModal({
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Error message if send failed */}
+        {errorMsg && (
+          <div style={{ padding: '8px 16px', background: '#FEF2F2', color: '#DC2626', fontSize: '0.8rem', borderTop: '1px solid #FEE2E2' }}>
+            {errorMsg}
+          </div>
+        )}
+
         {/* Input Bar */}
         <form onSubmit={handleSend} className="conversation-input-bar">
-          <input
-            type="text"
+          <textarea
             className="conversation-input-field"
-            placeholder={`Message ${otherPartyName.split(' ')[0]}...`}
+            placeholder={`Message ${otherPartyName ? otherPartyName.split(' ')[0] : 'partner'}... (Enter to send, Shift+Enter for newline)`}
             value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            onChange={(e) => {
+              setInputText(e.target.value);
+              if (errorMsg) setErrorMsg(null);
+            }}
+            onKeyDown={handleTextareaKeyDown}
+            disabled={isSending}
+            rows={1}
+            style={{ resize: 'none', minHeight: '36px', maxHeight: '100px', padding: '8px 12px', fontFamily: 'inherit' }}
             autoFocus
           />
           <button 
             type="submit" 
             className="btn btn-primary btn-sm conversation-send-btn"
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || isSending}
           >
             <Send size={14} />
-            <span>Send</span>
+            <span>{isSending ? 'Sending...' : 'Send'}</span>
           </button>
         </form>
       </div>
     </div>
   );
 }
+

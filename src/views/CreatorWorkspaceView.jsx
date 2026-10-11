@@ -18,6 +18,8 @@ import MultiFormatUploader from '../components/MultiFormatUploader';
 import CreatorSkillsManager from '../components/CreatorSkillsManager';
 import ProjectWorkflowEditor from '../components/ProjectWorkflowEditor';
 import { createInitialTrustVerification } from '../data/trustVerificationData';
+import MessagesLoginWall from '../components/MessagesLoginWall';
+import { deduplicateMessages } from '../services/marketplaceBackend';
 
 function formatInvitationField(...values) {
   for (const value of values) {
@@ -43,7 +45,9 @@ export default function CreatorWorkspaceView({
   onSubmitDeliverables: propOnSubmitDeliverables,
   onSendMessage: propOnSendMessage,
   onSelectProject: propOnSelectProject,
-  initialTab = 'overview'
+  initialTab = 'overview',
+  onLoginSuccess,
+  onOpenLogin
 }) {
   const [activeCreator, setActiveCreator] = useState(creator || {});
   const [activeTab, setActiveTab] = useState(initialTab || 'overview'); // 'overview' | 'portfolio' | 'opportunities' | 'invitations' | 'projects' | 'messages' | 'profile' | 'trust'
@@ -266,6 +270,8 @@ export default function CreatorWorkspaceView({
     return initial[0]?.id || null;
   });
   const [chatInputText, setChatInputText] = useState('');
+  const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
+  const [chatErrorMessage, setChatErrorMessage] = useState(null);
 
   // Keep selectedConnectionId pointing to a valid connection
   useEffect(() => {
@@ -708,10 +714,13 @@ export default function CreatorWorkspaceView({
   };
 
   // --- Handlers: Chat Messages ---
-  const handleSendChatMessage = (e) => {
-    e.preventDefault();
+  const handleSendChatMessage = async (e) => {
+    if (e) e.preventDefault();
     const trimmed = chatInputText.trim();
-    if (!trimmed || !selectedConnectionId) return;
+    if (!trimmed || !selectedConnectionId || isSendingChatMessage) return;
+
+    setIsSendingChatMessage(true);
+    setChatErrorMessage(null);
 
     const newMsg = {
       id: `msg-${Date.now()}`,
@@ -721,26 +730,27 @@ export default function CreatorWorkspaceView({
       timestamp: 'Just now'
     };
 
-    if (propOnSendMessage) {
-      // Parent handler is the single source of truth: it updates
-      // marketplaceData.connections which flows back via the connections prop.
-      // activeConnectionsList prioritizes prop connections, so a local
-      // setCreatorConnections update here would be invisible (dead write).
-      propOnSendMessage(selectedConnectionId, newMsg);
-    } else {
-      // Demo/standalone fallback: no parent handler, manage messages locally
-      setCreatorConnections(prev => prev.map(c => {
-        if (c.id === selectedConnectionId) {
-          return {
-            ...c,
-            messages: [...(c.messages || []), newMsg]
-          };
-        }
-        return c;
-      }));
+    try {
+      if (propOnSendMessage) {
+        await propOnSendMessage(selectedConnectionId, newMsg);
+      } else {
+        setCreatorConnections(prev => prev.map(c => {
+          if (c.id === selectedConnectionId) {
+            return {
+              ...c,
+              messages: [...(c.messages || []), newMsg]
+            };
+          }
+          return c;
+        }));
+      }
+      setChatInputText('');
+    } catch (err) {
+      console.error('[CreatorWorkspace] Send failed:', err);
+      setChatErrorMessage(err.message || 'Failed to send message.');
+    } finally {
+      setIsSendingChatMessage(false);
     }
-
-    setChatInputText('');
   };
 
   // --- Handlers: Profile Save ---
@@ -2122,6 +2132,15 @@ export default function CreatorWorkspaceView({
             TAB 6: MESSAGES
             ======================================================== */}
         {activeTab === 'messages' && (
+          !currentUser ? (
+            <div className="studio-messages-view" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '420px', padding: '24px 0' }}>
+              <MessagesLoginWall
+                initialRole="creator"
+                onLoginSuccess={onLoginSuccess}
+                onOpenEmailLogin={onOpenLogin}
+              />
+            </div>
+          ) : (
           <div className="studio-messages-view">
             <div className="studio-chat-container studio-card">
               {/* Left Conversations Sidebar */}
@@ -2160,7 +2179,7 @@ export default function CreatorWorkspaceView({
                 </div>
 
                 <div className="chat-messages-history">
-                  {(activeConnection?.messages || []).map((msg) => (
+                  {deduplicateMessages(activeConnection?.messages || []).map((msg) => (
                     <div key={msg.id} className={`chat-message-bubble ${msg.sender === 'creator' ? 'outgoing' : 'incoming'}`}>
                       <span className="bubble-sender">{msg.senderName}</span>
                       <p className="bubble-text">{msg.text}</p>
@@ -2169,33 +2188,44 @@ export default function CreatorWorkspaceView({
                   ))}
                 </div>
 
+                {chatErrorMessage && (
+                  <div style={{ padding: '8px 14px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', fontSize: '0.85rem', borderRadius: '6px', margin: '0 16px 8px' }}>
+                    {chatErrorMessage}
+                  </div>
+                )}
+
                 <form onSubmit={handleSendChatMessage} className="chat-compose-form">
                   <textarea 
                     className="form-input chat-input" 
                     placeholder={`Message ${activeConnection?.brandName || 'partner'}... (Enter to send, Shift+Enter for newline)`}
                     value={chatInputText}
-                    onChange={(e) => setChatInputText(e.target.value)}
+                    onChange={(e) => {
+                      setChatInputText(e.target.value);
+                      if (chatErrorMessage) setChatErrorMessage(null);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         handleSendChatMessage(e);
                       }
                     }}
+                    disabled={isSendingChatMessage}
                     rows={1}
                     style={{ resize: 'none', minHeight: '38px', padding: '8px 12px', fontFamily: 'inherit' }}
                   />
                   <button 
                     type="submit" 
                     className="btn btn-primary btn-sm chat-send-btn"
-                    disabled={!chatInputText.trim()}
+                    disabled={!chatInputText.trim() || isSendingChatMessage}
                   >
                     <Send size={15} />
-                    <span>Send</span>
+                    <span>{isSendingChatMessage ? 'Sending...' : 'Send'}</span>
                   </button>
                 </form>
               </div>
             </div>
           </div>
+          )
         )}
 
         {/* ========================================================

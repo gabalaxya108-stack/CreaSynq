@@ -146,6 +146,15 @@ export default function Header({
             >
               Trust Centre
             </li>
+            <li 
+              className={`nav-item ${currentView === 'messages' ? 'active' : ''}`}
+              onClick={() => handleLinkClick(() => onNavigate('messages'))}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && handleLinkClick(() => onNavigate('messages'))}
+            >
+              Messages
+            </li>
           </ul>
         </nav>
 
@@ -319,6 +328,9 @@ export default function Header({
             </li>
             <li onClick={() => handleLinkClick(() => onNavigate('trust-center'))}>
               <span style={{ fontWeight: 600, color: '#7C3AED' }}>Trust Centre</span>
+            </li>
+            <li onClick={() => handleLinkClick(() => onNavigate('messages'))}>
+              <span>Messages</span>
             </li>
           </ul>
 

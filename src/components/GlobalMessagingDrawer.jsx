@@ -18,6 +18,8 @@ import {
   ExternalLink,
   ShieldCheck
 } from 'lucide-react';
+import { deduplicateMessages } from '../services/marketplaceBackend';
+import MessagesLoginWall from './MessagesLoginWall';
 
 export default function GlobalMessagingDrawer({
   isOpen,
@@ -32,7 +34,9 @@ export default function GlobalMessagingDrawer({
   currentCreator = null,
   onSendMessage,
   onViewProfile,
-  onViewProject
+  onViewProject,
+  onOpenLogin,
+  onLoginSuccess
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
@@ -54,8 +58,9 @@ export default function GlobalMessagingDrawer({
     ? (currentBrand?.id || 'brand-general')
     : (currentCreator?.id || 'creator-general');
 
-  // Filter conversations authorized for current participant
+  // Filter conversations authorized for current participant (strictly gated to authenticated users)
   const authorizedConnections = useMemo(() => {
+    if (!currentUser) return [];
     return (connections || []).filter(conn => {
       // In demo mode or general browsing, preserve accessibility
       if (!myId || myId === 'brand-general' || myId === 'creator-general') return true;
@@ -67,7 +72,7 @@ export default function GlobalMessagingDrawer({
       }
       return true;
     });
-  }, [connections, myRole, myId]);
+  }, [connections, myRole, myId, currentUser]);
 
   // Filtered by search query
   const displayedConversations = useMemo(() => {
@@ -93,6 +98,7 @@ export default function GlobalMessagingDrawer({
 
   // Compute unread count (if any)
   const unreadCount = useMemo(() => {
+    if (!currentUser) return 0;
     return authorizedConnections.reduce((count, conn) => {
       const lastMsg = conn.messages && conn.messages[conn.messages.length - 1];
       if (lastMsg && lastMsg.sender !== myRole && conn.isUnread) {
@@ -100,7 +106,7 @@ export default function GlobalMessagingDrawer({
       }
       return count;
     }, 0);
-  }, [authorizedConnections, myRole]);
+  }, [authorizedConnections, myRole, currentUser]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -145,7 +151,7 @@ export default function GlobalMessagingDrawer({
   // Submission handler
   const handleSend = async (textToSend = null) => {
     const text = (textToSend !== null ? textToSend : messageInput).trim();
-    if (!text || isSending || !activeConnection) return;
+    if (!text || isSending || !activeConnection || !currentUser) return;
 
     setIsSending(true);
     setSendError(null);
@@ -303,9 +309,16 @@ export default function GlobalMessagingDrawer({
           </div>
         </div>
 
-        {/* Drawer Body: Conversation List OR Active Chat Thread */}
+        {/* Drawer Body: Auth Wall OR Conversation List OR Active Chat Thread */}
         <div className="global-messaging-body">
-          {!activeConnection ? (
+          {!currentUser ? (
+            <MessagesLoginWall
+              isCompact={true}
+              initialRole={currentUserRole || 'brand'}
+              onLoginSuccess={onLoginSuccess}
+              onOpenEmailLogin={onOpenLogin}
+            />
+          ) : !activeConnection ? (
             /* CONVERSATION LIST VIEW */
             <div className="global-messaging-list-view">
               {/* Search Bar */}
@@ -411,12 +424,16 @@ export default function GlobalMessagingDrawer({
 
               {/* Message Stream */}
               <div className="drawer-messages-stream" role="log" aria-live="polite">
-                {(!activeConnection.messages || activeConnection.messages.length === 0) ? (
-                  <div className="drawer-thread-empty">
-                    <p>No messages yet. Send a note to kick off concept alignment!</p>
-                  </div>
-                ) : (
-                  activeConnection.messages.map((msg, index) => {
+                {(() => {
+                  const threadMessages = deduplicateMessages(activeConnection.messages || []);
+                  if (threadMessages.length === 0) {
+                    return (
+                      <div className="drawer-thread-empty">
+                        <p>No messages yet. Send a note to kick off concept alignment!</p>
+                      </div>
+                    );
+                  }
+                  return threadMessages.map((msg, index) => {
                     const isMe = msg.sender === myRole;
                     const isPending = msg.isPending;
                     const isError = msg.isError;
@@ -457,8 +474,8 @@ export default function GlobalMessagingDrawer({
                         </div>
                       </div>
                     );
-                  })
-                )}
+                  });
+                })()}
                 <div ref={messagesEndRef} />
               </div>
 

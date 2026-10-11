@@ -34,6 +34,7 @@ import GlobalMessagingDrawer from './components/GlobalMessagingDrawer';
 import RoleSelectModal from './components/RoleSelectModal';
 import LoginModal from './components/LoginModal';
 import RoleConflictModal from './components/RoleConflictModal';
+import MessagesLoginWall from './components/MessagesLoginWall';
 import JudgeDemoWalkthrough from './components/JudgeDemoWalkthrough';
 import { Sparkles } from 'lucide-react';
 
@@ -82,7 +83,9 @@ import {
   signOut as backendSignOut,
   syncUserProfileSafely,
   updateUserRoleExplicitly,
-  executeCampaignFilteringPipeline
+  executeCampaignFilteringPipeline,
+  deduplicateMessages,
+  reconcileMessages
 } from './services/marketplaceBackend';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 
@@ -274,24 +277,31 @@ export default function App() {
       }
     });
 
+    return () => {
+      isMounted = false;
+      unsubInv();
+      unsubCollab();
+      unsubCamp();
+    };
+  }, []);
+
+  // Supabase Realtime message subscription - strictly gated to authenticated sessions
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let isMounted = true;
     const unsubMsg = subscribeToMessages(null, (newMsg) => {
       if (!isMounted || !newMsg || !newMsg.conversationId) return;
       setMarketplaceData(prev => {
         let matched = false;
         const nextConns = (prev.connections || []).map(conn => {
-          if (conn.id === newMsg.conversationId) {
+          const canonicalMatch = conn.id === newMsg.conversationId ||
+            (conn.campaignId && conn.creatorId && newMsg.conversationId === `conn-${conn.campaignId}-${conn.creatorId}`);
+          if (canonicalMatch) {
             matched = true;
-            const msgs = conn.messages || [];
-            const exists = msgs.some(m => m.id === newMsg.id || (m.isPending && m.text === newMsg.text));
-            if (exists) {
-              return {
-                ...conn,
-                messages: msgs.map(m => (m.id === newMsg.id || (m.isPending && m.text === newMsg.text)) ? newMsg : m)
-              };
-            }
             return {
               ...conn,
-              messages: [...msgs, newMsg]
+              messages: reconcileMessages(conn.messages || [], newMsg)
             };
           }
           return conn;
@@ -303,12 +313,11 @@ export default function App() {
 
     return () => {
       isMounted = false;
-      unsubInv();
-      unsubCollab();
-      unsubCamp();
-      unsubMsg();
+      if (typeof unsubMsg === 'function') {
+        unsubMsg();
+      }
     };
-  }, []);
+  }, [currentUser?.id]);
 
   // Derive effective active brand ID strictly aligned with currentUser
   const effectiveBrandId = useMemo(() => {
@@ -332,6 +341,7 @@ export default function App() {
   // Derive synchronized connections ensuring all invitations have matching threads
   // and both Brand and Creator share the exact same canonical conversation ID
   const synchronizedConnections = useMemo(() => {
+    if (!currentUser) return [];
     const conns = [...connections];
     (invitations || []).forEach(inv => {
       if (!inv.creatorId) return;
@@ -377,15 +387,19 @@ export default function App() {
         }
       }
     });
-    return conns;
-  }, [connections, invitations]);
+    return conns.map(conn => ({
+      ...conn,
+      messages: deduplicateMessages(conn.messages || [])
+    }));
+  }, [connections, invitations, currentUser]);
 
   // Derived Brand Connections from synchronized connections
   const brandConnections = useMemo(() => {
+    if (!currentUser) return [];
     return synchronizedConnections.filter(conn => 
       !conn.brandId || conn.brandId === currentBrand?.id || conn.brandId === 'brand-general'
     );
-  }, [synchronizedConnections, currentBrand?.id]);
+  }, [synchronizedConnections, currentBrand?.id, currentUser]);
 
   // Visible brands: When a real brand user is logged in, ONLY their brand is in the architecture (no demo brands!)
   const visibleBrands = useMemo(() => {
@@ -676,6 +690,14 @@ export default function App() {
             setIsConversationOpen(true);
           }
           return;
+        case 'OPEN_MESSAGES':
+          if (action.connId) {
+            setActiveMessagingConnectionId(action.connId);
+          }
+          setCurrentView('messages');
+          window.location.hash = '/messages';
+          setIsMessagingDrawerOpen(true);
+          return;
         case 'PUBLISH_CREATOR':
           if (action.creator) {
             // Same persistence path as handlePublishCreator — ownership pointer must land
@@ -831,6 +853,10 @@ export default function App() {
     setPendingAction(null);
     setLoginNotice(null);
     setIsLoginOpen(false);
+    setIsMessagingDrawerOpen(false);
+    setIsConversationOpen(false);
+    setActiveMessagingConnectionId(null);
+    setActiveConversationConnection(null);
     handleSwitchBrand('brand-demo-lumina');
     handleToggleDemoMode(true);
     try {
@@ -861,10 +887,25 @@ export default function App() {
 
   // --- Context-Aware Direct Messages Navigation ---
   const handleOpenMessages = (connId = null) => {
-    if (connId) {
-      const connIdStr = typeof connId === 'string' ? connId : (connId?.id || connId?.conversationId || connId?.connectionId);
-      if (connIdStr) setActiveMessagingConnectionId(connIdStr);
+    const activeUser = currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
+    const connIdStr = typeof connId === 'string' ? connId : (connId?.id || connId?.conversationId || connId?.connectionId);
+    if (connIdStr) {
+      setActiveMessagingConnectionId(connIdStr);
     }
+
+    if (!activeUser) {
+      try {
+        sessionStorage.setItem('creasync_pending_action', JSON.stringify({
+          type: 'OPEN_MESSAGES',
+          connId: connIdStr || null
+        }));
+      } catch (e) { }
+      setIsMessagingDrawerOpen(false);
+      navigateTo('messages', connIdStr || null);
+      return;
+    }
+
+    navigateTo('messages', connIdStr || null);
     setIsMessagingDrawerOpen(true);
   };
 
@@ -882,6 +923,17 @@ export default function App() {
       throw new Error('Conversation ID is required.');
     }
 
+    const activeUser = currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
+    if (!activeUser) {
+      requireAuth({
+        type: 'OPEN_MESSAGES',
+        connId: connectionId,
+        role: activeRole || 'brand',
+        notice: 'Please sign in to send messages'
+      });
+      throw new Error('Authentication required to send messages.');
+    }
+
     const payload = (typeof connectionIdOrPayload === 'object' && connectionIdOrPayload !== null && !newMsg)
       ? connectionIdOrPayload
       : (newMsg || {});
@@ -889,6 +941,16 @@ export default function App() {
     const trimmedText = (payload?.text || '').trim();
     if (!trimmedText) {
       throw new Error('Message cannot be empty or whitespace-only.');
+    }
+
+    const matchesConn = (c) => c.id === connectionId || (c.campaignId && c.creatorId && connectionId === `conn-${c.campaignId}-${c.creatorId}`);
+
+    // Verify conversation authorization
+    if (synchronizedConnections.length > 0) {
+      const targetConn = synchronizedConnections.find(matchesConn);
+      if (!targetConn) {
+        throw new Error('Unauthorized conversation access.');
+      }
     }
 
     // Duplicate submission guard per connection
@@ -915,9 +977,7 @@ export default function App() {
       isPending: true
     };
 
-    const matchesConn = (c) => c.id === connectionId || (c.campaignId && c.creatorId && connectionId === `conn-${c.campaignId}-${c.creatorId}`);
-
-    // 1. Optimistic update in marketplace state
+    // 1. Optimistic update in marketplace state with deduplication
     setMarketplaceData(prev => {
       let found = false;
       const nextConnections = (prev.connections || []).map(conn => {
@@ -925,7 +985,7 @@ export default function App() {
           found = true;
           return {
             ...conn,
-            messages: [...(conn.messages || []), optimisticMessage]
+            messages: reconcileMessages(conn.messages || [], optimisticMessage)
           };
         }
         return conn;
@@ -951,7 +1011,7 @@ export default function App() {
       if (!prev || !matchesConn(prev)) return prev;
       return {
         ...prev,
-        messages: [...(prev.messages || []), optimisticMessage]
+        messages: reconcileMessages(prev.messages || [], optimisticMessage)
       };
     });
 
@@ -964,7 +1024,7 @@ export default function App() {
         senderName,
         text: trimmedText,
         timestamp: timestampStr,
-        userId: currentUser?.id,
+        userId: activeUser?.id,
         actorName: senderName
       });
 
@@ -975,7 +1035,7 @@ export default function App() {
           if (matchesConn(conn)) {
             return {
               ...conn,
-              messages: (conn.messages || []).map(m => m.id === tempMsgId ? { ...persisted, isPending: false } : m)
+              messages: reconcileMessages(conn.messages || [], persisted, tempMsgId)
             };
           }
           return conn;
@@ -986,7 +1046,7 @@ export default function App() {
         if (!prev || !matchesConn(prev)) return prev;
         return {
           ...prev,
-          messages: (prev.messages || []).map(m => m.id === tempMsgId ? { ...persisted, isPending: false } : m)
+          messages: reconcileMessages(prev.messages || [], persisted, tempMsgId)
         };
       });
 
@@ -1106,6 +1166,16 @@ export default function App() {
           setIsRoleSelectOpen(true);
           setCurrentView('home');
           window.location.hash = '';
+        }
+      } else if (hash === 'messages' || hash.startsWith('/messages') || hash.startsWith('messages')) {
+        const parts = hash.replace(/^\/?messages\/?/, '');
+        const targetConnId = parts || null;
+        if (targetConnId) {
+          setActiveMessagingConnectionId(targetConnId);
+        }
+        setCurrentView('messages');
+        if (activeUser) {
+          handleOpenMessages(targetConnId);
         }
       } else if (hash === '/admin/login' || hash === 'admin/login') {
         setCurrentView('admin-login');
@@ -1227,6 +1297,9 @@ export default function App() {
       window.location.hash = '/brand/onboard';
     } else if (view === 'creator-join') {
       window.location.hash = '/creator/join';
+    } else if (view === 'messages') {
+      window.location.hash = '/messages';
+      if (extraId) setActiveMessagingConnectionId(extraId);
     } else {
       window.location.hash = '';
     }
@@ -2170,6 +2243,12 @@ export default function App() {
               }
             }}
             onOpenTrustCenter={() => setCurrentView('trust-center')}
+            currentUser={currentUser}
+            onLoginSuccess={(user, role) => executePendingActionOrRoute(user, role)}
+            onOpenLogin={() => {
+              setLoginNotice('Please sign in to access your direct messages');
+              setIsLoginOpen(true);
+            }}
           />
         )}
 
@@ -2222,6 +2301,11 @@ export default function App() {
             onSendMessage={handleSendMessage}
             onSelectProject={handleSelectProject}
             initialTab={initialCreatorTab}
+            onLoginSuccess={(user, role) => executePendingActionOrRoute(user, role)}
+            onOpenLogin={() => {
+              setLoginNotice('Please sign in to access your direct messages');
+              setIsLoginOpen(true);
+            }}
           />
         )}
 
@@ -2322,6 +2406,84 @@ export default function App() {
               window.location.hash = '';
             }}
           />
+        )}
+
+        {/* VIEW 10: MESSAGES (Dedicated CreaSynq Messages Page with Login Wall) */}
+        {currentView === 'messages' && (
+          !currentUser ? (
+            <div className="page-container" style={{ padding: '72px 24px', minHeight: '75vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MessagesLoginWall
+                onLoginSuccess={(user, role) => {
+                  executePendingActionOrRoute(user, role);
+                }}
+                onOpenEmailLogin={() => {
+                  setLoginNotice('Please sign in to access your direct messages');
+                  setIsLoginOpen(true);
+                }}
+              />
+            </div>
+          ) : (
+            resolveUserRole(currentUser) === 'creator' && myCreator ? (
+              <CreatorWorkspaceView
+                creator={myCreator}
+                currentUser={currentUser}
+                onUpdateCreator={handleUpdateCreator}
+                onViewPublicProfile={() => handleOpenCreatorProfile(myCreator.id)}
+                onExploreMarketplace={() => navigateTo('discover')}
+                connections={synchronizedConnections}
+                onOpenConversation={(conn) => handleOpenConversation(conn, 'creator')}
+                opportunities={publicOpportunities}
+                onOpportunityResponse={handleOpportunityResponse}
+                invitations={invitations}
+                onAcceptInvitation={handleAcceptInvitation}
+                onDeclineInvitation={handleDeclineInvitation}
+                projects={projects}
+                onSubmitDeliverables={handleSubmitDeliverables}
+                onSendMessage={handleSendMessage}
+                onSelectProject={handleSelectProject}
+                initialTab="messages"
+                onLoginSuccess={(user, role) => executePendingActionOrRoute(user, role)}
+                onOpenLogin={() => setIsLoginOpen(true)}
+              />
+            ) : (
+              <BrandWorkspaceView
+                currentUser={currentUser}
+                currentBrand={currentBrand}
+                allBrands={visibleBrands}
+                isDemoMode={isDemoMode}
+                onSwitchBrand={handleSwitchBrand}
+                onCreateBrand={handleCreateBrand}
+                onUpdateBrand={handleUpdateBrand}
+                onToggleDemoMode={handleToggleDemoMode}
+                onResetState={handleResetState}
+                campaigns={brandCampaigns}
+                activeCampaign={activeCampaign}
+                onSelectCampaign={handleSelectCampaign}
+                onCreateCampaign={handleCampaignCreated}
+                onUpdateCampaign={handleUpdateCampaign}
+                onDuplicateCampaign={handleDuplicateCampaign}
+                onDeleteCampaign={handleDeleteCampaign}
+                creators={creatorsList}
+                shortlists={brandShortlists}
+                onToggleShortlist={handleToggleShortlist}
+                invitations={brandInvitations}
+                onSendInvitation={handleSendInvitation}
+                projects={brandProjects}
+                onRequestRevision={handleRequestRevision}
+                onApproveDeliverables={handleApproveDeliverables}
+                connections={brandConnections}
+                onSendMessage={handleSendMessage}
+                onSelectCreator={handleOpenCreatorProfile}
+                onRunFilteringPipeline={handleRunFilteringPipeline}
+                initialTab="messages"
+                pipelineFilter={pipelineFilter}
+                onClearPipelineFilter={() => setPipelineFilter(null)}
+                onOpenTrustCenter={() => setCurrentView('trust-center')}
+                onLoginSuccess={(user, role) => executePendingActionOrRoute(user, role)}
+                onOpenLogin={() => setIsLoginOpen(true)}
+              />
+            )
+          )
         )}
       </main>
 
@@ -2685,7 +2847,7 @@ export default function App() {
       />
 
       {/* Global Messaging Persistent Drawer & Floating Launcher */}
-      {currentView !== 'admin-login' && currentView !== 'admin-dashboard' && (
+      {currentView !== 'admin-login' && currentView !== 'admin-dashboard' && currentView !== 'messages' && (
         <GlobalMessagingDrawer
           isOpen={isMessagingDrawerOpen}
           onOpen={() => handleOpenMessages()}
@@ -2702,6 +2864,8 @@ export default function App() {
           currentCreator={activeCreator}
           onSendMessage={handleSendMessage}
           onViewProfile={handleOpenCreatorProfile}
+          onOpenLogin={() => setIsLoginOpen(true)}
+          onLoginSuccess={(user, role) => executePendingActionOrRoute(user, role)}
           onViewProject={(proj) => {
             setSelectedProject(proj);
             setIsMessagingDrawerOpen(false);

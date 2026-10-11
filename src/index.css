@@ -19744,6 +19744,225 @@ img, video {
   }
 }
 
+/* 10. Messages Login Wall */
+.messages-login-wall {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.messages-login-wall-full {
+  min-height: calc(100vh - 120px);
+  padding: 64px 20px;
+  background: radial-gradient(circle at 50% 20%, rgba(200, 169, 126, 0.08) 0%, transparent 60%);
+}
+
+.messages-login-wall-compact {
+  padding: 32px 16px;
+  min-height: 100%;
+}
+
+.messages-wall-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg-surface, #FFFFFF);
+  border: 1px solid var(--border-light, #E4DDD4);
+  border-radius: 16px;
+  padding: 36px 32px;
+  text-align: center;
+  box-shadow: 0 12px 36px rgba(25, 24, 22, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.messages-login-wall-compact .messages-wall-card {
+  border: none;
+  box-shadow: none;
+  padding: 16px 8px;
+  background: transparent;
+}
+
+.messages-wall-icon-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.messages-wall-icon-bubble {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(200, 169, 126, 0.15) 0%, rgba(25, 24, 22, 0.05) 100%);
+  border: 1px solid rgba(200, 169, 126, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-bronze, #99714F);
+}
+
+.messages-login-wall-compact .messages-wall-icon-bubble {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+}
+
+.messages-wall-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-bronze, #99714F);
+  background: rgba(200, 169, 126, 0.12);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(200, 169, 126, 0.25);
+}
+
+.messages-wall-title {
+  font-family: var(--font-editorial, 'Newsreader', serif);
+  font-size: 1.85rem;
+  font-weight: 500;
+  color: var(--text-primary, #191816);
+  line-height: 1.25;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.01em;
+}
+
+.messages-login-wall-compact .messages-wall-title {
+  font-size: 1.45rem;
+}
+
+.messages-wall-subtitle {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary, #6B655D);
+  margin: 0 0 24px 0;
+  max-width: 400px;
+}
+
+.messages-wall-role-selector {
+  width: 100%;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.messages-wall-role-label {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-secondary, #6B655D);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.messages-wall-role-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.messages-role-btn {
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--border-light, #E4DDD4);
+  background: var(--bg-surface, #FFFFFF);
+  color: var(--text-secondary, #6B655D);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+}
+
+.messages-role-btn:hover {
+  border-color: var(--accent-bronze, #99714F);
+  color: var(--text-primary, #191816);
+}
+
+.messages-role-btn.active {
+  background: var(--bg-card-subtle, #FAF7F2);
+  border-color: var(--accent-bronze, #99714F);
+  color: var(--accent-bronze, #99714F);
+  box-shadow: 0 0 0 1px var(--accent-bronze, #99714F);
+}
+
+.messages-wall-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.messages-wall-google-btn {
+  padding: 12px 18px !important;
+  font-size: 0.92rem !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 8px rgba(25, 24, 22, 0.05);
+  margin-bottom: 0 !important;
+}
+
+.messages-wall-google-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(25, 24, 22, 0.1);
+}
+
+.messages-wall-email-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #6B655D);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.messages-wall-email-btn:hover {
+  color: var(--text-primary, #191816);
+}
+
+.messages-wall-error {
+  padding: 8px 12px;
+  background: #FEF2F2;
+  border: 1px solid #FEE2E2;
+  color: #DC2626;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  width: 100%;
+}
+
+.messages-wall-trust-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-tertiary, #968F87);
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.messages-wall-trust-footer .trust-shield-icon {
+  color: var(--accent-forest, #214C35);
+  flex-shrink: 0;
+}
+
 /* ============================================================================
    ALLOY — JUDGE DEMO WALKTHROUGH COMPONENT STYLES
    ============================================================================ */
@@ -19768,22 +19987,21 @@ img, video {
   max-width: calc(100vw - 40px);
   background: rgba(22, 21, 20, 0.96);
   border: 1px solid rgba(212, 163, 115, 0.35);
-  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  border-radius: 18px;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   color: #F7F5F0;
+  font-family: var(--font-sans);
   overflow: hidden;
   animation: slideUpTour 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  display: flex;
-  flex-direction: column;
 }
 
 .judge-tour-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 18px 12px;
+  padding: 14px 18px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -19796,20 +20014,20 @@ img, video {
 .judge-tour-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
+  gap: 5px;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #D4A373;
   background: rgba(212, 163, 115, 0.12);
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: 9999px;
   border: 1px solid rgba(212, 163, 115, 0.25);
 }
 
 .judge-tour-step-counter {
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   color: #A8A29E;
   font-weight: 500;
 }
@@ -20206,5 +20424,3 @@ img, video {
     bottom: 16px;
   }
 }
-
-

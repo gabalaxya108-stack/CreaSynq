@@ -24,6 +24,8 @@ import CreaSimModal from '../components/CreaSimModal';
 import DeliverableReviewModal from '../components/DeliverableReviewModal';
 import InviteModal from '../components/InviteModal';
 import CreatorComparisonModal from '../components/CreatorComparisonModal';
+import MessagesLoginWall from '../components/MessagesLoginWall';
+import { deduplicateMessages } from '../services/marketplaceBackend';
 
 export default function BrandWorkspaceView({
   currentBrand = {
@@ -70,7 +72,10 @@ export default function BrandWorkspaceView({
   pipelineFilter = null,
   onClearPipelineFilter,
   onOpenPipelineTrace,
-  onOpenTrustCenter
+  onOpenTrustCenter,
+  currentUser = null,
+  onLoginSuccess,
+  onOpenLogin
 }) {
   // Navigation Tabs:
   // 'overview' | 'campaigns' | 'discover' | 'shortlists' | 'invitations' | 'collaborations' | 'deliverables' | 'messages' | 'brand-settings'
@@ -161,6 +166,8 @@ export default function BrandWorkspaceView({
   // --- Messaging State ---
   const [selectedConnectionId, setSelectedConnectionId] = useState(connections[0]?.id || null);
   const [chatInputText, setChatInputText] = useState('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [sendMessageError, setSendMessageError] = useState(null);
 
   // --- Brand Profile Settings Form ---
   const [brandProfileForm, setBrandProfileForm] = useState({
@@ -490,16 +497,28 @@ export default function BrandWorkspaceView({
   };
 
   // Handle Send Message
-  const handleSendMessageSubmit = (e) => {
-    e.preventDefault();
-    if (!chatInputText.trim() || !selectedConnectionId || !onSendMessage) return;
-    onSendMessage(selectedConnectionId, {
-      sender: 'brand',
-      senderName: currentBrand?.name || 'Brand Partner',
-      text: chatInputText.trim(),
-      timestamp: 'Just now'
-    });
-    setChatInputText('');
+  const handleSendMessageSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const trimmed = chatInputText.trim();
+    if (!trimmed || !selectedConnectionId || !onSendMessage || isSendingMessage) return;
+
+    setIsSendingMessage(true);
+    setSendMessageError(null);
+
+    try {
+      await onSendMessage(selectedConnectionId, {
+        sender: 'brand',
+        senderName: currentBrand?.name || 'Brand Partner',
+        text: trimmed,
+        timestamp: 'Just now'
+      });
+      setChatInputText('');
+    } catch (err) {
+      console.error('[BrandWorkspace] Send failed:', err);
+      setSendMessageError(err.message || 'Failed to send message.');
+    } finally {
+      setIsSendingMessage(false);
+    }
   };
 
   // Handle Save Brand Profile
@@ -1858,6 +1877,15 @@ export default function BrandWorkspaceView({
             TAB 8: MESSAGES (Direct Creator Communication)
             ======================================================== */}
         {activeTab === 'messages' && (
+          !currentUser ? (
+            <div className="studio-messages-content fade-in" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '420px', padding: '24px 0' }}>
+              <MessagesLoginWall
+                initialRole="brand"
+                onLoginSuccess={onLoginSuccess}
+                onOpenEmailLogin={onOpenLogin}
+              />
+            </div>
+          ) : (
           <div className="studio-messages-content fade-in">
             <div className="messages-layout-grid studio-card">
               {/* Thread list */}
@@ -1901,7 +1929,7 @@ export default function BrandWorkspaceView({
                     </div>
 
                     <div className="chat-messages-transcript">
-                      {(activeConnection.messages || []).map(msg => (
+                      {deduplicateMessages(activeConnection.messages || []).map(msg => (
                         <div key={msg.id} className={`chat-bubble-row ${msg.sender === 'brand' ? 'from-me' : 'from-them'}`}>
                           <div className="chat-bubble">
                             <span className="bubble-author">{msg.senderName}</span>
@@ -1912,17 +1940,27 @@ export default function BrandWorkspaceView({
                       ))}
                     </div>
 
+                    {sendMessageError && (
+                      <div style={{ padding: '8px 14px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', fontSize: '0.85rem', borderRadius: '6px', margin: '0 16px 8px' }}>
+                        {sendMessageError}
+                      </div>
+                    )}
+
                     <form onSubmit={handleSendMessageSubmit} className="chat-input-bar">
                       <textarea 
                         placeholder="Write a message to creative partner… (Enter to send, Shift+Enter for newline)"
                         value={chatInputText}
-                        onChange={(e) => setChatInputText(e.target.value)}
+                        onChange={(e) => {
+                          setChatInputText(e.target.value);
+                          if (sendMessageError) setSendMessageError(null);
+                        }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             handleSendMessageSubmit(e);
                           }
                         }}
+                        disabled={isSendingMessage}
                         rows={1}
                         className="chat-text-input"
                         style={{ resize: 'none', minHeight: '38px', padding: '8px 12px', fontFamily: 'inherit' }}
@@ -1930,10 +1968,10 @@ export default function BrandWorkspaceView({
                       <button 
                         type="submit" 
                         className="btn btn-primary btn-sm"
-                        disabled={!chatInputText.trim()}
+                        disabled={!chatInputText.trim() || isSendingMessage}
                       >
                         <Send size={14} />
-                        <span>Send</span>
+                        <span>{isSendingMessage ? 'Sending...' : 'Send'}</span>
                       </button>
                     </form>
                   </>
@@ -1946,6 +1984,7 @@ export default function BrandWorkspaceView({
               </div>
             </div>
           </div>
+          )
         )}
 
         {/* ========================================================

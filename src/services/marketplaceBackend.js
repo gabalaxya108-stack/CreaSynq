@@ -2475,6 +2475,65 @@ function formatMessageTimestamp(isoString) {
   }
 }
 
+export function deduplicateMessages(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) return [];
+  const seenIds = new Set();
+  const deduped = [];
+
+  for (const msg of messages) {
+    if (!msg) continue;
+    const msgId = msg.id || (msg._id ? String(msg._id) : null);
+    if (msgId) {
+      if (seenIds.has(msgId)) {
+        continue;
+      }
+      seenIds.add(msgId);
+    }
+    deduped.push(msg);
+  }
+
+  return deduped;
+}
+
+export function reconcileMessages(currentMessages, newMessage, tempIdToRemove = null) {
+  if (!Array.isArray(currentMessages)) return newMessage ? [newMessage] : [];
+  if (!newMessage) return deduplicateMessages(currentMessages);
+
+  const msgs = [...currentMessages];
+
+  // 1. Explicit temporary ID replacement / drop
+  if (tempIdToRemove) {
+    const tempIndex = msgs.findIndex(m => m.id === tempIdToRemove);
+    if (tempIndex !== -1) {
+      const alreadyHasNewId = msgs.some((m, idx) => idx !== tempIndex && m.id === newMessage.id);
+      if (alreadyHasNewId) {
+        msgs.splice(tempIndex, 1);
+      } else {
+        msgs[tempIndex] = { ...newMessage, isPending: false };
+      }
+      return deduplicateMessages(msgs);
+    }
+  }
+
+  // 2. Exact message ID match: update existing record in place
+  const exactIdIndex = msgs.findIndex(m => m.id === newMessage.id);
+  if (exactIdIndex !== -1) {
+    msgs[exactIdIndex] = { ...msgs[exactIdIndex], ...newMessage, isPending: false };
+    return deduplicateMessages(msgs);
+  }
+
+  // 3. Pending optimistic message match (reconciles Realtime event or store update)
+  const pendingIndex = msgs.findIndex(m => m.isPending && m.text === newMessage.text && m.sender === newMessage.sender);
+  if (pendingIndex !== -1) {
+    msgs[pendingIndex] = { ...newMessage, isPending: false };
+    return deduplicateMessages(msgs);
+  }
+
+  // 4. Append message without duplicates
+  msgs.push({ ...newMessage, isPending: false });
+  return deduplicateMessages(msgs);
+}
+
 /**
  * Fetches chronological messages for a conversation
  */
@@ -2495,7 +2554,7 @@ export async function fetchMessages(conversationIdOrTarget) {
           .order('created_at', { ascending: true });
 
         if (!error && Array.isArray(data) && data.length > 0) {
-          return data.map(normalizeSupabaseMessage);
+          return deduplicateMessages(data.map(normalizeSupabaseMessage));
         }
       }
     } catch (err) {
@@ -2506,7 +2565,7 @@ export async function fetchMessages(conversationIdOrTarget) {
   // Local fallback: read from marketplace connections
   const state = getInitialMarketplaceState();
   const conn = (state.connections || []).find(c => c.id === targetId || (c.campaignId && c.creatorId && targetId === `conn-${c.campaignId}-${c.creatorId}`));
-  return conn?.messages || [];
+  return deduplicateMessages(conn?.messages || []);
 }
 
 /**
@@ -2577,23 +2636,23 @@ export async function sendMessage({ conversationId, connectionId, sender, sender
           userId: authUser.id
         });
 
-        // Update local cache
+        const normalizedPersisted = normalizeSupabaseMessage(data);
+
+        // Update local cache without creating duplicates
         const state = getInitialMarketplaceState();
         const updatedConns = (state.connections || []).map(conn => {
           if (conn.id === targetConversationId || (conn.campaignId && conn.creatorId && targetConversationId === `conn-${conn.campaignId}-${conn.creatorId}`)) {
-            const currentMsgs = conn.messages || [];
-            const exists = currentMsgs.some(m => m.id === msgPayload.id);
             return {
               ...conn,
               updatedAt: nowIso,
-              messages: exists ? currentMsgs : [...currentMsgs, normalizeSupabaseMessage(data)]
+              messages: reconcileMessages(conn.messages || [], normalizedPersisted)
             };
           }
           return conn;
         });
         saveMarketplaceState({ ...state, connections: updatedConns });
 
-        return normalizeSupabaseMessage(data);
+        return normalizedPersisted;
       } catch (err) {
         console.error('[Supabase] Database error sending message:', err);
         throw new Error(`Failed to send message: ${err.message}`);
@@ -2610,11 +2669,10 @@ export async function sendMessage({ conversationId, connectionId, sender, sender
   const updatedConns = (state.connections || []).map(conn => {
     if (conn.id === targetConversationId || (conn.campaignId && conn.creatorId && targetConversationId === `conn-${conn.campaignId}-${conn.creatorId}`)) {
       connFound = true;
-      const currentMsgs = conn.messages || [];
       return {
         ...conn,
         updatedAt: nowIso,
-        messages: [...currentMsgs, msgPayload]
+        messages: reconcileMessages(conn.messages || [], msgPayload)
       };
     }
     return conn;

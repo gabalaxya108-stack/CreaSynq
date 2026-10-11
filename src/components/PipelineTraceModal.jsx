@@ -2,7 +2,7 @@
 // Desktop-First Explainable Campaign-to-Creator Filtering Pipeline Visualization
 // Features horizontal connected stage track, truthful pacing, human-readable exclusions, and Discover integration.
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   X,
   CheckCircle2,
@@ -21,12 +21,18 @@ import {
   Users,
   Search,
   Info,
-
   Play,
   RotateCcw,
   Check,
   Compass,
-  FileText
+  FileText,
+  PanelRightClose,
+  Eye,
+  Target,
+  BarChart3,
+  Award,
+  Zap,
+  List
 } from 'lucide-react';
 
 /**
@@ -40,6 +46,160 @@ export const READABLE_EXCLUSION_TITLES = {
   TOOL_CHAIN_INCOMPATIBLE: 'Required AI tools/models not in verified toolchain',
   FORMAT_UNSUPPORTED: 'Deliverable format unsupported'
 };
+
+/**
+ * Human-readable stage purpose descriptions
+ */
+const STAGE_PURPOSE_MAP = {
+  stage_01_brief_normalization: 'This stage validates the campaign brief and separates mandatory hard requirements from preferred soft signals. It ensures the pipeline has well-defined constraints before evaluating any creator.',
+  stage_02_skills_filter: 'Checks each creator\'s verified skills, capabilities, and portfolio evidence against the mandatory technical skills the campaign requires. Creators missing any required skill are excluded.',
+  stage_03_specialization_filter: 'Verifies that each creator\'s primary specialty or domain category matches what the campaign needs. A fashion photographer won\'t pass a campaign requiring 3D product visualization.',
+  stage_04_ai_tools_filter: 'Confirms creators have demonstrated production experience with the specific AI tools or generation models the campaign requires. Self-reported familiarity is insufficient — portfolio evidence is evaluated.',
+  stage_05_format_filter: 'Ensures creators can deliver in the required output formats — whether that\'s vertical video, 4K stills, 3D renders, or other specific deliverable types the campaign specifies.',
+  stage_06_licensing_verification: 'Validates commercial readiness: verified enterprise licensing credentials and minimum portfolio depth. A creator with great work but no commercial licensing verification cannot be engaged for licensed commercial use.',
+  stage_07_ranking_engine: 'All creators reaching this stage have passed every mandatory eligibility check. This stage ranks eligible creators using the existing deterministic CreaMatch scoring system, which evaluates compatibility across six dimensions.'
+};
+
+/**
+ * Part C helper: Build human-readable decision breakdown from a rejection object
+ */
+function buildDecisionBreakdown(ex) {
+  const sections = [];
+  const code = ex.code || '';
+  const missing = ex.missingFields;
+  const available = ex.availableData;
+
+  switch (code) {
+    case 'MISSING_MANDATORY_SKILLS': {
+      const missingSkills = Array.isArray(missing) ? missing : [];
+      const requiredSkills = Array.isArray(ex.requiredFields) ? ex.requiredFields : (missingSkills.length > 0 ? missingSkills : []);
+      const creatorSkills = Array.isArray(available) ? available : [];
+      // matched = required items the backend did not report in missingFields
+      const matchedSkills = requiredSkills.filter(r => !missingSkills.includes(r));
+      sections.push({ label: 'Campaign Required Skills', value: requiredSkills.join(', ') || 'None specified', type: 'requirement' });
+      sections.push({ label: 'Creator Demonstrated Skills', value: creatorSkills.length > 0 ? creatorSkills.join(', ') : 'None recorded', type: 'evidence' });
+      sections.push({ label: 'Matched Skills', value: matchedSkills.length > 0 ? matchedSkills.join(', ') : 'None', type: matchedSkills.length > 0 ? 'pass' : 'fail' });
+      sections.push({ label: 'Missing Skills', value: missingSkills.join(', ') || 'None', type: 'fail' });
+      sections.push({ label: 'Coverage', value: `${matchedSkills.length} of ${requiredSkills.length} required skills matched (${requiredSkills.length > 0 ? Math.round((matchedSkills.length / requiredSkills.length) * 100) : 0}%)`, type: 'metric' });
+      sections.push({ label: 'Eligibility Result', value: 'Excluded — failed mandatory skill requirement', type: 'fail' });
+      break;
+    }
+    case 'SPECIALIZATION_MISMATCH': {
+      const requiredSpecs = Array.isArray(ex.requiredFields) ? ex.requiredFields : (Array.isArray(missing) ? missing : []);
+      const creatorSpec = available?.specialty || 'Unspecified';
+      const creatorTags = Array.isArray(available?.tags) ? available.tags : [];
+      sections.push({ label: 'Campaign Required Specialization', value: requiredSpecs.join(' or ') || 'None specified', type: 'requirement' });
+      sections.push({ label: 'Creator Primary Specialty', value: creatorSpec, type: 'evidence' });
+      if (creatorTags.length > 0) {
+        sections.push({ label: 'Creator Category Tags', value: creatorTags.join(', '), type: 'evidence' });
+      }
+      sections.push({ label: 'Eligibility Result', value: 'Excluded — no domain overlap with required specialization', type: 'fail' });
+      break;
+    }
+    case 'TOOL_CHAIN_INCOMPATIBLE': {
+      const missingTools = Array.isArray(missing) ? missing : [];
+      const requiredTools = Array.isArray(ex.requiredFields) ? ex.requiredFields : (missingTools.length > 0 ? missingTools : []);
+      const creatorTools = Array.isArray(available) ? available : [];
+      // matched = required items the backend did not report in missingFields
+      const matchedTools = requiredTools.filter(r => !missingTools.includes(r));
+      sections.push({ label: 'Campaign Required Tools', value: requiredTools.join(', ') || 'None specified', type: 'requirement' });
+      sections.push({ label: 'Creator Verified Toolchain', value: creatorTools.length > 0 ? creatorTools.join(', ') : 'None recorded', type: 'evidence' });
+      sections.push({ label: 'Matched Tools', value: matchedTools.length > 0 ? matchedTools.join(', ') : 'None', type: matchedTools.length > 0 ? 'pass' : 'fail' });
+      sections.push({ label: 'Missing Tools', value: missingTools.join(', ') || 'None', type: 'fail' });
+      sections.push({ label: 'Eligibility Result', value: 'Excluded — missing required production AI toolchain experience', type: 'fail' });
+      break;
+    }
+    case 'FORMAT_UNSUPPORTED': {
+      const missingFormats = Array.isArray(missing) ? missing : [];
+      const requiredFormats = Array.isArray(ex.requiredFields) ? ex.requiredFields : (missingFormats.length > 0 ? missingFormats : []);
+      const creatorSpec = available?.specialty || 'Unspecified';
+      const creatorTags = Array.isArray(available?.tags) ? available.tags : [];
+      sections.push({ label: 'Campaign Required Formats', value: requiredFormats.join(', ') || 'None specified', type: 'requirement' });
+      sections.push({ label: 'Creator Specialty', value: creatorSpec, type: 'evidence' });
+      if (creatorTags.length > 0) {
+        sections.push({ label: 'Creator Supported Tags', value: creatorTags.join(', '), type: 'evidence' });
+      }
+      sections.push({ label: 'Missing Formats', value: missingFormats.join(', ') || 'None', type: 'fail' });
+      sections.push({ label: 'Eligibility Result', value: 'Excluded — deliverable format not supported', type: 'fail' });
+      break;
+    }
+    case 'COMMERCIAL_LICENSING_UNVERIFIED':
+    case 'PORTFOLIO_THRESHOLD_UNMET': {
+      const data = (typeof available === 'object' && available !== null) ? available : {};
+      const req = (typeof ex.requiredFields === 'object' && ex.requiredFields !== null) ? ex.requiredFields : {};
+      const missingReqs = Array.isArray(ex.missingFields) ? ex.missingFields : [];
+      const failedLicensing = missingReqs.includes('commercial_licensing_verification');
+      const failedThreshold = missingReqs.includes('verified_portfolio_projects');
+      sections.push({ label: 'Commercial Licensing Mandate', value: req.commercialLicensing ? 'Required (commercial-use enterprise authorization)' : 'Not required by this campaign', type: 'requirement' });
+      if (req.minProjects > 0) {
+        sections.push({ label: 'Portfolio Depth Requirement', value: `Minimum ${req.minProjects} verified project(s)`, type: 'requirement' });
+      }
+      if (missingReqs.length > 0) {
+        sections.push({ label: 'Missing Requirement', value: missingReqs.map(m => String(m).replace(/_/g, ' ')).join(', '), type: 'fail' });
+      }
+      sections.push({ label: 'Verified Portfolio Projects Found', value: String(data.projectCount ?? 'None'), type: 'evidence' });
+      sections.push({ label: 'Has Commercial Client Projects', value: data.hasCommercialClientWork ? 'Yes (demonstrated commercial client history)' : 'No', type: data.hasCommercialClientWork ? 'partial' : 'fail' });
+      sections.push({ label: 'Licensing Verification Status', value: data.isLicensingVerified ? 'Verified' : 'Unverified in trust records', type: data.isLicensingVerified ? 'pass' : 'fail' });
+      if (failedLicensing && data.hasCommercialClientWork) {
+        sections.push({ label: 'Decision Reason', value: 'Creator has commercial client experience, but formal enterprise licensing credentials are not explicitly verified in creator trust records.', type: 'info' });
+      }
+      sections.push({
+        label: 'Eligibility Result',
+        value: failedLicensing
+          ? 'Excluded — commercial licensing unverified'
+          : failedThreshold
+            ? 'Excluded — portfolio project threshold unmet'
+            : 'Excluded — commercial readiness requirement not satisfied',
+        type: 'fail'
+      });
+      break;
+    }
+    default: {
+      if (missing) {
+        sections.push({ label: 'Unsatisfied Requirements', value: Array.isArray(missing) ? missing.join(', ') : String(missing), type: 'fail' });
+      }
+      if (available) {
+        sections.push({ label: 'Creator Evidence', value: typeof available === 'object' ? Object.entries(available).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('; ') : String(available), type: 'evidence' });
+      }
+    }
+  }
+
+  return sections;
+}
+
+/**
+ * Get stage criteria labels from stage data
+ */
+function getStageCriteria(stage) {
+  const criteria = [];
+  if (stage.requiredSkills?.length > 0) {
+    criteria.push({ label: 'Required Skills', items: stage.requiredSkills });
+  }
+  if (stage.requiredSpecialization?.length > 0) {
+    criteria.push({ label: 'Required Specialization', items: stage.requiredSpecialization });
+  }
+  if (stage.requiredTools?.length > 0) {
+    criteria.push({ label: 'Required AI Tools', items: stage.requiredTools });
+  }
+  if (stage.requiredFormats?.length > 0) {
+    criteria.push({ label: 'Required Formats', items: stage.requiredFormats });
+  }
+  if (stage.requiredLicensing) {
+    const lic = stage.requiredLicensing;
+    if (lic.commercialLicensing) criteria.push({ label: 'Commercial Licensing', items: ['Verified Enterprise Authorization Required'] });
+    if (lic.minProjects > 0) criteria.push({ label: 'Portfolio Depth Threshold', items: [`Minimum ${lic.minProjects} Verified Projects`] });
+  }
+  if (stage.extractedMandatory) {
+    const m = stage.extractedMandatory;
+    if (m.commercialLicensing && !criteria.some(c => c.label === 'Commercial Licensing')) {
+      criteria.push({ label: 'Commercial Licensing', items: ['Required'] });
+    }
+    if (m.minProjects > 0 && !criteria.some(c => c.label.includes('Portfolio'))) {
+      criteria.push({ label: 'Minimum Portfolio Depth', items: [`${m.minProjects}+ projects`] });
+    }
+  }
+  return criteria;
+}
 
 export default function PipelineTraceModal({
   isOpen,
@@ -55,6 +215,7 @@ export default function PipelineTraceModal({
   const [isManualInspection, setIsManualInspection] = useState(false);
   const [expandedExclusions, setExpandedExclusions] = useState({});
   const [activeTab, setActiveTab] = useState('pipeline'); // 'pipeline' | 'eligible' | 'exclusions'
+  const [inspectorOpen, setInspectorOpen] = useState(false);
 
   // Track the previous isOpen value for edge-detection
   const prevIsOpenRef = useRef(false);
@@ -78,6 +239,7 @@ export default function PipelineTraceModal({
       setRevealedStageCount(1);
       setExpandedExclusions({});
       setIsManualInspection(false);
+      setInspectorOpen(false);
       // Reset scroll position on next frame
       requestAnimationFrame(() => {
         if (stagesTrackRef.current) {
@@ -176,14 +338,27 @@ export default function PipelineTraceModal({
 
   const activeStage = stages[activeStageIndex] || stages[0];
 
-
   const handleSelectStageCard = (idx) => {
     if (idx < revealedStageCount) {
       setIsManualInspection(true);
       isManualInspectionRef.current = true;
       setActiveStageIndex(idx);
+      setInspectorOpen(true);
     }
   };
+
+  const handleCloseInspector = () => {
+    setInspectorOpen(false);
+  };
+
+  const handleSelectTab = (tab) => {
+    setActiveTab(tab);
+    if (tab !== 'pipeline') {
+      setInspectorOpen(false);
+    }
+  };
+
+  const showInspector = inspectorOpen && activeTab === 'pipeline';
 
   const toggleExclusion = (id) => {
     setExpandedExclusions(prev => ({
@@ -217,12 +392,244 @@ export default function PipelineTraceModal({
     return READABLE_EXCLUSION_TITLES[code] || code.replace(/_/g, ' ').toLowerCase();
   };
 
+  // ── Render the Stage Inspector Panel ──
+  const renderInspectorPanel = () => {
+    if (!activeStage) return null;
+
+    const stagePurpose = STAGE_PURPOSE_MAP[activeStage.stageId] || activeStage.description;
+    const criteria = getStageCriteria(activeStage);
+    const passRate = activeStage.inputCount > 0
+      ? ((activeStage.passedCount / activeStage.inputCount) * 100).toFixed(1)
+      : '100.0';
+    const isRanking = activeStage.stageId === 'stage_07_ranking_engine';
+    const passedCreators = activeStage.passedCreatorSummaries || [];
+
+    return (
+      <div className="stage-inspector-card stage-inspector-panel">
+        <div className="inspector-panel-header">
+          <div className="inspector-header-top-row">
+            <div className="inspector-badge-group">
+              <span className="section-label">Node Detail</span>
+              <span className="inspector-panel-badge">Stage 0{activeStageIndex + 1}</span>
+            </div>
+            <button
+              type="button"
+              className="inspector-close-btn"
+              onClick={handleCloseInspector}
+              aria-label="Close Node Detail and return to full pipeline"
+              title="Return to full pipeline view"
+            >
+              <span>Full Pipeline</span>
+              <PanelRightClose size={14} />
+            </button>
+          </div>
+          <h3 className="inspector-panel-name font-editorial">{activeStage.stageName}</h3>
+        </div>
+
+        <div className="inspector-panel-body">
+          {/* Section 1: Stage Purpose */}
+          <div className="inspector-section">
+            <h4 className="inspector-section-title">
+              <Eye size={14} />
+              <span>What This Stage Checks</span>
+            </h4>
+            <p className="inspector-purpose-text">{stagePurpose}</p>
+          </div>
+
+          {/* Section 2: Scan Results */}
+          <div className="inspector-section">
+            <h4 className="inspector-section-title">
+              <BarChart3 size={14} />
+              <span>Scan Results</span>
+            </h4>
+            <div className="inspector-scan-grid">
+              <div className="scan-metric">
+                <span className="scan-metric-value">{activeStage.inputCount}</span>
+                <span className="scan-metric-label">Entered Stage</span>
+              </div>
+              <div className="scan-metric metric-pass">
+                <span className="scan-metric-value">{activeStage.passedCount}</span>
+                <span className="scan-metric-label">Passed</span>
+              </div>
+              <div className="scan-metric metric-fail">
+                <span className="scan-metric-value">{activeStage.rejectedCount}</span>
+                <span className="scan-metric-label">Excluded</span>
+              </div>
+              <div className="scan-metric metric-rate">
+                <span className="scan-metric-value">{passRate}%</span>
+                <span className="scan-metric-label">Pass Rate</span>
+              </div>
+            </div>
+            {activeStage.bypassed && (
+              <div className="inspector-bypass-note">
+                <Info size={13} />
+                <span>Campaign did not specify requirements for this dimension — all creators passed through.</span>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Decision Criteria */}
+          {criteria.length > 0 && (
+            <div className="inspector-section">
+              <h4 className="inspector-section-title">
+                <Target size={14} />
+                <span>Decision Criteria</span>
+              </h4>
+              <div className="inspector-criteria-list">
+                {criteria.map((c, i) => (
+                  <div key={i} className="criteria-row">
+                    <span className="criteria-label">{c.label}</span>
+                    <div className="criteria-items">
+                      {c.items.map((item, j) => (
+                        <span key={j} className="criteria-pill">{item}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 4: Creator Leaderboard */}
+          {isRanking && rankedCreators.length > 0 ? (
+            <div className="inspector-section">
+              <h4 className="inspector-section-title">
+                <Award size={14} />
+                <span>Top Ranked Creators</span>
+              </h4>
+              <div className="inspector-leaderboard">
+                {rankedCreators.slice(0, 5).map((item, idx) => (
+                  <div key={item.creatorId} className="leaderboard-row">
+                    <span className="leaderboard-rank">#{idx + 1}</span>
+                    <img src={item.creator.avatar} alt={item.creator.name} className="leaderboard-avatar" />
+                    <div className="leaderboard-info">
+                      <span className="leaderboard-name">{item.creator.name}</span>
+                      <span className="leaderboard-spec">{item.creator.specialty}</span>
+                    </div>
+                    <div className="leaderboard-score">
+                      <span className="leaderboard-score-num">{item.score}%</span>
+                      <span className="leaderboard-score-label">{item.fitLabel}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : passedCreators.length > 0 && !isRanking ? (
+            <div className="inspector-section">
+              <h4 className="inspector-section-title">
+                <CheckCircle2 size={14} />
+                <span>Creators Who Passed ({activeStage.passedCount})</span>
+              </h4>
+              <div className="inspector-leaderboard">
+                {passedCreators.map((c, idx) => (
+                  <div key={c.id} className="leaderboard-row leaderboard-row-compact">
+                    <span className="leaderboard-rank-subtle">{idx + 1}</span>
+                    {c.avatar && <img src={c.avatar} alt={c.name} className="leaderboard-avatar" />}
+                    <div className="leaderboard-info">
+                      <span className="leaderboard-name">{c.name}</span>
+                      <span className="leaderboard-spec">{c.specialty}</span>
+                      {c.capabilities?.length > 0 && activeStage.stageId === 'stage_02_skills_filter' && (
+                        <span className="leaderboard-evidence-tag">Skills: {c.capabilities.join(', ')}</span>
+                      )}
+                      {c.tools?.length > 0 && activeStage.stageId === 'stage_04_ai_tools_filter' && (
+                        <span className="leaderboard-evidence-tag">Tools: {c.tools.join(', ')}</span>
+                      )}
+                      {c.categoryTags?.length > 0 && activeStage.stageId === 'stage_05_format_filter' && (
+                        <span className="leaderboard-evidence-tag">Formats: {c.categoryTags.join(', ')}</span>
+                      )}
+                      {activeStage.stageId === 'stage_06_licensing_verification' && (
+                        <span className="leaderboard-evidence-tag">{c.projectCount} verified projects • {c.isLicensingVerified ? 'Licensing verified' : 'Commercial exp.'}</span>
+                      )}
+                    </div>
+                    <span className="leaderboard-pass-badge">Passed</span>
+                  </div>
+                ))}
+                {activeStage.passedCount > passedCreators.length && (
+                  <div className="leaderboard-more">+{activeStage.passedCount - passedCreators.length} more creators passed</div>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Section 5: Decision Details (exclusions at this stage) */}
+          {activeStage.rejections && activeStage.rejections.length > 0 && (
+            <div className="inspector-section">
+              <h4 className="inspector-section-title inspector-title-danger">
+                <XCircle size={14} />
+                <span>Exclusion Details ({activeStage.rejections.length})</span>
+              </h4>
+              <div className="inspector-exclusions-list">
+                {activeStage.rejections.map((rej, i) => {
+                  const breakdown = buildDecisionBreakdown(rej);
+                  const isExpanded = expandedExclusions[`ins-${rej.creatorId}-${i}`];
+                  return (
+                    <div key={i} className="inspector-exclusion-card">
+                      <div className="inspector-excl-header">
+                        <div className="inspector-excl-creator">
+                          <span className="inspector-excl-name">{rej.creatorName}</span>
+                          <span className="inspector-excl-id">({rej.creatorId})</span>
+                        </div>
+                        <span className="inspector-excl-badge">{getReadableCode(rej.code)}</span>
+                      </div>
+                      <p className="inspector-excl-reason">{rej.reason}</p>
+
+                      <button
+                        type="button"
+                        className="inspector-excl-toggle"
+                        onClick={() => toggleExclusion(`ins-${rej.creatorId}-${i}`)}
+                      >
+                        <span>{isExpanded ? 'Hide Decision Breakdown' : 'View Decision Breakdown'}</span>
+                        {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                      </button>
+
+                      {isExpanded && (
+                        <div className="inspector-excl-breakdown">
+                          {breakdown.map((item, j) => (
+                            <div key={j} className={`breakdown-row breakdown-${item.type}`}>
+                              <span className="breakdown-label">{item.label}</span>
+                              <span className="breakdown-value">{item.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Clean pass banner */}
+          {(!activeStage.rejections || activeStage.rejections.length === 0) && !isRanking && (
+            <div className="inspector-section">
+              <div className="inspector-clean-pass">
+                <CheckCircle2 size={18} color="#10b981" />
+                <div>
+                  <div className="inspector-clean-title">Full Eligibility Maintained</div>
+                  <p className="inspector-clean-desc">
+                    All {activeStage.inputCount} candidates entering this stage satisfied the evaluated constraints.
+                    {activeStage.bypassed ? ' (No specific requirements were mandated by the campaign for this dimension.)' : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="modal-overlay pipeline-trace-overlay" onClick={onClose}>
-      <div
-        className="modal-content pipeline-desktop-modal"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="pipeline-modal-content">
+        <div
+          className={`pipeline-modal-workspace ${showInspector ? 'with-inspector' : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* A: Complete outer Backend Filtering Pipeline card */}
+          <div
+            className={`backend-filtering-pipeline-card modal-content pipeline-desktop-modal ${showInspector ? 'with-inspector-open' : ''}`}
+          >
         {/* Modal Header */}
         <div className="pipeline-modal-header">
           <div className="pipeline-header-info">
@@ -327,15 +734,25 @@ export default function PipelineTraceModal({
               <button
                 type="button"
                 className={`pipeline-tab-btn ${activeTab === 'pipeline' ? 'active' : ''}`}
-                onClick={() => setActiveTab('pipeline')}
+                onClick={() => handleSelectTab('pipeline')}
               >
                 <Layers size={15} />
                 <span>Execution Stages ({stages.length})</span>
               </button>
+              {pipelineTrace?.interpretedBrief && (
+                <button
+                  type="button"
+                  className={`pipeline-tab-btn ${activeTab === 'brief' ? 'active' : ''}`}
+                  onClick={() => handleSelectTab('brief')}
+                >
+                  <Sparkles size={15} />
+                  <span>Interpreted Brief</span>
+                </button>
+              )}
               <button
                 type="button"
                 className={`pipeline-tab-btn ${activeTab === 'eligible' ? 'active' : ''}`}
-                onClick={() => setActiveTab('eligible')}
+                onClick={() => handleSelectTab('eligible')}
               >
                 <Sparkles size={15} />
                 <span>Ranked Eligible Creators ({displayedEligibleCreators.length})</span>
@@ -343,7 +760,7 @@ export default function PipelineTraceModal({
               <button
                 type="button"
                 className={`pipeline-tab-btn ${activeTab === 'exclusions' ? 'active' : ''}`}
-                onClick={() => setActiveTab('exclusions')}
+                onClick={() => handleSelectTab('exclusions')}
               >
                 <XCircle size={15} />
                 <span>Exclusion Ledger ({displayedExclusions.length})</span>
@@ -353,10 +770,9 @@ export default function PipelineTraceModal({
             {/* Main Content Area */}
             <div className="pipeline-modal-body">
 
-              {/* TAB 1: Horizontal Connected Stages Pipeline Track */}
+              {/* TAB 1: Executing Pipeline B (Nested inside A) */}
               {activeTab === 'pipeline' && (
-                <div className="pipeline-flow-container">
-
+                <div className="pipeline-execution-content">
                   {/* Presentation Progress Banner */}
                   <div className="pipeline-pacing-indicator-bar">
                     <div className="pacing-text-wrap">
@@ -369,7 +785,6 @@ export default function PipelineTraceModal({
                           : `Currently reviewing Stage ${revealedStageCount} of 7. Each stage enforces a mandatory eligibility dimension.`}
                       </span>
                     </div>
-
                   </div>
 
                   {/* Desktop Horizontal Track */}
@@ -379,7 +794,7 @@ export default function PipelineTraceModal({
                         const isRevealed = idx < revealedStageCount;
                         const isActive = idx === activeStageIndex;
                         const isCurrentRevealing = idx === revealedStageCount - 1 && !isComplete;
-                        const isRanking = stage.stageId === 'stage_07_ranking_engine';
+                        const isRankingStage = stage.stageId === 'stage_07_ranking_engine';
 
                         let stageStatus = 'pending';
                         if (isRevealed) {
@@ -394,7 +809,7 @@ export default function PipelineTraceModal({
                           <React.Fragment key={stage.stageId}>
                             <div
                               ref={el => stageRefs.current[idx] = el}
-                              className={`horizontal-stage-card ${isRevealed ? 'revealed' : 'pending'} ${isActive ? 'selected' : ''} ${isCurrentRevealing ? 'pulsing-current' : ''}`}
+                              className={`horizontal-stage-card ${isRevealed ? 'revealed' : 'pending'} ${isActive && showInspector ? 'selected' : ''} ${isCurrentRevealing ? 'pulsing-current' : ''}`}
                               onClick={() => handleSelectStageCard(idx)}
                               title={isRevealed ? `Inspect Stage ${idx + 1}: ${stage.stageName}` : `Stage ${idx + 1} will reveal shortly`}
                             >
@@ -402,7 +817,7 @@ export default function PipelineTraceModal({
                                 <span className="stage-number-badge">0{idx + 1}</span>
                                 <div className="stage-status-indicator">
                                   {isRevealed ? (
-                                    isRanking ? (
+                                    isRankingStage ? (
                                       <span className="stage-pill-tag tag-rank">Ranked</span>
                                     ) : stage.rejectedCount > 0 ? (
                                       <span className="stage-pill-tag tag-rejected">-{stage.rejectedCount} Removed</span>
@@ -452,129 +867,228 @@ export default function PipelineTraceModal({
                       })}
                     </div>
                   </div>
+                </div>
+              )}
 
-                  {/* Active Stage Inspector Panel */}
-                  {activeStage && (
-                    <div className="active-stage-inspector studio-card">
-                      <div className="inspector-header">
-                        <div className="inspector-title-meta">
-                          <span className="section-label">
-                            Selected Stage Details • Stage 0{activeStageIndex + 1} of {stages.length}
+              {/* TAB: Interpreted Brief (Groq AI Extraction & Requirement Structure) */}
+              {activeTab === 'brief' && pipelineTrace?.interpretedBrief && (
+                <div className="pipeline-interpreted-brief-tab-content" style={{ padding: '4px 0 24px' }}>
+                  {/* Hero Summary */}
+                  <div className="studio-card" style={{ padding: '20px 24px', marginBottom: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span className="badge-subtle" style={{ color: 'var(--brand-mint, #10b981)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                            <Cpu size={12} style={{ marginRight: 4, display: 'inline' }} />
+                            Groq AI Brief Interpretation (openai/gpt-oss-120b)
                           </span>
-                          <h3 className="inspector-stage-name font-editorial">
-                            {activeStage.stageName}
-                          </h3>
-                          <p className="inspector-stage-desc">
-                            {activeStage.description}
-                          </p>
+                          <span className="badge-subtle">
+                            Dataset: {pipelineTrace.source === 'supabase' ? 'Supabase Authoritative' : 'Local Fallback'}
+                          </span>
+                        </div>
+                        <h3 className="font-editorial" style={{ fontSize: '1.4rem', margin: '4px 0' }}>
+                          {pipelineTrace.interpretedBrief.title}
+                        </h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+                          Target Industry: <strong>{pipelineTrace.interpretedBrief.industry || 'General Commercial'}</strong>
+                          {pipelineTrace.interpretedBrief.budget && (
+                            <span> • Budget: <strong>{pipelineTrace.interpretedBrief.budget}</strong></span>
+                          )}
+                          {pipelineTrace.interpretedBrief.timeline && (
+                            <span> • Timeline: <strong>{pipelineTrace.interpretedBrief.timeline}</strong></span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Two-column layout: Mandatory vs Preferred */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 20 }}>
+                    {/* Mandatory Requirements Card */}
+                    <div className="studio-card" style={{ padding: '20px', borderLeft: '3px solid #ef4444' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <ShieldCheck size={18} color="#ef4444" />
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                          Mandatory Constraints (Hard Eligibility)
+                        </h4>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                        A creator failing ANY mandatory requirement is strictly excluded by the deterministic 7-stage pipeline.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Mandatory Skills</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.mandatory?.skills || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.mandatory.skills.map((s, i) => (
+                                <span key={i} className="criteria-pill" style={{ borderColor: 'rgba(239, 68, 68, 0.4)' }}>{s}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified (all skills accepted)</span>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="inspector-stage-summary-pills">
-                          <span className="inspector-pill">
-                            <strong>{activeStage.inputCount}</strong> entered stage
-                          </span>
-                          <span className="inspector-pill pill-passed">
-                            <strong>{activeStage.passedCount}</strong> passed eligibility
-                          </span>
-                          {activeStage.rejectedCount > 0 && (
-                            <span className="inspector-pill pill-failed">
-                              <strong>{activeStage.rejectedCount}</strong> excluded
-                            </span>
-                          )}
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Specialization Domain</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.mandatory?.specialization || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.mandatory.specialization.map((s, i) => (
+                                <span key={i} className="criteria-pill">{s}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Deliverable Formats</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.mandatory?.formats || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.mandatory.formats.map((f, i) => (
+                                <span key={i} className="criteria-pill">{f}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Production Tools</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.mandatory?.tools || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.mandatory.tools.map((t, i) => (
+                                <span key={i} className="criteria-pill">{t}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 20, paddingTop: 6, borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))' }}>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Commercial Licensing:</span>
+                            <strong style={{ marginLeft: 6, color: pipelineTrace.interpretedBrief.requirements?.mandatory?.commercialLicensing ? '#ef4444' : 'var(--text-secondary)' }}>
+                              {pipelineTrace.interpretedBrief.requirements?.mandatory?.commercialLicensing ? 'Strictly Required' : 'Not explicitly required'}
+                            </strong>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>Min Projects:</span>
+                            <strong style={{ marginLeft: 6 }}>
+                              {pipelineTrace.interpretedBrief.requirements?.mandatory?.minProjects || 0}
+                            </strong>
+                          </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Stage-Specific Exclusion Breakdown */}
-                      {activeStage.rejections && activeStage.rejections.length > 0 ? (
-                        <div className="stage-exclusions-section">
-                          <h4 className="stage-section-heading heading-exclusions">
-                            <XCircle size={15} />
-                            <span>Creators Excluded at this Stage ({activeStage.rejections.length})</span>
-                          </h4>
-                          <div className="stage-rejections-list">
-                            {activeStage.rejections.map((rej, i) => (
-                              <div key={i} className="stage-rejection-card">
-                                <div className="rejection-card-top">
-                                  <div className="rej-creator-info">
-                                    <span className="rej-creator-name">{rej.creatorName}</span>
-                                    <span className="rej-creator-id">({rej.creatorId})</span>
-                                  </div>
-                                  <span className="rej-user-label">
-                                    {getReadableCode(rej.code)}
-                                  </span>
-                                </div>
-                                <p className="rej-reason-text">
-                                  {rej.reason}
-                                </p>
+                    {/* Preferred Requirements Card */}
+                    <div className="studio-card" style={{ padding: '20px', borderLeft: '3px solid #10b981' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <Sparkles size={18} color="#10b981" />
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                          Preferred Signals (Ranking Preferences)
+                        </h4>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                        Preferences influence compatibility ranking among eligible creators. They NEVER exclude creators or bypass mandatory checks.
+                      </p>
 
-                                <button
-                                  type="button"
-                                  className="rej-details-toggle-btn"
-                                  onClick={() => toggleExclusion(`stg-${rej.creatorId}-${i}`)}
-                                >
-                                  <span>{expandedExclusions[`stg-${rej.creatorId}-${i}`] ? 'Hide technical data' : 'Show technical data'}</span>
-                                  {expandedExclusions[`stg-${rej.creatorId}-${i}`] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                                </button>
-
-                                {expandedExclusions[`stg-${rej.creatorId}-${i}`] && (
-                                  <div className="rej-tech-details">
-                                    <div><strong>Reason Code:</strong> <code>{rej.code}</code></div>
-                                    <div><strong>Stage:</strong> <code>{rej.stage}</code></div>
-                                    {rej.missingFields && (
-                                      <div><strong>Missing Requirements:</strong> {JSON.stringify(rej.missingFields)}</div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Preferred Visual Styles</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.preferred?.styles || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.preferred.styles.map((s, i) => (
+                                <span key={i} className="criteria-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.4)' }}>{s}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
                           </div>
                         </div>
-                      ) : (
-                        <div className="stage-clean-pass-banner">
-                          <CheckCircle2 size={20} color="#10b981" />
-                          <div>
-                            <div style={{ fontWeight: 600, color: '#10b981' }}>Full Eligibility Maintained</div>
-                            <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                              All {activeStage.inputCount} candidates entering this stage satisfied all evaluated constraints.
-                            </p>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Industry / Brand Experience</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.preferred?.industries || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.preferred.industries.map((ind, i) => (
+                                <span key={i} className="criteria-pill">{ind}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
                           </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Preferred Platforms</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.preferred?.platforms || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.preferred.platforms.map((p, i) => (
+                                <span key={i} className="criteria-pill">{p}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', letterSpacing: '0.5px' }}>Aesthetic Tone</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                            {(pipelineTrace.interpretedBrief.requirements?.preferred?.tone || []).length > 0 ? (
+                              pipelineTrace.interpretedBrief.requirements.preferred.tone.map((t, i) => (
+                                <span key={i} className="criteria-pill">{t}</span>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None specified</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notes and Clarifying Questions */}
+                  {((pipelineTrace.interpretedBrief.interpretationNotes || []).length > 0 || (pipelineTrace.interpretedBrief.clarifyingQuestions || []).length > 0) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                      {(pipelineTrace.interpretedBrief.interpretationNotes || []).length > 0 && (
+                        <div className="studio-card" style={{ padding: '16px 20px' }}>
+                          <h5 style={{ margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
+                            <Info size={15} color="var(--brand-mint, #10b981)" />
+                            AI Interpretation Notes
+                          </h5>
+                          <ul style={{ margin: 0, paddingLeft: 18, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            {pipelineTrace.interpretedBrief.interpretationNotes.map((note, i) => (
+                              <li key={i} style={{ marginBottom: 4 }}>{note}</li>
+                            ))}
+                          </ul>
                         </div>
                       )}
 
-                      {/* Stage 7: Ranked Creators Preview */}
-                      {activeStage.stageId === 'stage_07_ranking_engine' && rankedCreators.length > 0 && (
-                        <div className="stage-ranked-preview-section">
-                          <h4 className="stage-section-heading">
-                            <Sparkles size={15} className="text-mint" />
-                            <span>Top Compatible Creators (Ranked by CreaMatch)</span>
-                          </h4>
-                          <div className="ranked-preview-grid">
-                            {rankedCreators.slice(0, 3).map((item, idx) => (
-                              <div key={item.creatorId} className="ranked-preview-card">
-                                <div className="ranked-card-header">
-                                  <span className="ranked-position-pill">#{idx + 1}</span>
-                                  <img src={item.creator.avatar} alt={item.creator.name} className="ranked-avatar" />
-                                  <div className="ranked-meta">
-                                    <h5 className="ranked-creator-name">{item.creator.name}</h5>
-                                    <span className="ranked-creator-role">{item.creator.specialty}</span>
-                                  </div>
-                                  <div className="ranked-score-badge">
-                                    <span className="ranked-score-num">{item.score}%</span>
-                                    <span className="ranked-score-lbl">{item.fitLabel}</span>
-                                  </div>
-                                </div>
-                                <p className="ranked-summary-quote">
-                                  "{item.explanation.summary}"
-                                </p>
-                              </div>
+                      {(pipelineTrace.interpretedBrief.clarifyingQuestions || []).length > 0 && (
+                        <div className="studio-card" style={{ padding: '16px 20px' }}>
+                          <h5 style={{ margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.9rem' }}>
+                            <AlertTriangle size={15} color="#eab308" />
+                            Clarifying Questions
+                          </h5>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0 0 8px 0' }}>
+                            Ambiguities identified by Groq (no unverified facts were invented for these details):
+                          </p>
+                          <ul style={{ margin: 0, paddingLeft: 18, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            {pipelineTrace.interpretedBrief.clarifyingQuestions.map((q, i) => (
+                              <li key={i} style={{ marginBottom: 4 }}>{q}</li>
                             ))}
-                          </div>
+                          </ul>
                         </div>
                       )}
-
                     </div>
                   )}
-
                 </div>
               )}
 
@@ -698,7 +1212,7 @@ export default function PipelineTraceModal({
                 </div>
               )}
 
-              {/* TAB 3: User-Facing Exclusion Ledger */}
+              {/* TAB 3: User-Facing Exclusion Ledger (Part C: Human-readable) */}
               {activeTab === 'exclusions' && (
                 <div className="pipeline-exclusions-tab-content">
                   <div className="exclusions-header-intro">
@@ -720,53 +1234,70 @@ export default function PipelineTraceModal({
                     </div>
                   ) : (
                     <div className="exclusions-ledger-list">
-                      {displayedExclusions.map((ex, idx) => (
-                        <div key={idx} className="exclusion-ledger-card studio-card">
-                          <div className="ledger-card-top">
-                            <div className="ledger-creator-title">
-                              <XCircle size={16} className="text-danger" />
-                              <span className="ledger-name">{ex.creatorName}</span>
-                              <span className="ledger-id">({ex.creatorId})</span>
+                      {displayedExclusions.map((ex, idx) => {
+                        const breakdown = buildDecisionBreakdown(ex);
+                        const isExpanded = expandedExclusions[`glob-${idx}`];
+                        return (
+                          <div key={idx} className="exclusion-ledger-card studio-card">
+                            <div className="ledger-card-top">
+                              <div className="ledger-creator-title">
+                                <XCircle size={16} className="text-danger" />
+                                <span className="ledger-name">{ex.creatorName}</span>
+                                <span className="ledger-id">({ex.creatorId})</span>
+                              </div>
+
+                              <span className="ledger-failed-badge">
+                                {getReadableCode(ex.code)}
+                              </span>
                             </div>
 
-                            <span className="ledger-failed-badge">
-                              {getReadableCode(ex.code)}
-                            </span>
-                          </div>
+                            <p className="ledger-reason-text">
+                              {ex.reason}
+                            </p>
 
-                          <p className="ledger-reason-text">
-                            {ex.reason}
-                          </p>
+                            <div className="ledger-meta-row">
+                              <span className="ledger-stage-name">
+                                Stage: <strong>{stages.find(s => s.stageId === ex.stage)?.stageName || ex.stage}</strong>
+                              </span>
 
-                          <div className="ledger-meta-row">
-                            <span className="ledger-stage-name">
-                              Stage: <strong>{ex.stage}</strong>
-                            </span>
-
-                            <button
-                              type="button"
-                              className="ledger-tech-toggle"
-                              onClick={() => toggleExclusion(`glob-${idx}`)}
-                            >
-                              <span>{expandedExclusions[`glob-${idx}`] ? 'Hide Details' : 'Technical Details'}</span>
-                              {expandedExclusions[`glob-${idx}`] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                            </button>
-                          </div>
-
-                          {expandedExclusions[`glob-${idx}`] && (
-                            <div className="ledger-tech-drawer">
-                              <div><strong>Machine Code:</strong> <code>{ex.code}</code></div>
-                              <div><strong>Stage Identifier:</strong> <code>{ex.stage}</code></div>
-                              {ex.missingFields && (
-                                <div><strong>Unsatisfied Fields:</strong> {JSON.stringify(ex.missingFields)}</div>
-                              )}
-                              {ex.availableData && (
-                                <div><strong>Available Creator Data:</strong> {JSON.stringify(ex.availableData)}</div>
-                              )}
+                              <button
+                                type="button"
+                                className="ledger-tech-toggle"
+                                onClick={() => toggleExclusion(`glob-${idx}`)}
+                              >
+                                <span>{isExpanded ? 'Hide Decision Breakdown' : 'Decision Breakdown'}</span>
+                                {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                              </button>
                             </div>
-                          )}
-                        </div>
-                      ))}
+
+                            {isExpanded && (
+                              <div className="ledger-decision-drawer">
+                                {breakdown.map((item, j) => (
+                                  <div key={j} className={`breakdown-row breakdown-${item.type}`}>
+                                    <span className="breakdown-label">{item.label}</span>
+                                    <span className="breakdown-value">{item.value}</span>
+                                  </div>
+                                ))}
+
+                                {/* Secondary debug view for developers */}
+                                <details className="ledger-debug-details">
+                                  <summary>Developer Debug View</summary>
+                                  <div className="ledger-debug-content">
+                                    <div><strong>Machine Code:</strong> <code>{ex.code}</code></div>
+                                    <div><strong>Stage Identifier:</strong> <code>{ex.stage}</code></div>
+                                    {ex.missingFields && (
+                                      <div><strong>Raw Missing Fields:</strong> <code>{JSON.stringify(ex.missingFields)}</code></div>
+                                    )}
+                                    {ex.availableData && (
+                                      <div><strong>Raw Available Data:</strong> <code>{JSON.stringify(ex.availableData)}</code></div>
+                                    )}
+                                  </div>
+                                </details>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -810,6 +1341,11 @@ export default function PipelineTraceModal({
           </>
         )}
 
+          </div>
+
+          {/* C: Node Detail, an independent sibling of A */}
+          {showInspector && renderInspectorPanel()}
+        </div>
       </div>
     </div>
   );

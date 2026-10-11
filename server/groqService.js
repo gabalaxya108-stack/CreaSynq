@@ -382,3 +382,138 @@ JSON SCHEMA:
 
   return parsed;
 }
+
+// =========================================================================
+// 5. FEATURE: CAMPAIGN REQUIREMENT INTERPRETER
+// Converts natural-language briefs into structured pipeline requirements.
+// AI interprets intent; deterministic pipeline code decides eligibility.
+// =========================================================================
+export async function interpretCampaignRequirements(naturalBrief) {
+  if (typeof naturalBrief !== 'string' || !naturalBrief.trim()) {
+    throw new Error('INVALID_INPUT: Natural-language campaign brief is empty.');
+  }
+
+  const systemPrompt = `
+You are CreaSync's campaign requirement interpreter for an AI creator marketplace.
+
+Convert a brand's natural-language campaign brief into structured creator-matching requirements.
+
+Return valid JSON with exactly these fields:
+{
+  "title": "string",
+  "industry": "string",
+  "budget": "string or null",
+  "timeline": "string or null",
+  "mandatory": {
+    "skills": ["string"],
+    "specialization": ["string"],
+    "tools": ["string"],
+    "formats": ["string"],
+    "styles": ["string"],
+    "commercialLicensing": false,
+    "minProjects": 0
+  },
+  "preferred": {
+    "styles": ["string"],
+    "platforms": ["string"],
+    "industries": ["string"],
+    "tone": ["string"]
+  },
+  "interpretationNotes": ["string"],
+  "clarifyingQuestions": ["string"]
+}
+
+Critical Rules:
+1. Put a requirement under mandatory ONLY when the brand explicitly requires it or clearly makes it a hard condition of the campaign (e.g. "requiring", "must have", "mandatory", "need creators who can produce vertical video").
+2. Words such as "preferably", "prefer", "ideally", "would be nice", "bonus", or "experience with X is a plus" indicate ranking preferences. Always place them under preferred.
+3. Visual and creative styles (e.g. "cinematic", "editorial", "luxury", "surreal", "minimal") belong under preferred.styles for compatibility ranking, NOT mandatory, unless explicitly demanded with hard constraint words like "must strictly be" or "mandatory style".
+4. Deliverable formats or aspect ratios (e.g. "vertical video", "9:16", "4K stills", "loops", "3D render") belong under formats, NOT specialization. Never put aspect ratios or format terms under specialization.
+5. Do NOT infer commercial licensing from the mere fact that a campaign is commercial, promotes a product, or represents a brand. Set commercialLicensing to true ONLY when the brief explicitly specifies commercial usage rights, commercial licensing, or commercial license required.
+6. Do not invent tools, skills, qualifications, budget, or deadlines. Set budget and timeline to null unless explicitly stated with figures or timeframes in the brief.
+7. Set minProjects to a non-negative integer. Use 0 unless a minimum number of portfolio projects is explicitly required.
+8. Use empty arrays for unsupported or unspecified attributes. Keep requirements concise and suitable for deterministic matching against creator profiles.
+9. If the brief is ambiguous, record observations in interpretationNotes or questions in clarifyingQuestions instead of guessing or inventing facts.
+10. Do not evaluate or invent facts about any creator. Return JSON only.
+`;
+
+  const parsed = await callGroqChat({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Campaign brief:\n"""${naturalBrief.trim()}"""` }
+    ],
+    temperature: 0.1,
+    jsonMode: true,
+    maxTokens: 1600
+  });
+
+  const list = value => {
+    if (Array.isArray(value)) {
+      return value.filter(item => typeof item === 'string').map(item => item.trim()).filter(Boolean);
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return [value.trim()];
+    }
+    return [];
+  };
+
+  const mandatory = parsed.mandatory || parsed.requirements?.mandatory || {};
+  const preferred = parsed.preferred || parsed.requirements?.preferred || {};
+
+  let minProjects = 0;
+  if (typeof mandatory.minProjects === 'number' && Number.isFinite(mandatory.minProjects)) {
+    minProjects = Math.max(0, Math.floor(mandatory.minProjects));
+  } else if (typeof mandatory.minProjects === 'string') {
+    const parsedNum = parseInt(mandatory.minProjects, 10);
+    if (!isNaN(parsedNum) && parsedNum >= 0) minProjects = parsedNum;
+  }
+
+  const commercialLicensing = mandatory.commercialLicensing === true || mandatory.commercialLicensing === 'true';
+
+  const budget = typeof parsed.budget === 'string' && parsed.budget.trim() && !['null', 'none', 'undefined', 'n/a'].includes(parsed.budget.trim().toLowerCase())
+    ? parsed.budget.trim()
+    : null;
+
+  const timeline = typeof parsed.timeline === 'string' && parsed.timeline.trim() && !['null', 'none', 'undefined', 'n/a'].includes(parsed.timeline.trim().toLowerCase())
+    ? parsed.timeline.trim()
+    : null;
+
+  // Safeguard: Separate format/aspect terms from specialization if LLM miscategorized
+  const rawMandatorySpec = list(mandatory.specialization);
+  const isFormatTerm = term => {
+    const t = term.toLowerCase();
+    return t.includes('9:16') || t.includes('vertical') || t.includes('horizontal') || t.includes('aspect') || t.includes('format') || t.includes('loop') || t.includes('still');
+  };
+  const cleanMandatorySpec = rawMandatorySpec.filter(s => !isFormatTerm(s));
+  const formatFromSpec = rawMandatorySpec.filter(s => isFormatTerm(s));
+  const combinedMandatoryFormats = Array.from(new Set([...list(mandatory.formats), ...formatFromSpec]));
+
+  return {
+    title: typeof parsed.title === 'string' && parsed.title.trim()
+      ? parsed.title.trim()
+      : 'Campaign Brief',
+    industry: typeof parsed.industry === 'string' && parsed.industry.trim()
+      ? parsed.industry.trim()
+      : 'General Commercial',
+    budget,
+    timeline,
+    requirements: {
+      mandatory: {
+        skills: list(mandatory.skills),
+        specialization: cleanMandatorySpec,
+        tools: list(mandatory.tools),
+        formats: combinedMandatoryFormats,
+        styles: list(mandatory.styles),
+        commercialLicensing,
+        minProjects
+      },
+      preferred: {
+        styles: list(preferred.styles),
+        platforms: list(preferred.platforms),
+        industries: list(preferred.industries),
+        tone: list(preferred.tone)
+      }
+    },
+    interpretationNotes: list(parsed.interpretationNotes || parsed.notes),
+    clarifyingQuestions: list(parsed.clarifyingQuestions || parsed.questions)
+  };
+}

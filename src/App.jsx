@@ -19,6 +19,9 @@ import BrandOnboardingView from './views/BrandOnboardingView';
 import CreatorOnboardingView from './views/CreatorOnboardingView';
 import CreatorWorkspaceView from './views/CreatorWorkspaceView';
 import TrustCenterView from './views/TrustCenterView';
+import AdminLoginView from './views/AdminLoginView';
+import AdminDashboardView from './views/AdminDashboardView';
+import { verifyAdminSession, getAdminActiveSession } from './services/adminApi';
 
 import ProjectModal from './components/ProjectModal';
 import CampaignModal from './components/CampaignModal';
@@ -27,6 +30,7 @@ import ForBrandsModal from './components/ForBrandsModal';
 import ForCreatorsModal from './components/ForCreatorsModal';
 import WhyThisCreatorModal from './components/WhyThisCreatorModal';
 import ConversationModal from './components/ConversationModal';
+import GlobalMessagingDrawer from './components/GlobalMessagingDrawer';
 import RoleSelectModal from './components/RoleSelectModal';
 import LoginModal from './components/LoginModal';
 import RoleConflictModal from './components/RoleConflictModal';
@@ -65,6 +69,9 @@ import {
   requestRevision as requestBackendRevision,
   approveDeliverables as approveBackendDeliverables,
   toggleShortlist as toggleBackendShortlist,
+  sendBackendMessage,
+  fetchBackendMessages,
+  subscribeToMessages,
   subscribeToInvitations,
   subscribeToCollaborations,
   subscribeToCampaigns,
@@ -122,8 +129,15 @@ export default function App() {
     setCurrentUser(user);
   };
 
-  const [currentView, setCurrentView] = useState('home'); // 'home' | 'discover' | 'creator-profile' | 'creator-not-found' | 'brand-workspace' | 'creator-join' | 'creator-workspace'
+  const [currentView, setCurrentView] = useState('home'); // includes admin-login and admin-dashboard
   const [activeCreatorId, setActiveCreatorId] = useState(null);
+  const [currentAdmin, setCurrentAdmin] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('alloy_super_admin_session') || 'null');
+    } catch {
+      return null;
+    }
+  });
   const [initialBrandTab, setInitialBrandTab] = useState('overview');
   const [initialCreatorTab, setInitialCreatorTab] = useState('overview');
 
@@ -132,6 +146,7 @@ export default function App() {
   const [isPipelineTraceModalOpen, setIsPipelineTraceModalOpen] = useState(false);
   const [isPipelineTraceLoading, setIsPipelineTraceLoading] = useState(false);
   const [pipelineFilter, setPipelineFilter] = useState(null);
+  const [pipelineError, setPipelineError] = useState(null);
   const pipelineRunVersionRef = useRef(0);
 
   // Centralized persistent state (synced with localStorage & reactive cross-tab events)
@@ -222,7 +237,7 @@ export default function App() {
           if (isMounted && freshInvs?.length) {
             setMarketplaceData(prev => ({ ...prev, invitations: freshInvs }));
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     });
 
@@ -232,7 +247,7 @@ export default function App() {
           if (isMounted && freshCollabs?.length) {
             setMarketplaceData(prev => ({ ...prev, projects: freshCollabs }));
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     });
 
@@ -242,8 +257,35 @@ export default function App() {
           if (isMounted && freshCamps?.length) {
             setMarketplaceData(prev => ({ ...prev, campaigns: freshCamps }));
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
+    });
+
+    const unsubMsg = subscribeToMessages(null, (newMsg) => {
+      if (!isMounted || !newMsg || !newMsg.conversationId) return;
+      setMarketplaceData(prev => {
+        let matched = false;
+        const nextConns = (prev.connections || []).map(conn => {
+          if (conn.id === newMsg.conversationId) {
+            matched = true;
+            const msgs = conn.messages || [];
+            const exists = msgs.some(m => m.id === newMsg.id || (m.isPending && m.text === newMsg.text));
+            if (exists) {
+              return {
+                ...conn,
+                messages: msgs.map(m => (m.id === newMsg.id || (m.isPending && m.text === newMsg.text)) ? newMsg : m)
+              };
+            }
+            return {
+              ...conn,
+              messages: [...msgs, newMsg]
+            };
+          }
+          return conn;
+        });
+        if (!matched) return prev;
+        return { ...prev, connections: nextConns };
+      });
     });
 
     return () => {
@@ -251,6 +293,7 @@ export default function App() {
       unsubInv();
       unsubCollab();
       unsubCamp();
+      unsubMsg();
     };
   }, []);
 
@@ -271,8 +314,65 @@ export default function App() {
   const activeCampaign = brandScoped.activeCampaign || brandCampaigns[0] || null;
   const brandInvitations = brandScoped.invitations;
   const brandProjects = brandScoped.projects;
-  const brandConnections = brandScoped.connections;
   const brandShortlists = brandScoped.shortlists;
+
+  // Derive synchronized connections ensuring all invitations have matching threads
+  // and both Brand and Creator share the exact same canonical conversation ID
+  const synchronizedConnections = useMemo(() => {
+    const conns = [...connections];
+    (invitations || []).forEach(inv => {
+      if (!inv.creatorId) return;
+      const canonicalId = inv.campaignId
+        ? `conn-${inv.campaignId}-${inv.creatorId}`
+        : `conn-${inv.brandId || 'brand-general'}-${inv.creatorId}`;
+
+      const existingIndex = conns.findIndex(c => 
+        c.id === canonicalId || c.id === inv.id || (c.creatorId === inv.creatorId && c.campaignId === inv.campaignId)
+      );
+
+      const initialMsg = {
+        id: `msg-inv-${inv.id}`,
+        sender: 'brand',
+        senderName: inv.brandName || 'Brand Partner',
+        text: inv.summary || `Direct invitation from ${inv.brandName || 'Brand Partner'} to collaborate.`,
+        timestamp: inv.createdAt || 'Just now'
+      };
+
+      if (existingIndex === -1) {
+        conns.push({
+          id: canonicalId,
+          brandId: inv.brandId || 'brand-general',
+          creatorId: inv.creatorId,
+          creatorName: inv.creatorName,
+          creatorRole: "Creative Partner",
+          creatorAvatar: inv.creatorAvatar,
+          campaignId: inv.campaignId,
+          campaignTitle: inv.campaignTitle,
+          brandName: inv.brandName || 'Brand Partner',
+          status: 'connected',
+          createdAt: inv.createdAt || 'Just now',
+          connectedAt: 'Just now',
+          messages: [initialMsg]
+        });
+      } else {
+        const existing = conns[existingIndex];
+        if (!existing.messages || existing.messages.length === 0) {
+          conns[existingIndex] = {
+            ...existing,
+            messages: [initialMsg]
+          };
+        }
+      }
+    });
+    return conns;
+  }, [connections, invitations]);
+
+  // Derived Brand Connections from synchronized connections
+  const brandConnections = useMemo(() => {
+    return synchronizedConnections.filter(conn => 
+      !conn.brandId || conn.brandId === currentBrand?.id || conn.brandId === 'brand-general'
+    );
+  }, [synchronizedConnections, currentBrand?.id]);
 
   // Visible brands: When a real brand user is logged in, ONLY their brand is in the architecture (no demo brands!)
   const visibleBrands = useMemo(() => {
@@ -319,6 +419,20 @@ export default function App() {
   const [isConversationOpen, setIsConversationOpen] = useState(false);
   const [activeConversationConnection, setActiveConversationConnection] = useState(null);
   const [conversationUserRole, setConversationUserRole] = useState('brand');
+
+  // Global Direct Messaging Drawer State
+  const [isMessagingDrawerOpen, setIsMessagingDrawerOpen] = useState(false);
+  const [activeMessagingConnectionId, setActiveMessagingConnectionId] = useState(null);
+
+  // Synchronize active conversation object whenever connection state updates
+  useEffect(() => {
+    if (activeConversationConnection?.id) {
+      const updated = (marketplaceData.connections || []).find(c => c.id === activeConversationConnection.id);
+      if (updated && updated !== activeConversationConnection) {
+        setActiveConversationConnection(updated);
+      }
+    }
+  }, [marketplaceData.connections]);
 
 
 
@@ -726,61 +840,172 @@ export default function App() {
       () => {
         setActiveConversationConnection(conn);
         setConversationUserRole(userRole);
-        setIsConversationOpen(true);
+        setActiveMessagingConnectionId(conn?.id || null);
+        setIsMessagingDrawerOpen(true);
       }
     );
   };
 
   // --- Context-Aware Direct Messages Navigation ---
-  const handleOpenMessages = () => {
-    const activeUser = currentUserRef.current || currentUser || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('creasync_active_user') || 'null') : null);
-
-    if (!activeUser) {
-      requireAuth({
-        type: 'NAVIGATE',
-        view: 'brand-workspace',
-        role: 'brand',
-        notice: 'Please sign in to access direct messaging'
-      }, () => {
-        setInitialBrandTab('messages');
-        navigateTo('brand-workspace');
-      });
-      return;
+  const handleOpenMessages = (connId = null) => {
+    if (connId) {
+      const connIdStr = typeof connId === 'string' ? connId : (connId?.id || connId?.conversationId || connId?.connectionId);
+      if (connIdStr) setActiveMessagingConnectionId(connIdStr);
     }
-
-    const role = (currentView === 'creator-workspace') ? 'creator' :
-                 (currentView === 'brand-workspace') ? 'brand' :
-                 resolveUserRole(activeUser);
-
-    if (role === 'creator') {
-      setInitialCreatorTab('messages');
-      navigateTo('creator-workspace', null, activeUser);
-    } else {
-      setInitialBrandTab('messages');
-      navigateTo('brand-workspace', null, activeUser);
-    }
+    setIsMessagingDrawerOpen(true);
   };
 
-  // --- Messaging Action ---
-  const handleSendMessage = (connectionId, newMsg) => {
-    setMarketplaceData(prev => ({
-      ...prev,
-      connections: prev.connections.map(conn => {
-        if (conn.id === connectionId) {
+  // --- Robust Messaging Action with Optimistic Update and Rollback ---
+  const sendingMessageLocksRef = useRef(new Set());
+
+  const handleSendMessage = async (connectionIdOrPayload, newMsg) => {
+    // Robustly resolve the conversation ID and message payload regardless of calling convention
+    const conversationId = typeof connectionIdOrPayload === 'string'
+      ? connectionIdOrPayload
+      : (connectionIdOrPayload?.conversationId || connectionIdOrPayload?.connectionId || connectionIdOrPayload?.id);
+    const connectionId = conversationId;
+
+    if (!conversationId) {
+      throw new Error('Conversation ID is required.');
+    }
+
+    const payload = (typeof connectionIdOrPayload === 'object' && connectionIdOrPayload !== null && !newMsg)
+      ? connectionIdOrPayload
+      : (newMsg || {});
+
+    const trimmedText = (payload?.text || '').trim();
+    if (!trimmedText) {
+      throw new Error('Message cannot be empty or whitespace-only.');
+    }
+
+    // Duplicate submission guard per connection
+    const lockKey = `${connectionId}:${trimmedText}`;
+    if (sendingMessageLocksRef.current.has(lockKey)) {
+      console.warn('[Messaging] Duplicate message send rejected for in-flight request');
+      return;
+    }
+    sendingMessageLocksRef.current.add(lockKey);
+
+    const tempMsgId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const senderRole = payload.sender || (currentView === 'creator-workspace' ? 'creator' : 'brand');
+    const senderName = payload.senderName || (senderRole === 'creator' ? (activeCreator?.name || 'Creator') : (currentBrand?.name || 'Brand Partner'));
+    const timestampStr = payload.timestamp || 'Just now';
+
+    const optimisticMessage = {
+      id: tempMsgId,
+      conversationId,
+      sender: senderRole,
+      senderName,
+      text: trimmedText,
+      timestamp: timestampStr,
+      createdAt: new Date().toISOString(),
+      isPending: true
+    };
+
+    const matchesConn = (c) => c.id === connectionId || (c.campaignId && c.creatorId && connectionId === `conn-${c.campaignId}-${c.creatorId}`);
+
+    // 1. Optimistic update in marketplace state
+    setMarketplaceData(prev => {
+      let found = false;
+      const nextConnections = (prev.connections || []).map(conn => {
+        if (matchesConn(conn)) {
+          found = true;
           return {
             ...conn,
-            messages: [
-              ...(conn.messages || []),
-              {
-                id: `msg-${Date.now()}`,
-                ...newMsg
-              }
-            ]
+            messages: [...(conn.messages || []), optimisticMessage]
           };
         }
         return conn;
-      })
-    }));
+      });
+
+      if (!found) {
+        nextConnections.unshift({
+          id: connectionId,
+          status: 'connected',
+          createdAt: 'Just now',
+          messages: [optimisticMessage]
+        });
+      }
+
+      return {
+        ...prev,
+        connections: nextConnections
+      };
+    });
+
+    // Update active conversation modal reference immediately
+    setActiveConversationConnection(prev => {
+      if (!prev || !matchesConn(prev)) return prev;
+      return {
+        ...prev,
+        messages: [...(prev.messages || []), optimisticMessage]
+      };
+    });
+
+    try {
+      // 2. Asynchronous backend persistence
+      const persisted = await sendBackendMessage({
+        conversationId,
+        connectionId,
+        sender: senderRole,
+        senderName,
+        text: trimmedText,
+        timestamp: timestampStr,
+        userId: currentUser?.id,
+        actorName: senderName
+      });
+
+      // 3. Reconcile optimistic message with persisted message
+      setMarketplaceData(prev => ({
+        ...prev,
+        connections: (prev.connections || []).map(conn => {
+          if (matchesConn(conn)) {
+            return {
+              ...conn,
+              messages: (conn.messages || []).map(m => m.id === tempMsgId ? { ...persisted, isPending: false } : m)
+            };
+          }
+          return conn;
+        })
+      }));
+
+      setActiveConversationConnection(prev => {
+        if (!prev || !matchesConn(prev)) return prev;
+        return {
+          ...prev,
+          messages: (prev.messages || []).map(m => m.id === tempMsgId ? { ...persisted, isPending: false } : m)
+        };
+      });
+
+      return persisted;
+    } catch (err) {
+      console.error('[Messaging] Persistence failed, rolling back optimistic update:', err);
+      // 4. Reliable rollback on error
+      setMarketplaceData(prev => ({
+        ...prev,
+        connections: (prev.connections || []).map(conn => {
+          if (matchesConn(conn)) {
+            return {
+              ...conn,
+              messages: (conn.messages || []).filter(m => m.id !== tempMsgId)
+            };
+          }
+          return conn;
+        })
+      }));
+
+      setActiveConversationConnection(prev => {
+        if (!prev || !matchesConn(prev)) return prev;
+        return {
+          ...prev,
+          messages: (prev.messages || []).filter(m => m.id !== tempMsgId)
+        };
+      });
+
+      throw err;
+    } finally {
+      sendingMessageLocksRef.current.delete(lockKey);
+    }
   };
 
   // Hash & URL Synchronization with Protected Route Guards
@@ -866,6 +1091,28 @@ export default function App() {
           setIsRoleSelectOpen(true);
           setCurrentView('home');
           window.location.hash = '';
+        }
+      } else if (hash === '/admin/login' || hash === 'admin/login') {
+        setCurrentView('admin-login');
+      } else if (hash === '/admin/dashboard' || hash === 'admin/dashboard' || hash === '/admin' || hash === 'admin') {
+        // Super Admin Guard
+        const storedAdmin = getAdminActiveSession();
+        if (storedAdmin && (storedAdmin.role === 'super_admin' || storedAdmin.role === 'admin' || storedAdmin.role === 'judge_admin')) {
+          setCurrentAdmin(storedAdmin);
+          setCurrentView('admin-dashboard');
+        } else {
+          verifyAdminSession().then(res => {
+            if (res.ok && res.user) {
+              setCurrentAdmin(res.user);
+              setCurrentView('admin-dashboard');
+            } else {
+              setCurrentView('admin-login');
+              window.location.hash = '/admin/login';
+            }
+          }).catch(() => {
+            setCurrentView('admin-login');
+            window.location.hash = '/admin/login';
+          });
         }
       } else {
         setCurrentView('home');
@@ -1043,9 +1290,14 @@ export default function App() {
   };
 
   const handleRunFilteringPipeline = async (targetCampaign) => {
-    const campaignToRun = targetCampaign || (marketplaceData.campaigns || []).find(c => c.id === marketplaceData.activeCampaignId) || marketplaceData.campaigns?.[0];
+    const isNatural = typeof targetCampaign === 'string' || (targetCampaign && typeof targetCampaign.naturalBrief === 'string');
+    const campaignToRun = isNatural
+      ? targetCampaign
+      : (targetCampaign || (marketplaceData.campaigns || []).find(c => c.id === marketplaceData.activeCampaignId) || marketplaceData.campaigns?.[0]);
     if (!campaignToRun) return;
+
     setIsPipelineTraceLoading(true);
+    setPipelineError(null);
     const currentVersion = ++pipelineRunVersionRef.current;
     try {
       // Pass null creators to ensure authoritative server-side creator data is used
@@ -1056,10 +1308,32 @@ export default function App() {
           isStale: false,
           staleReason: null
         });
+        setPipelineFilter({
+          campaignId: trace.campaignId || (trace.interpretedBrief ? 'ai-natural-brief' : (typeof campaignToRun === 'object' ? campaignToRun?.id : 'ai-natural-brief')),
+          campaignTitle: trace.interpretedBrief?.title || trace.campaignTitle || 'AI Campaign Filter',
+          eligibleCreatorIds: trace.eligibleCreatorIds || [],
+          rankedOrder: trace.rankedCreators || [],
+          source: trace.source,
+          interpretedBrief: trace.interpretedBrief,
+          isStale: false
+        });
         setIsPipelineTraceModalOpen(true);
       }
     } catch (err) {
       console.error('[App] Pipeline execution error:', err);
+      if (currentVersion === pipelineRunVersionRef.current) {
+        setPipelineError(err.message || 'Pipeline execution failed.');
+        setPipelineTrace(prev => prev ? {
+          ...prev,
+          isStale: true,
+          staleReason: `Pipeline run failed: ${err.message || 'Execution error'}. Displaying previous results as stale.`
+        } : null);
+        setPipelineFilter(prev => prev ? {
+          ...prev,
+          isStale: true,
+          staleReason: `Pipeline run failed: ${err.message || 'Execution error'}. Displaying previous results as stale.`
+        } : null);
+      }
     } finally {
       if (currentVersion === pipelineRunVersionRef.current) {
         setIsPipelineTraceLoading(false);
@@ -1291,9 +1565,24 @@ export default function App() {
       createdAt: 'Just now'
     };
 
-    // Open connection thread in messages
+    // Open canonical connection thread in messages
+    const canonicalConnId = newInvitation.campaignId
+      ? `conn-${newInvitation.campaignId}-${invData.creatorId}`
+      : `conn-${currentBrand?.id || 'brand-general'}-${invData.creatorId}`;
+
+    newInvitation.conversationId = canonicalConnId;
+
+    const initialMsgObj = {
+      id: `msg-inv-${newInvitation.id}`,
+      conversationId: canonicalConnId,
+      sender: 'brand',
+      senderName: currentBrand?.name || 'Brand Partner',
+      text: newInvitation.summary,
+      timestamp: 'Just now'
+    };
+
     const newConn = {
-      id: `conn-${invData.creatorId}-${Date.now()}`,
+      id: canonicalConnId,
       brandId: currentBrand?.id || 'brand-general',
       creatorId: invData.creatorId,
       creatorName: invData.creatorName,
@@ -1305,22 +1594,23 @@ export default function App() {
       status: 'connected',
       createdAt: 'Just now',
       connectedAt: 'Just now',
-      messages: [
-        {
-          id: `msg-${Date.now()}`,
-          sender: 'brand',
-          senderName: currentBrand?.name || 'Brand Partner',
-          text: newInvitation.summary,
-          timestamp: 'Just now'
-        }
-      ]
+      messages: [initialMsgObj]
     };
 
-    setMarketplaceData(prev => ({
-      ...prev,
-      invitations: [newInvitation, ...prev.invitations],
-      connections: [newConn, ...prev.connections.filter(c => !(c.creatorId === invData.creatorId && c.campaignId === newInvitation.campaignId))]
-    }));
+    setMarketplaceData(prev => {
+      const existingConnIndex = (prev.connections || []).findIndex(c =>
+        c.id === canonicalConnId || (c.creatorId === invData.creatorId && c.campaignId === newInvitation.campaignId)
+      );
+      const nextConns = existingConnIndex >= 0
+        ? prev.connections.map((c, i) => i === existingConnIndex ? { ...c, ...newConn, messages: (c.messages && c.messages.length > 0) ? c.messages : [initialMsgObj] } : c)
+        : [newConn, ...(prev.connections || [])];
+
+      return {
+        ...prev,
+        invitations: [newInvitation, ...prev.invitations],
+        connections: nextConns
+      };
+    });
 
     sendBackendInvitation(newInvitation, currentBrand?.name, currentUser?.id).catch(err => {
       console.warn('[CreaSync] Background invitation send sync deferred:', err);
@@ -1706,25 +1996,27 @@ export default function App() {
 
   return (
     <div className="creasynq-app">
-      {/* Navigation Header */}
-      <Header
-        currentView={currentView}
-        onNavigate={(v) => navigateTo(v)}
-        onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
-        onOpenCreatorModal={() => navigateTo('creator-join')}
-        onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
-        onOpenLogin={() => {
-          setLoginNotice(null);
-          setIsLoginOpen(true);
-        }}
-        onOpenForBrandsModal={() => setIsForBrandsOpen(true)}
-        onOpenForCreatorsModal={() => setIsForCreatorsOpen(true)}
-        onOpenMessages={handleOpenMessages}
-        activeCampaign={activeCampaign}
-        createdCreatorProfile={myCreator}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-      />
+      {/* Keep public navigation out of the dedicated admin screens. */}
+      {currentView !== 'admin-login' && currentView !== 'admin-dashboard' && (
+        <Header
+          currentView={currentView}
+          onNavigate={(v) => navigateTo(v)}
+          onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
+          onOpenCreatorModal={() => navigateTo('creator-join')}
+          onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
+          onOpenLogin={() => {
+            setLoginNotice(null);
+            setIsLoginOpen(true);
+          }}
+          onOpenForBrandsModal={() => setIsForBrandsOpen(true)}
+          onOpenForCreatorsModal={() => setIsForCreatorsOpen(true)}
+          onOpenMessages={handleOpenMessages}
+          activeCampaign={activeCampaign}
+          createdCreatorProfile={myCreator}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+      )}
 
       {/* Main Views */}
       <main>
@@ -1800,8 +2092,20 @@ export default function App() {
             onWhyClick={handleOpenWhyModal}
             onInviteCreator={handleOpenInviteModal}
             pipelineFilter={pipelineFilter}
-            onClearPipelineFilter={() => setPipelineFilter(null)}
+            onClearPipelineFilter={() => {
+              setPipelineFilter(null);
+              setPipelineError(null);
+            }}
             onOpenPipelineTrace={handleRunFilteringPipeline}
+            onRunNaturalPipeline={handleRunFilteringPipeline}
+            isPipelineTraceLoading={isPipelineTraceLoading}
+            pipelineError={pipelineError}
+            currentUser={currentUser}
+            onOpenLogin={() => {
+              setLoginNotice('Sign in to filter creators using AI natural language.');
+              setLoginInitialRole('brand');
+              setIsLoginOpen(true);
+            }}
           />
         )}
 
@@ -1887,7 +2191,7 @@ export default function App() {
             onUpdateCreator={handleUpdateCreator}
             onViewPublicProfile={() => handleOpenCreatorProfile(myCreator.id)}
             onExploreMarketplace={() => navigateTo('discover')}
-            connections={connections}
+            connections={synchronizedConnections}
             onOpenConversation={(conn) => handleOpenConversation(conn, 'creator')}
             opportunities={publicOpportunities}
             onOpportunityResponse={handleOpportunityResponse}
@@ -1958,11 +2262,7 @@ export default function App() {
               We couldn't find a creator matching this link on this device. The profile may have been unpublished, or the link may be incorrect.
             </p>
             <div className="step-footer-actions justify-center">
-              <button
-                type="button"
-                className="btn btn-primary btn-lg"
-                onClick={() => navigateTo('discover')}
-              >
+              <button type="button" className="btn btn-primary btn-lg" onClick={() => navigateTo('discover')}>
                 <span>Back to Marketplace</span>
               </button>
             </div>
@@ -1980,22 +2280,48 @@ export default function App() {
             onBackToMarketplace={() => navigateTo('discover')}
           />
         )}
+
+        {/* VIEW 8: SUPER ADMIN SECURITY LOGIN */}
+        {currentView === 'admin-login' && (
+          <AdminLoginView
+            onAdminAuthenticated={(user) => {
+              setCurrentAdmin(user);
+              setCurrentView('admin-dashboard');
+              window.location.hash = '/admin/dashboard';
+            }}
+          />
+        )}
+
+        {/* VIEW 9: SUPER ADMIN & ALLOYTRUST DASHBOARD */}
+        {currentView === 'admin-dashboard' && (
+          <AdminDashboardView
+            adminUser={currentAdmin}
+            onLogout={() => {
+              setCurrentAdmin(null);
+              try { localStorage.removeItem('alloy_super_admin_session'); } catch { /* ignore storage errors */ }
+              setCurrentView('home');
+              window.location.hash = '';
+            }}
+          />
+        )}
       </main>
 
-      {/* SECTION K: Clean Footer */}
-      <Footer
-        onNavigate={(v) => navigateTo(v)}
-        onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
-        onOpenCreatorModal={handleCreatorAction}
-        onEnterBrandStudio={handleHireAction}
-        onEnterCreatorStudio={handleCreatorAction}
-        onOpenLogin={() => {
-          setLoginNotice(null);
-          setLoginInitialRole('brand');
-          setIsLoginOpen(true);
-        }}
-        onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
-      />
+      {/* SECTION K: Clean Footer (Preserved exactly for all public views) */}
+      {currentView !== 'admin-login' && currentView !== 'admin-dashboard' && (
+        <Footer
+          onNavigate={(v) => navigateTo(v)}
+          onOpenCampaignModal={() => requireAuth({ type: 'CREATE_CAMPAIGN', role: 'brand', notice: 'Please sign in to start a new campaign' }, () => setIsCampaignModalOpen(true))}
+          onOpenCreatorModal={handleCreatorAction}
+          onEnterBrandStudio={handleHireAction}
+          onEnterCreatorStudio={handleCreatorAction}
+          onOpenLogin={() => {
+            setLoginNotice(null);
+            setLoginInitialRole('brand');
+            setIsLoginOpen(true);
+          }}
+          onOpenRoleSelect={() => setIsRoleSelectOpen(true)}
+        />
+      )}
 
       {/* Role Selection Modal */}
       <RoleSelectModal
@@ -2338,6 +2664,31 @@ export default function App() {
         onSendMessage={handleSendMessage}
         onViewProfile={handleOpenCreatorProfile}
       />
+
+      {/* Global Messaging Persistent Drawer & Floating Launcher */}
+      {currentView !== 'admin-login' && currentView !== 'admin-dashboard' && (
+        <GlobalMessagingDrawer
+          isOpen={isMessagingDrawerOpen}
+          onOpen={() => handleOpenMessages()}
+          onClose={() => {
+            setIsMessagingDrawerOpen(false);
+            setActiveMessagingConnectionId(null);
+          }}
+          connections={synchronizedConnections}
+          activeConnectionId={activeMessagingConnectionId}
+          onSelectConnection={(connId) => setActiveMessagingConnectionId(connId)}
+          currentUser={currentUser}
+          currentUserRole={resolveUserRole(currentUser) || 'brand'}
+          currentBrand={currentBrand}
+          currentCreator={activeCreator}
+          onSendMessage={handleSendMessage}
+          onViewProfile={handleOpenCreatorProfile}
+          onViewProject={(proj) => {
+            setSelectedProject(proj);
+            setIsMessagingDrawerOpen(false);
+          }}
+        />
+      )}
 
       {selectedProject && (
         <ProjectModal

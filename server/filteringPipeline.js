@@ -54,11 +54,19 @@ export function normalizeCampaignBrief(campaign = {}) {
   const rawRequirements = brief.requirements || {};
 
   // Extract explicit mandatory constraints
+  const rawMandatorySpec = normalizeTokenArray(rawRequirements.mandatory?.specialization || rawRequirements.specialization || brief.desiredCreatorSpecialties || brief.specialty);
+  const isFormatTerm = term => term.includes('9:16') || term.includes('vertical') || term.includes('horizontal') || term.includes('format') || term.includes('deliverable') || term.includes('still');
+  const specialization = rawMandatorySpec.filter(s => !isFormatTerm(s));
+  const formatFromSpec = rawMandatorySpec.filter(s => isFormatTerm(s));
+
+  const rawFormats = normalizeTokenArray(rawRequirements.mandatory?.formats || rawRequirements.mandatory?.contentFormats || rawRequirements.formats || brief.contentFormats || brief.deliverables);
+  const formats = Array.from(new Set([...rawFormats, ...formatFromSpec]));
+
   const mandatory = {
     skills: normalizeTokenArray(rawRequirements.mandatory?.skills || rawRequirements.skills || brief.requiredSkills),
-    specialization: normalizeTokenArray(rawRequirements.mandatory?.specialization || rawRequirements.specialization || brief.desiredCreatorSpecialties || brief.specialty),
+    specialization,
     tools: normalizeTokenArray(rawRequirements.mandatory?.tools || rawRequirements.tools || brief.requiredTools),
-    formats: normalizeTokenArray(rawRequirements.mandatory?.formats || rawRequirements.mandatory?.contentFormats || rawRequirements.formats || brief.contentFormats || brief.deliverables),
+    formats,
     styles: normalizeTokenArray(rawRequirements.mandatory?.styles || rawRequirements.mandatory?.creativeStyle || rawRequirements.styles || brief.creativeStyle),
     commercialLicensing: Boolean(rawRequirements.mandatory?.commercialLicensing ?? rawRequirements.commercialLicensing ?? brief.requiresCommercialLicense),
     minProjects: typeof (rawRequirements.mandatory?.minProjects ?? rawRequirements.minProjects) === 'number'
@@ -127,6 +135,41 @@ function stageBriefNormalization(normalizedBrief, candidatePool) {
 }
 
 /**
+ * Known capability clusters where equivalent industry terminology represents the same
+ * underlying AI production capability in an AI creator marketplace.
+ */
+const SKILL_EQUIVALENCE_CLUSTERS = [
+  // Video production cluster: 'ai video', 'video production', and related generative terms
+  // represent genuine equivalent video production capabilities.
+  new Set([
+    'video production',
+    'ai video',
+    'ai video production',
+    'video generation',
+    'ai video generation',
+    'generative video',
+    'video creation'
+  ])
+];
+
+function isSkillCompatible(reqSkill, creatorSkill) {
+  if (!reqSkill || !creatorSkill) return false;
+  const normReq = normalizeToken(reqSkill);
+  const normSkill = normalizeToken(creatorSkill);
+  // 1. Direct substring match (e.g. "storytelling" matches "visual storytelling")
+  if (normSkill.includes(normReq) || normReq.includes(normSkill)) {
+    return true;
+  }
+  // 2. Equivalent alias cluster match (e.g. 'ai video' satisfies 'video production')
+  for (const cluster of SKILL_EQUIVALENCE_CLUSTERS) {
+    if (cluster.has(normReq) && cluster.has(normSkill)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * STAGE 2: Mandatory Skills & Technical Capabilities Filter
  */
 function stageSkillsFilter(mandatorySkills, candidatePool) {
@@ -162,7 +205,7 @@ function stageSkillsFilter(mandatorySkills, candidatePool) {
     const missingSkills = [];
     for (const reqSkill of mandatorySkills) {
       const isMatch = Array.from(combinedSkills).some(skill =>
-        skill.includes(reqSkill) || reqSkill.includes(skill)
+        isSkillCompatible(reqSkill, skill)
       );
       if (!isMatch) {
         missingSkills.push(reqSkill);
@@ -182,7 +225,8 @@ function stageSkillsFilter(mandatorySkills, candidatePool) {
         code: 'MISSING_MANDATORY_SKILLS',
         reason: `Missing required mandatory skill(s): ${missingSkills.join(', ')}. Demonstrated skills: ${(creator.capabilities || []).slice(0, 3).join(', ') || 'None recorded'}.`,
         missingFields: missingSkills,
-        availableData: creator.capabilities || []
+        availableData: creator.capabilities || [],
+        requiredFields: mandatorySkills
       });
     }
   }
@@ -251,7 +295,8 @@ function stageSpecializationFilter(mandatorySpecialization, candidatePool) {
         code: 'SPECIALIZATION_MISMATCH',
         reason: `Creator specialty (${creator.specialty || 'Unspecified'}) does not match required specialization (${mandatorySpecialization.join(' or ')}).`,
         missingFields: mandatorySpecialization,
-        availableData: { specialty: creator.specialty, tags: creator.categoryTags }
+        availableData: { specialty: creator.specialty, tags: creator.categoryTags },
+        requiredFields: mandatorySpecialization
       });
     }
   }
@@ -323,7 +368,8 @@ function stageAiToolsFilter(mandatoryTools, candidatePool) {
         code: 'TOOL_CHAIN_INCOMPATIBLE',
         reason: `Lacks verified production experience in requested tool(s): ${missingTools.join(', ')}. Verified tools: ${(creator.tools || []).join(', ') || 'None recorded'}.`,
         missingFields: missingTools,
-        availableData: creator.tools || []
+        availableData: creator.tools || [],
+        requiredFields: mandatoryTools
       });
     }
   }
@@ -419,7 +465,8 @@ function stageFormatFilter(mandatoryFormats, candidatePool) {
         code: 'FORMAT_UNSUPPORTED',
         reason: `Deliverable format requirement not satisfied: ${missingFormats.join(', ')}. Creator specializes in ${creator.specialty || 'other formats'}.`,
         missingFields: missingFormats,
-        availableData: { specialty: creator.specialty, tags: creator.categoryTags }
+        availableData: { specialty: creator.specialty, tags: creator.categoryTags },
+        requiredFields: mandatoryFormats
       });
     }
   }
@@ -477,6 +524,14 @@ function stageLicensingVerificationFilter(mandatoryConfig, candidatePool) {
       creator.trustVerification?.commercialLicensingEligible ||
       creator.commercialLicensingVerified
     );
+    const isLicensingExplicitlyUnavailable = Boolean(
+      creator.trustVerification?.commercialLicensingEligible === false ||
+      creator.commercialLicensingVerified === false ||
+      creator.commercialLicensingEligible === false
+    );
+    const licensingEvidenceStatus = isLicensingVerified
+      ? 'verified'
+      : (isLicensingExplicitlyUnavailable ? 'confirmed_unavailable' : 'unverified_evidence');
 
     const failedReasons = [];
     if (minProjects > 0 && !hasEnoughProjects) {
@@ -485,10 +540,18 @@ function stageLicensingVerificationFilter(mandatoryConfig, candidatePool) {
 
     if (commercialLicensing && !isLicensingVerified) {
       unknownCount++;
-      if (hasCommercialClientWork) {
-        failedReasons.push('Creator has commercial client project experience, but formal enterprise commercial-use licensing credentials are not explicitly verified in creator trust records');
+      if (isLicensingExplicitlyUnavailable) {
+        if (hasCommercialClientWork) {
+          failedReasons.push('Creator has commercial client project experience, but enterprise commercial-use licensing credentials are confirmed unavailable in creator trust records');
+        } else {
+          failedReasons.push('Enterprise commercial-use licensing authorization is confirmed unavailable in creator trust records');
+        }
       } else {
-        failedReasons.push('Missing verifiable commercial client project history and enterprise commercial licensing authorization');
+        if (hasCommercialClientWork) {
+          failedReasons.push('Creator has commercial client project experience, but formal enterprise commercial-use licensing credentials are not verified in available creator records');
+        } else {
+          failedReasons.push('Formal enterprise commercial-use licensing credentials are not verified in available creator records');
+        }
       }
     }
 
@@ -502,7 +565,13 @@ function stageLicensingVerificationFilter(mandatoryConfig, candidatePool) {
         code: isLicensingVerified ? 'PORTFOLIO_THRESHOLD_UNMET' : 'COMMERCIAL_LICENSING_UNVERIFIED',
         reason: failedReasons.join('. '),
         missingFields: commercialLicensing && !isLicensingVerified ? ['commercial_licensing_verification'] : ['verified_portfolio_projects'],
-        availableData: { projectCount: projects.length, hasCommercialClientWork, isLicensingVerified }
+        availableData: {
+          projectCount: projects.length,
+          hasCommercialClientWork,
+          isLicensingVerified,
+          licensingStatus: licensingEvidenceStatus
+        },
+        requiredFields: { commercialLicensing, minProjects }
       });
     }
   }
@@ -516,7 +585,8 @@ function stageLicensingVerificationFilter(mandatoryConfig, candidatePool) {
     rejectedCount: rejections.length,
     unknownCount,
     rejections,
-    passedCandidates
+    passedCandidates,
+    requiredLicensing: { commercialLicensing, minProjects }
   };
 }
 
@@ -688,7 +758,28 @@ export function executeFilteringPipeline({ campaign = {}, creators = null, optio
       rejectedCount: s.rejectedCount,
       unknownCount: s.unknownCount || 0,
       bypassed: !!s.bypassed,
-      rejections: s.rejections || []
+      rejections: s.rejections || [],
+      // Stage-specific criteria & metadata for the frontend inspector
+      ...(s.requiredSkills ? { requiredSkills: s.requiredSkills } : {}),
+      ...(s.requiredSpecialization ? { requiredSpecialization: s.requiredSpecialization } : {}),
+      ...(s.requiredTools ? { requiredTools: s.requiredTools } : {}),
+      ...(s.requiredFormats ? { requiredFormats: s.requiredFormats } : {}),
+      ...(s.requiredLicensing ? { requiredLicensing: s.requiredLicensing } : {}),
+      ...(s.extractedMandatory ? { extractedMandatory: s.extractedMandatory } : {}),
+      ...(s.extractedPreferred ? { extractedPreferred: s.extractedPreferred } : {}),
+      ...(s.warnings ? { warnings: s.warnings } : {}),
+      // Summaries of creators who passed this stage with stage-relevant evidence
+      passedCreatorSummaries: (s.passedCandidates || []).slice(0, 10).map(c => ({
+        id: c.id,
+        name: c.name,
+        specialty: c.specialty,
+        avatar: c.avatar,
+        capabilities: (c.capabilities || []).slice(0, 3),
+        tools: (c.tools || []).slice(0, 3),
+        categoryTags: (c.categoryTags || []).slice(0, 3),
+        projectCount: (c.projects || []).length,
+        isLicensingVerified: Boolean(c.trustVerification?.commercialLicensingEligible || c.commercialLicensingVerified)
+      }))
     })),
     eligibleCreatorIds: eligibleCandidates.map(c => c.id),
     rankedCreators: s7.rankedResults,

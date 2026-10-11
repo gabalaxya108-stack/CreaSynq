@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createGroqMiddleware } from './server/groqMiddleware.js';
+import { createAdminMiddleware } from './server/adminMiddleware.js';
 
 export default defineConfig(({ mode }) => {
   // Load environment variables on the server side (including non-VITE_ keys)
@@ -11,14 +12,41 @@ export default defineConfig(({ mode }) => {
   if (env.GROQ_MODEL) {
     process.env.GROQ_MODEL = env.GROQ_MODEL;
   }
+  // Supabase and Admin middleware environment variables
+  if (env.SUPABASE_SERVICE_ROLE_KEY) {
+    process.env.SUPABASE_SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY.trim();
+  }
+  if (env.VITE_SUPABASE_URL) {
+    process.env.VITE_SUPABASE_URL = env.VITE_SUPABASE_URL.trim();
+  }
+  if (env.VITE_SUPABASE_ANON_KEY) {
+    process.env.VITE_SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY.trim();
+  }
+  if (env.ALLOY_ADMIN_EMAIL) {
+    process.env.ALLOY_ADMIN_EMAIL = env.ALLOY_ADMIN_EMAIL.trim();
+  }
+  if (env.VITE_JUDGE_EMAIL) {
+    process.env.VITE_JUDGE_EMAIL = env.VITE_JUDGE_EMAIL.trim();
+  }
+  if (env.VITE_JUDGE_PASSWORD) {
+    process.env.VITE_JUDGE_PASSWORD = env.VITE_JUDGE_PASSWORD.trim();
+  }
+  if (env.ALLOY_ADMIN_PROVISION_SECRET) {
+    process.env.ALLOY_ADMIN_PROVISION_SECRET = env.ALLOY_ADMIN_PROVISION_SECRET.trim();
+  }
 
   return {
     plugins: [
       react(),
       {
-        name: 'groq-api-server',
+        name: 'alloy-api-server',
         configureServer(server) {
           server.middlewares.use(createGroqMiddleware());
+          server.middlewares.use(createAdminMiddleware());
+        },
+        configurePreviewServer(server) {
+          server.middlewares.use(createGroqMiddleware());
+          server.middlewares.use(createAdminMiddleware());
         }
       }
     ],

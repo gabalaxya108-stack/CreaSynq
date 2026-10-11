@@ -1913,14 +1913,25 @@ export default function BrandWorkspaceView({
                     </div>
 
                     <form onSubmit={handleSendMessageSubmit} className="chat-input-bar">
-                      <input 
-                        type="text"
-                        placeholder="Write a message to creative partner…"
+                      <textarea 
+                        placeholder="Write a message to creative partner… (Enter to send, Shift+Enter for newline)"
                         value={chatInputText}
                         onChange={(e) => setChatInputText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessageSubmit(e);
+                          }
+                        }}
+                        rows={1}
                         className="chat-text-input"
+                        style={{ resize: 'none', minHeight: '38px', padding: '8px 12px', fontFamily: 'inherit' }}
                       />
-                      <button type="submit" className="btn btn-primary btn-sm">
+                      <button 
+                        type="submit" 
+                        className="btn btn-primary btn-sm"
+                        disabled={!chatInputText.trim()}
+                      >
                         <Send size={14} />
                         <span>Send</span>
                       </button>
